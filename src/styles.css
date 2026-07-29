@@ -1,0 +1,220 @@
+/* =====================================================================
+   CorsiaPro — sistema visivo
+   Riferimento: la vasca. Piastrella chiara, acqua, galleggianti di corsia.
+   Interfaccia chiara ad alto contrasto: a bordo vasca, col sole, si legge.
+   ===================================================================== */
+
+:root {
+  /* piastrella e acqua */
+  --tile:        #EDF1F2;
+  --tile-scuro:  #DCE4E6;
+  --bianco:      #FFFFFF;
+  --inchiostro:  #0F262C;
+  --inchiostro-2:#4A6068;
+  --vasca:       #0E5F6B;
+  --vasca-chiara:#128294;
+  --galleggiante:#E4572E;
+
+  /* famiglie di zona — le stesse di squadra.zone */
+  --aerobico:    #2E86AB;
+  --vo2:         #E8A33D;
+  --lattacido:   #C0392B;
+  --alattacido:  #7D4E9E;
+  --nonclass:    #90A4A9;
+
+  --raggio:   3px;
+  --riga:     1px solid var(--tile-scuro);
+  --ombra:    0 1px 2px rgba(15, 38, 44, 0.08);
+
+  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --testo:   'Public Sans', system-ui, sans-serif;
+  --dati:    'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--tile);
+  color: var(--inchiostro);
+  font-family: var(--testo);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+h1 { font-size: 28px; }
+h2 { font-size: 21px; }
+h3 { font-size: 16px; letter-spacing: 0.06em; color: var(--inchiostro-2); }
+
+.mono { font-family: var(--dati); font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------- guscio */
+.guscio { max-width: 980px; margin: 0 auto; padding: 0 16px 96px; }
+
+.testata {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 18px 0 12px; border-bottom: 2px solid var(--inchiostro);
+  flex-wrap: wrap;
+}
+.testata .marchio { font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: 0.04em; }
+.testata .marchio span { color: var(--vasca); }
+.testata .societa { font-size: 13px; color: var(--inchiostro-2); }
+.testata .spazio { flex: 1; }
+
+/* Navigazione: linguette da tabellone */
+.nav { display: flex; gap: 2px; margin: 0 -16px; padding: 0 16px; overflow-x: auto; }
+.nav button {
+  font-family: var(--display); font-size: 16px; letter-spacing: 0.06em;
+  text-transform: uppercase; background: transparent; border: 0;
+  border-bottom: 3px solid transparent; padding: 12px 14px;
+  color: var(--inchiostro-2); cursor: pointer; white-space: nowrap;
+}
+.nav button[aria-current='true'] { color: var(--inchiostro); border-bottom-color: var(--galleggiante); }
+.nav button:focus-visible { outline: 2px solid var(--vasca); outline-offset: -2px; }
+
+.sezione { margin-top: 26px; }
+.barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+
+/* --------------------------------------------------------------- campi */
+input, select, textarea {
+  font-family: var(--testo); font-size: 15px; color: var(--inchiostro);
+  background: var(--bianco); border: var(--riga); border-radius: var(--raggio);
+  padding: 9px 10px; min-height: 42px;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--vasca); outline-offset: -1px; }
+label { display: block; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--inchiostro-2); margin-bottom: 4px; }
+.campo { display: flex; flex-direction: column; }
+
+button.azione {
+  font-family: var(--display); font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--vasca); color: var(--bianco); border: 0; border-radius: var(--raggio);
+  padding: 11px 18px; min-height: 44px; cursor: pointer;
+}
+button.azione:hover { background: var(--vasca-chiara); }
+button.azione.fantasma { background: transparent; color: var(--vasca); border: 1px solid var(--vasca); }
+button.azione.pericolo { background: transparent; color: var(--lattacido); border: 1px solid var(--lattacido); }
+button.azione:disabled { opacity: 0.45; cursor: not-allowed; }
+button.mini {
+  font-family: var(--testo); font-size: 13px; background: transparent; border: var(--riga);
+  border-radius: var(--raggio); padding: 6px 9px; cursor: pointer; min-height: 34px; color: var(--inchiostro-2);
+}
+
+/* --------------------------------------------------------------- schede */
+.scheda { background: var(--bianco); border: var(--riga); border-radius: var(--raggio); box-shadow: var(--ombra); }
+.scheda + .scheda { margin-top: 12px; }
+.scheda .intestazione { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: var(--riga); flex-wrap: wrap; }
+.scheda .corpo { padding: 14px; }
+
+table { width: 100%; border-collapse: collapse; }
+th {
+  font-family: var(--display); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--inchiostro-2); text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--tile-scuro);
+}
+td { padding: 9px 10px; border-bottom: var(--riga); }
+tr:last-child td { border-bottom: 0; }
+
+/* ------------------------------------------------------- LA CORSIA
+   Elemento firma: ogni sezione della seduta è una corsia. I galleggianti
+   ai bordi, il colore della famiglia di zona nel riempimento. Quando la
+   seduta si divide, le corsie corrono in parallelo. */
+.corsia { position: relative; border: var(--riga); border-radius: var(--raggio); background: var(--bianco); overflow: hidden; }
+.corsia + .corsia { margin-top: 10px; }
+.corsia::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 7px;
+  background:
+    repeating-linear-gradient(180deg,
+      var(--colore-corsia, var(--vasca)) 0 9px,
+      color-mix(in srgb, var(--colore-corsia, var(--vasca)) 40%, white) 9px 18px);
+}
+.corsia .testa {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px 10px 19px; border-bottom: var(--riga); background: color-mix(in srgb, var(--tile) 55%, white);
+}
+.corsia .titolo-corsia { font-family: var(--display); font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; }
+.corsia .serie { padding: 6px 12px 12px 19px; }
+
+.destinatari { display: flex; gap: 5px; flex-wrap: wrap; }
+.pastiglia {
+  font-size: 12px; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 999px;
+  border: 1px solid var(--tile-scuro); background: var(--bianco); color: var(--inchiostro-2); cursor: pointer;
+}
+.pastiglia[aria-pressed='true'] { background: var(--inchiostro); color: var(--bianco); border-color: var(--inchiostro); }
+
+.riga-serie { display: grid; grid-template-columns: 1fr 92px 92px 104px 36px; gap: 7px; align-items: center; margin-top: 7px; }
+.riga-serie .metri, .riga-serie input.mono { font-family: var(--dati); }
+.riga-serie .togli { border: 0; background: transparent; color: var(--inchiostro-2); font-size: 19px; cursor: pointer; min-height: 42px; }
+.riga-serie .togli:hover { color: var(--lattacido); }
+.intestazione-serie { display: grid; grid-template-columns: 1fr 92px 92px 104px 36px; gap: 7px; padding-top: 6px; }
+.intestazione-serie span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--inchiostro-2); }
+
+/* ------------------------------------------------- riepilogo volumi */
+.volumi { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 10px; }
+.volume {
+  background: var(--bianco); border: var(--riga); border-left: 4px solid var(--vasca);
+  border-radius: var(--raggio); padding: 11px 13px;
+}
+.volume .etichetta { font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--inchiostro-2); }
+.volume .cifra { font-family: var(--dati); font-size: 26px; font-weight: 500; letter-spacing: -0.02em; }
+.volume .cifra small { font-size: 13px; color: var(--inchiostro-2); margin-left: 2px; }
+
+/* barra delle famiglie: una corsia in miniatura */
+.nastro { display: flex; height: 9px; border-radius: 999px; overflow: hidden; background: var(--tile-scuro); margin-top: 8px; }
+.nastro i { display: block; height: 100%; }
+.legenda { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--inchiostro-2); margin-top: 7px; }
+.legenda b { font-weight: 500; }
+.punto { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
+
+/* ------------------------------------------------------------ appello */
+.appello { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+.atleta-riga {
+  display: flex; align-items: center; gap: 10px; background: var(--bianco);
+  border: var(--riga); border-left: 4px solid var(--tile-scuro); border-radius: var(--raggio);
+  padding: 9px 11px; width: 100%; text-align: left; cursor: pointer; min-height: 56px; font-size: 15px;
+}
+.atleta-riga[data-stato='P'] { border-left-color: var(--aerobico); }
+.atleta-riga[data-stato='A'] { border-left-color: var(--lattacido); }
+.atleta-riga[data-stato='G'] { border-left-color: var(--vo2); }
+.atleta-riga .stato {
+  font-family: var(--display); font-size: 19px; width: 34px; height: 34px; flex: none;
+  display: grid; place-items: center; border-radius: 50%; background: var(--tile); color: var(--inchiostro-2);
+}
+.atleta-riga[data-stato='P'] .stato { background: var(--aerobico); color: var(--bianco); }
+.atleta-riga[data-stato='A'] .stato { background: var(--lattacido); color: var(--bianco); }
+.atleta-riga[data-stato='G'] .stato { background: var(--vo2); color: var(--inchiostro); }
+.atleta-riga .spec { font-size: 12px; color: var(--inchiostro-2); }
+
+/* ---------------------------------------------------------- messaggi */
+.avviso { border-left: 4px solid var(--galleggiante); background: var(--bianco); padding: 11px 13px; border-radius: var(--raggio); font-size: 14px; }
+.avviso.errore { border-left-color: var(--lattacido); }
+.avviso ul { margin: 6px 0 0; padding-left: 18px; }
+.vuoto { text-align: center; padding: 44px 20px; color: var(--inchiostro-2); }
+.vuoto p { max-width: 380px; margin: 6px auto 16px; }
+
+/* ------------------------------------------------------------- login */
+.accesso { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.accesso .riquadro { width: 100%; max-width: 360px; }
+.accesso .marchio { font-family: var(--display); font-size: 40px; font-weight: 700; letter-spacing: 0.03em; text-align: center; }
+.accesso .marchio span { color: var(--vasca); }
+.accesso .sotto { text-align: center; color: var(--inchiostro-2); font-size: 14px; margin: 2px 0 22px; }
+.accesso .campo + .campo { margin-top: 12px; }
+.accesso button.azione { width: 100%; margin-top: 18px; }
+
+@media (max-width: 620px) {
+  .riga-serie, .intestazione-serie { grid-template-columns: 1fr 78px 78px; }
+  .riga-serie .rec, .intestazione-serie .rec { display: none; }
+  h1 { font-size: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
