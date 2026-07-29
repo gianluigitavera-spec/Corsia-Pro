@@ -61,20 +61,20 @@ export default function Volumi({ societa }) {
   return (
     <>
       <div className="barra">
-        <h1>Volumi</h1>
-        <span style={{ color: 'var(--inchiostro-2)', fontSize: 14 }}>ultimi {GIORNI} giorni</span>
+        <h1>Carico atleti</h1>
+        <span style={{ color: 'var(--testo-2)', fontSize: 14 }}>ultimi {GIORNI} giorni</span>
       </div>
 
       <div className="volumi" style={{ marginBottom: 18 }}>
-        <div className="volume">
+        <div className="volume" style={{ '--tinta': 'var(--ciano)' }}>
           <div className="etichetta">Nuotati dalla squadra</div>
           <div className="cifra">{km(totNuotati)}<small>km</small></div>
         </div>
-        <div className="volume" style={{ borderLeftColor: 'var(--galleggiante)' }}>
+        <div className="volume" style={{ '--tinta': 'var(--menta)' }}>
           <div className="etichetta">Atleti seguiti</div>
           <div className="cifra">{perAtleta.length}</div>
         </div>
-        <div className="volume" style={{ borderLeftColor: 'var(--vo2)' }}>
+        <div className="volume" style={{ '--tinta': 'var(--ambra)' }}>
           <div className="etichetta">Frequenza media</div>
           <div className="cifra">
             {Math.round(
@@ -88,7 +88,7 @@ export default function Volumi({ societa }) {
       <div className="scheda">
         <div className="intestazione">
           <h3>Carico reale per atleta</h3>
-          <span style={{ fontSize: 13, color: 'var(--inchiostro-2)' }}>
+          <span style={{ fontSize: 13, color: 'var(--testo-2)' }}>
             metri della sua specializzazione, contati solo quando era presente
           </span>
         </div>
@@ -106,9 +106,9 @@ export default function Volumi({ societa }) {
             {perAtleta.map((a) => (
               <tr key={a.nome}>
                 <td><b>{a.nome}</b></td>
-                <td style={{ color: 'var(--inchiostro-2)' }}>{a.spec}</td>
+                <td style={{ color: 'var(--testo-2)' }}>{a.spec}</td>
                 <td className="mono" style={{ textAlign: 'right' }}>{a.presenze}/{a.sedute}</td>
-                <td className="mono" style={{ textAlign: 'right', color: 'var(--inchiostro-2)' }}>{km(a.previsti)} km</td>
+                <td className="mono" style={{ textAlign: 'right', color: 'var(--testo-2)' }}>{km(a.previsti)} km</td>
                 <td className="mono" style={{ textAlign: 'right' }}>{km(a.nuotati)} km</td>
               </tr>
             ))}

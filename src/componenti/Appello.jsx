@@ -72,7 +72,7 @@ export default function Appello({ societa }) {
         </select>
       </div>
 
-      <div className="barra" style={{ color: 'var(--inchiostro-2)', fontSize: 14 }}>
+      <div className="barra" style={{ color: 'var(--testo-2)', fontSize: 14 }}>
         <span className="mono">{rilevati}/{atleti.length}</span> rilevati · <span className="mono">{presenti}</span> presenti
         {rilevati < atleti.length && <span>· i non toccati restano “non rilevato”, non presenti</span>}
       </div>

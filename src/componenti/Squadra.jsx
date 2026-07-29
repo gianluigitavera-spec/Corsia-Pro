@@ -89,7 +89,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
                 Rigenera
               </button>
             </div>
-            <p style={{ fontSize: 13, color: 'var(--inchiostro-2)', marginBottom: 0 }}>
+            <p style={{ fontSize: 13, color: 'var(--testo-2)', marginBottom: 0 }}>
               Passalo ai tuoi allenatori: si registrano, lo incollano e ti arriva la richiesta qui sotto.
               Chi non ha il codice non trova la squadra.
             </p>
@@ -104,7 +104,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
             {richieste.length > 0 && <span className="mono">{richieste.length}</span>}
           </div>
           {richieste.length === 0 ? (
-            <div className="corpo" style={{ color: 'var(--inchiostro-2)', fontSize: 14 }}>
+            <div className="corpo" style={{ color: 'var(--testo-2)', fontSize: 14 }}>
               Nessuna richiesta da valutare.
             </div>
           ) : (
@@ -117,11 +117,11 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
                       {r.messaggio && (
                         <>
                           <br />
-                          <span style={{ fontSize: 13, color: 'var(--inchiostro-2)' }}>{r.messaggio}</span>
+                          <span style={{ fontSize: 13, color: 'var(--testo-2)' }}>{r.messaggio}</span>
                         </>
                       )}
                     </td>
-                    <td className="mono" style={{ color: 'var(--inchiostro-2)' }}>
+                    <td className="mono" style={{ color: 'var(--testo-2)' }}>
                       {String(r.created_at).slice(0, 10)}
                     </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -141,7 +141,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
       <div className="scheda" style={{ marginTop: 12 }}>
         <div className="intestazione">
           <h3>Staff</h3>
-          <span className="mono" style={{ color: 'var(--inchiostro-2)' }}>{membri.length}</span>
+          <span className="mono" style={{ color: 'var(--testo-2)' }}>{membri.length}</span>
         </div>
         <table>
           <thead>

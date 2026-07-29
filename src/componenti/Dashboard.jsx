@@ -1,0 +1,138 @@
+import { useEffect, useState } from 'react';
+import { sb } from '../lib/supabase';
+import { SPECIALIZZAZIONI } from '../lib/dominio';
+import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
+
+const PERIODI = [
+  { g: 7, nome: 'Settimana' },
+  { g: 28, nome: '4 settimane' },
+  { g: 90, nome: 'Trimestre' },
+  { g: 365, nome: 'Stagione' },
+];
+
+const indietro = (g) => {
+  const d = new Date();
+  d.setDate(d.getDate() - g);
+  return d.toISOString().slice(0, 10);
+};
+
+export default function Dashboard({ societa, zone }) {
+  const [giorni, setGiorni] = useState(28);
+  const [spec, setSpec] = useState('Mezzofondo');
+  const [righe, setRighe] = useState([]);
+  const [errore, setErrore] = useState(null);
+  const [caricamento, setCaricamento] = useState(true);
+
+  useEffect(() => {
+    setCaricamento(true);
+    sb.from('v_carico_zona')
+      .select('zona, famiglia, metri, data')
+      .eq('societa_id', societa.id)
+      .eq('specializzazione', spec)
+      .gte('data', indietro(giorni))
+      .then(({ data, error }) => {
+        if (error) setErrore(error.message);
+        else { setRighe(data || []); setErrore(null); }
+        setCaricamento(false);
+      });
+  }, [societa.id, spec, giorni]);
+
+  const perZona = righe.reduce((acc, r) => {
+    const k = r.zona || '?';
+    acc[k] = (acc[k] || 0) + (r.metri || 0);
+    return acc;
+  }, {});
+
+  const perFamiglia = righe.reduce((acc, r) => {
+    const k = r.famiglia || 'nonClassificati';
+    acc[k] = (acc[k] || 0) + (r.metri || 0);
+    return acc;
+  }, {});
+
+  const totale = Object.values(perZona).reduce((a, b) => a + b, 0);
+  const pct = (m) => (totale ? ((m / totale) * 100).toFixed(1) : '0.0');
+
+  const kpi = [
+    { nome: 'Volume totale', valore: (totale / 1000).toFixed(1), unita: 'km', sotto: `${totale.toLocaleString('it-IT')} metri`, tinta: 'var(--ciano)' },
+    { nome: 'Aerobico', valore: pct(perFamiglia.aerobico || 0), unita: '%', sotto: `${(perFamiglia.aerobico || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.aerobico },
+    { nome: 'VO₂max', valore: pct(perFamiglia.vo2 || 0), unita: '%', sotto: `${(perFamiglia.vo2 || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.vo2 },
+    { nome: 'Lattacido', valore: pct(perFamiglia.lattacido || 0), unita: '%', sotto: `${(perFamiglia.lattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.lattacido },
+    { nome: 'Alattacido', valore: pct(perFamiglia.alattacido || 0), unita: '%', sotto: `${(perFamiglia.alattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.alattacido },
+  ];
+
+  const massimo = Math.max(1, ...Object.values(perZona));
+
+  return (
+    <>
+      <div className="barra">
+        <h1>Dashboard volumi</h1>
+        <div style={{ flex: 1 }} />
+        <select value={spec} onChange={(e) => setSpec(e.target.value)}>
+          {SPECIALIZZAZIONI.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select value={giorni} onChange={(e) => setGiorni(Number(e.target.value))}>
+          {PERIODI.map((p) => <option key={p.g} value={p.g}>{p.nome}</option>)}
+        </select>
+      </div>
+
+      <p style={{ color: 'var(--testo-3)', fontSize: 13, marginTop: -6 }}>
+        Carico di chi fa <b style={{ color: 'var(--testo-2)' }}>{spec}</b>: riscaldamento comune più la
+        sua parte centrale. Cambiando specializzazione cambiano i numeri, ed è giusto così.
+      </p>
+
+      {errore && <div className="avviso errore">{errore}</div>}
+
+      <div className="volumi sezione">
+        {kpi.map((k) => (
+          <div className="volume" key={k.nome} style={{ '--tinta': k.tinta }}>
+            <div className="etichetta">{k.nome}</div>
+            <div className="cifra">{k.valore}<small>{k.unita}</small></div>
+            <div className="sotto">{k.sotto}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="scheda sezione">
+        <div className="intestazione">
+          <h3>Ripartizione per zona</h3>
+          <div style={{ flex: 1 }} />
+          <span className="mono" style={{ color: 'var(--testo-3)', fontSize: 13 }}>
+            {caricamento ? '…' : `${righe.length} righe`}
+          </span>
+        </div>
+        <div className="corpo">
+          {totale === 0 ? (
+            <div className="vuoto">
+              <h3>Nessun metro nel periodo</h3>
+              <p>Le zone si riempiono man mano che salvi le sedute con la zona indicata su ogni serie.</p>
+            </div>
+          ) : (
+            zone.map((z) => {
+              const m = perZona[z.codice] || 0;
+              const c = tinta(z.colore);
+              return (
+                <div className="zona-riga" key={z.codice} style={{ '--tinta': c }}>
+                  <div className="zona-testa">
+                    <span className="nome"><b>{z.codice}</b>{z.nome}</span>
+                    <span className="spazio" />
+                    <span className="valore">{m.toLocaleString('it-IT')} m ({pct(m)}%)</span>
+                  </div>
+                  <div className="zona-barra">
+                    <i style={{ width: `${(m / massimo) * 100}%` }} />
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {perZona['?'] > 0 && (
+            <div className="avviso" style={{ marginTop: 16 }}>
+              {perZona['?'].toLocaleString('it-IT')} metri senza zona indicata: non entrano in nessuna
+              percentuale. Li trovi nelle sedute con la serie priva di zona.
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

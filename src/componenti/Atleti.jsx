@@ -89,7 +89,7 @@ export default function Atleti({ societa, fasce, stagione, puoScrivere }) {
     <>
       <div className="barra">
         <h1>Atleti</h1>
-        <span className="mono" style={{ color: 'var(--inchiostro-2)' }}>{atleti.length}</span>
+        <span className="mono" style={{ color: 'var(--testo-2)' }}>{atleti.length}</span>
         <div style={{ flex: 1 }} />
         {puoScrivere && (
           <>
@@ -189,7 +189,7 @@ export default function Atleti({ societa, fasce, stagione, puoScrivere }) {
               {atleti.map((a) => (
                 <tr key={a.id}>
                   <td>
-                    <b>{a.cognome}</b> {a.nome} <span style={{ color: 'var(--inchiostro-2)' }}>({a.sesso})</span>
+                    <b>{a.cognome}</b> {a.nome} <span style={{ color: 'var(--testo-2)' }}>({a.sesso})</span>
                   </td>
                   <td className="mono">{a.anno_nascita}</td>
                   <td className="mono">{categoriaAtleta(a, fasce) || '—'}</td>

@@ -13,7 +13,7 @@ import {
 const COLORI_FAMIGLIA = {
   aerobico: 'var(--aerobico)',
   vo2: 'var(--vo2)',
-  lattacido: 'var(--lattacido)',
+  lattacido: 'var(--rosso)',
   alattacido: 'var(--alattacido)',
   nonClassificati: 'var(--nonclass)',
 };
@@ -27,7 +27,7 @@ function coloreSezione(sezione, zone) {
     conta[fam] = (conta[fam] || 0) + (Number(s.metri) || 0);
   }
   const vincente = Object.entries(conta).sort((a, b) => b[1] - a[1])[0];
-  return COLORI_FAMIGLIA[vincente?.[0]] || 'var(--vasca)';
+  return COLORI_FAMIGLIA[vincente?.[0]] || 'var(--ciano)';
 }
 
 export default function EditorSeduta({ societa, zone, puoScrivere }) {
@@ -147,7 +147,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
                   <tr key={s.id}>
                     <td className="mono">{s.data}</td>
                     <td>{s.titolo || '—'}</td>
-                    <td style={{ color: 'var(--inchiostro-2)' }}>{s.origine}</td>
+                    <td style={{ color: 'var(--testo-2)' }}>{s.origine}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{(s.sezioni || []).length}</td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="mini" onClick={() => api.leggiSeduta(s.id).then(setSeduta)}>

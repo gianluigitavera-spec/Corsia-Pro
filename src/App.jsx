@@ -7,14 +7,16 @@ import Atleti from './componenti/Atleti';
 import EditorSeduta from './componenti/EditorSeduta';
 import Appello from './componenti/Appello';
 import Volumi from './componenti/Volumi';
+import Dashboard from './componenti/Dashboard';
 import Squadra from './componenti/Squadra';
 import SenzaSquadra from './componenti/SenzaSquadra';
 
 const SCHEDE = [
+  { id: 'dashboard', nome: 'Dashboard' },
   { id: 'sedute', nome: 'Sedute' },
   { id: 'appello', nome: 'Appello' },
   { id: 'atleti', nome: 'Atleti' },
-  { id: 'volumi', nome: 'Volumi' },
+  { id: 'volumi', nome: 'Carico atleti' },
   { id: 'squadra', nome: 'Squadra' },
 ];
 
@@ -22,7 +24,7 @@ export default function App() {
   const [sessione, setSessione] = useState(undefined); // undefined = sto controllando
   const [societa, setSocieta] = useState(null);
   const [ruolo, setRuolo] = useState(null);
-  const [scheda, setScheda] = useState('sedute');
+  const [scheda, setScheda] = useState('dashboard');
   const [zone, setZone] = useState([]);
   const [fasce, setFasce] = useState([]);
   const [errore, setErrore] = useState(null);
@@ -116,6 +118,7 @@ export default function App() {
 
       {societa && (
         <main className="sezione">
+          {scheda === 'dashboard' && <Dashboard societa={societa} zone={zone} />}
           {scheda === 'sedute' && (
             <EditorSeduta societa={societa} zone={zone} puoScrivere={puoScrivere} />
           )}

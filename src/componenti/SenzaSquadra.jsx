@@ -62,7 +62,7 @@ export default function SenzaSquadra({ email }) {
                 onKeyDown={(e) => e.key === 'Enter' && codice && invia()}
               />
             </div>
-            <p style={{ fontSize: 13, color: 'var(--inchiostro-2)', marginTop: 8 }}>
+            <p style={{ fontSize: 13, color: 'var(--testo-2)', marginTop: 8 }}>
               Il codice te lo dà il capo allenatore della squadra.
             </p>
             <button className="azione" onClick={invia} disabled={attesa || codice.length < 4}>
@@ -79,7 +79,7 @@ export default function SenzaSquadra({ email }) {
 
         <hr style={{ border: 0, borderTop: 'var(--riga)', margin: '24px 0 16px' }} />
 
-        <p style={{ fontSize: 13, color: 'var(--inchiostro-2)' }}>
+        <p style={{ fontSize: 13, color: 'var(--testo-2)' }}>
           CorsiaPro è lo strumento degli allenatori: anagrafica, presenze e volumi della squadra.
           Se sei un atleta, i tuoi allenamenti sono su SwimCoach AI — stesso account, non serve
           registrarsi di nuovo.
