@@ -1,24 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  Plus, Trash2, ChevronUp, ChevronDown, Save, ArrowLeft, Waves, X, AlertTriangle,
+} from 'lucide-react';
 import * as api from '../lib/dati';
 import {
-  TUTTI,
-  SPECIALIZZAZIONI,
-  sedutaVuota,
-  serieVuota,
-  metriPerSpecializzazione,
-  caricoPerFamiglia,
-  validaSeduta,
+  TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
+  caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero,
 } from '../lib/dominio';
+import { TINTA_FAMIGLIA } from '../lib/colori';
 
-const COLORI_FAMIGLIA = {
-  aerobico: 'var(--aerobico)',
-  vo2: 'var(--vo2)',
-  lattacido: 'var(--rosso)',
-  alattacido: 'var(--alattacido)',
-  nonClassificati: 'var(--nonclass)',
-};
-
-// Il colore della corsia viene dalla zona prevalente della sezione.
 function coloreSezione(sezione, zone) {
   const mappa = Object.fromEntries(zone.map((z) => [z.codice, z.famiglia]));
   const conta = {};
@@ -27,15 +17,24 @@ function coloreSezione(sezione, zone) {
     conta[fam] = (conta[fam] || 0) + (Number(s.metri) || 0);
   }
   const vincente = Object.entries(conta).sort((a, b) => b[1] - a[1])[0];
-  return COLORI_FAMIGLIA[vincente?.[0]] || 'var(--ciano)';
+  return TINTA_FAMIGLIA[vincente?.[0]] || 'var(--ciano)';
 }
 
-export default function EditorSeduta({ societa, zone, puoScrivere }) {
+const muovi = (arr, da, a) => {
+  if (a < 0 || a >= arr.length) return arr;
+  const copia = [...arr];
+  const [x] = copia.splice(da, 1);
+  copia.splice(a, 0, x);
+  return copia;
+};
+
+export default function EditorSeduta({ societa, zone, puoScrivere, categorie, apertura, consumaApertura }) {
   const [elenco, setElenco] = useState([]);
   const [gruppi, setGruppi] = useState([]);
   const [seduta, setSeduta] = useState(null);
   const [messaggio, setMessaggio] = useState(null);
   const [salvataggio, setSalvataggio] = useState(false);
+  const [nuovoGruppo, setNuovoGruppo] = useState('');
 
   const codiciZona = zone.map((z) => z.codice);
 
@@ -44,63 +43,84 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
     api.leggiGruppi(societa.id).then(setGruppi).catch(() => {});
   }, [societa.id]);
 
-  async function ricarica() {
-    try {
-      setElenco(await api.leggiSedute(societa.id));
-    } catch (e) {
-      setMessaggio({ tipo: 'errore', testo: e.message });
+  // Arrivo dal calendario: apri una seduta esistente o creane una per quel giorno.
+  useEffect(() => {
+    if (!apertura) return;
+    if (apertura.id) {
+      api.leggiSeduta(apertura.id).then(setSeduta).catch((e) => setMessaggio({ tipo: 'errore', testo: e.message }));
+    } else {
+      setSeduta(sedutaVuota({ data: apertura.data }));
     }
+    consumaApertura();
+  }, [apertura]);
+
+  async function ricarica() {
+    try { setElenco(await api.leggiSedute(societa.id)); }
+    catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
   }
 
-  const problemi = useMemo(
-    () => (seduta ? validaSeduta(seduta, codiciZona) : []),
-    [seduta, codiciZona.join()]
-  );
+  const problemi = useMemo(() => (seduta ? validaSeduta(seduta, codiciZona) : []), [seduta, codiciZona.join()]);
 
-  // ---------------------------------------------------------- modifiche
   function aggiorna(fn) {
-    setSeduta((s) => {
-      const copia = structuredClone(s);
-      fn(copia);
-      return copia;
+    setSeduta((s) => { const c = structuredClone(s); fn(c); return c; });
+  }
+
+  // La notazione comanda i metri, finché non li scrivi a mano.
+  function cambiaNotazione(i, j, valore) {
+    aggiorna((s) => {
+      const serie = s.sezioni[i].serie[j];
+      serie.notazione = valore;
+      if (!serie.metriManuali) {
+        const m = metriDaNotazione(valore);
+        if (m !== null) serie.metri = m;
+      }
     });
   }
 
-  const cambiaSerie = (i, j, campo, valore) =>
+  function cambiaMetri(i, j, valore) {
     aggiorna((s) => {
-      s.sezioni[i].serie[j][campo] = campo === 'metri' ? Number(valore) || 0 : valore;
+      const serie = s.sezioni[i].serie[j];
+      serie.metri = Number(valore) || 0;
+      serie.metriManuali = true;   // da qui in poi decidi tu
     });
+  }
 
   const togliDestinatario = (i, spec) =>
     aggiorna((s) => {
       const sez = s.sezioni[i];
       const attuali = sez.destinatari?.length ? sez.destinatari : [TUTTI];
-      if (spec === TUTTI) {
-        sez.destinatari = [TUTTI];
-        return;
-      }
-      const senzaTutti = attuali.filter((d) => d !== TUTTI);
-      sez.destinatari = senzaTutti.includes(spec)
-        ? senzaTutti.filter((d) => d !== spec)
-        : [...senzaTutti, spec];
+      if (spec === TUTTI) { sez.destinatari = [TUTTI]; return; }
+      const senza = attuali.filter((d) => d !== TUTTI);
+      sez.destinatari = senza.includes(spec) ? senza.filter((d) => d !== spec) : [...senza, spec];
       if (sez.destinatari.length === 0) sez.destinatari = [TUTTI];
     });
+
+  async function creaGruppo() {
+    try {
+      const g = await api.creaGruppo(societa.id, nuovoGruppo.trim());
+      setGruppi([...gruppi, g]);
+      aggiorna((s) => { s.gruppo_id = g.id; });
+      setNuovoGruppo('');
+    } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
+  }
 
   async function salva() {
     setSalvataggio(true);
     setMessaggio(null);
     try {
-      const payload = { ...seduta, societa_id: societa.id };
-      const salvata = await api.salvaSeduta(payload);
+      const salvata = await api.salvaSeduta({ ...seduta, societa_id: societa.id });
       setSeduta(salvata);
       await ricarica();
-      setMessaggio({ tipo: 'ok', testo: 'Seduta salvata.' });
+      setMessaggio({ tipo: 'ok', testo: "Seduta salvata: la trovi nell'elenco e sul calendario." });
     } catch (e) {
-      setMessaggio({ tipo: 'errore', testo: e.message });
-    } finally {
-      setSalvataggio(false);
-    }
+      const testo = /check/i.test(e.message)
+        ? 'Serve un gruppo o una categoria: il database non accetta sedute senza destinatario.'
+        : e.message;
+      setMessaggio({ tipo: 'errore', testo });
+    } finally { setSalvataggio(false); }
   }
+
+  const senzaDestinatario = seduta && !seduta.gruppo_id && !seduta.categoria;
 
   // ------------------------------------------------------------- elenco
   if (!seduta) {
@@ -111,7 +131,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
           <div style={{ flex: 1 }} />
           {puoScrivere && (
             <button className="azione" onClick={() => setSeduta(sedutaVuota())}>
-              Nuova seduta
+              <Plus size={16} style={{ verticalAlign: -3 }} /> Nuova seduta
             </button>
           )}
         </div>
@@ -121,38 +141,27 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
         {elenco.length === 0 ? (
           <div className="scheda">
             <div className="vuoto">
-              <h3>Nessuna seduta</h3>
-              <p>La prima la scrivi a mano. Quelle generate da SwimCoach arriveranno qui dentro con la stessa forma.</p>
-              {puoScrivere && (
-                <button className="azione" onClick={() => setSeduta(sedutaVuota())}>
-                  Scrivi la prima
-                </button>
-              )}
+              <Waves size={30} style={{ color: 'var(--testo-3)' }} />
+              <h3 style={{ marginTop: 10 }}>Nessuna seduta</h3>
+              <p>La prima la scrivi a mano. Quelle generate da SwimCoach arriveranno qui con la stessa forma.</p>
+              {puoScrivere && <button className="azione" onClick={() => setSeduta(sedutaVuota())}>Scrivi la prima</button>}
             </div>
           </div>
         ) : (
           <div className="scheda">
             <table>
               <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Titolo</th>
-                  <th>Origine</th>
-                  <th style={{ textAlign: 'right' }}>Sezioni</th>
-                  <th />
-                </tr>
+                <tr><th>Data</th><th>Titolo</th><th>Origine</th><th style={{ textAlign: 'right' }}>Sezioni</th><th /></tr>
               </thead>
               <tbody>
                 {elenco.map((s) => (
                   <tr key={s.id}>
                     <td className="mono">{s.data}</td>
                     <td>{s.titolo || '—'}</td>
-                    <td style={{ color: 'var(--testo-2)' }}>{s.origine}</td>
+                    <td style={{ color: 'var(--testo-3)' }}>{s.origine}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{(s.sezioni || []).length}</td>
                     <td style={{ textAlign: 'right' }}>
-                      <button className="mini" onClick={() => api.leggiSeduta(s.id).then(setSeduta)}>
-                        Apri
-                      </button>
+                      <button className="mini" onClick={() => api.leggiSeduta(s.id).then(setSeduta)}>Apri</button>
                     </td>
                   </tr>
                 ))}
@@ -169,115 +178,151 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
     <>
       <div className="barra">
         <button className="mini" onClick={() => { setSeduta(null); setMessaggio(null); }}>
-          ← Sedute
+          <ArrowLeft size={14} style={{ verticalAlign: -2 }} /> Sedute
         </button>
         <div style={{ flex: 1 }} />
-        <button className="azione" onClick={salva} disabled={!puoScrivere || salvataggio}>
-          {salvataggio ? 'Salvo…' : 'Salva seduta'}
+        {seduta.id && puoScrivere && (
+          <button
+            className="azione pericolo"
+            aria-label="Elimina seduta"
+            onClick={async () => {
+              if (!confirm('Eliminare questa seduta?')) return;
+              await api.eliminaSeduta(seduta.id);
+              setSeduta(null);
+              ricarica();
+            }}
+          >
+            <Trash2 size={15} style={{ verticalAlign: -3 }} />
+          </button>
+        )}
+        <button className="azione" onClick={salva} disabled={!puoScrivere || salvataggio || senzaDestinatario}>
+          <Save size={16} style={{ verticalAlign: -3 }} /> {salvataggio ? 'Salvo…' : 'Salva seduta'}
         </button>
       </div>
 
       <div className="scheda">
-        <div className="corpo" style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+        <div className="corpo" style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
           <div className="campo">
-            <label htmlFor="data">Data</label>
-            <input
-              id="data"
-              type="date"
-              value={seduta.data || ''}
-              onChange={(e) => aggiorna((s) => { s.data = e.target.value; })}
-            />
+            <label>Data</label>
+            <input type="date" value={seduta.data || ''} onChange={(e) => aggiorna((s) => { s.data = e.target.value; })} />
           </div>
           <div className="campo">
-            <label htmlFor="gruppo">Gruppo</label>
-            <select
-              id="gruppo"
-              value={seduta.gruppo_id || ''}
-              onChange={(e) => aggiorna((s) => { s.gruppo_id = e.target.value || null; })}
-            >
+            <label>Gruppo</label>
+            <select value={seduta.gruppo_id || ''} onChange={(e) => aggiorna((s) => { s.gruppo_id = e.target.value || null; })}>
               <option value="">—</option>
-              {gruppi.map((g) => (
-                <option key={g.id} value={g.id}>{g.nome}</option>
-              ))}
+              {gruppi.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
+            </select>
+          </div>
+          <div className="campo">
+            <label>Oppure categoria</label>
+            <select value={seduta.categoria || ''} onChange={(e) => aggiorna((s) => { s.categoria = e.target.value || null; })}>
+              <option value="">—</option>
+              {(categorie || []).map((c) => <option key={c.codice} value={c.codice}>{c.nome}</option>)}
             </select>
           </div>
           <div className="campo" style={{ gridColumn: 'span 2' }}>
-            <label htmlFor="titolo">Titolo</label>
+            <label>Titolo</label>
             <input
-              id="titolo"
               value={seduta.titolo || ''}
               placeholder="es. Soglia + tecnica gambe"
               onChange={(e) => aggiorna((s) => { s.titolo = e.target.value; })}
             />
           </div>
         </div>
+
+        {senzaDestinatario && (
+          <div className="corpo" style={{ paddingTop: 0 }}>
+            <div className="avviso">
+              <AlertTriangle size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
+              Scegli un gruppo o una categoria: senza destinatario la seduta non si salva.
+              {gruppi.length === 0 && (
+                <div className="barra" style={{ marginTop: 10, marginBottom: 0 }}>
+                  <input
+                    placeholder="Nome del primo gruppo (es. Esordienti A)"
+                    value={nuovoGruppo}
+                    onChange={(e) => setNuovoGruppo(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && nuovoGruppo.trim() && creaGruppo()}
+                  />
+                  <button className="azione fantasma" onClick={creaGruppo} disabled={!nuovoGruppo.trim()}>
+                    <Plus size={15} style={{ verticalAlign: -3 }} /> Crea gruppo
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ------------------------------------------------ le corsie */}
+      {/* -------------------------------------------------- le corsie */}
       <div className="sezione">
         {(seduta.sezioni || []).map((sez, i) => {
           const dest = sez.destinatari?.length ? sez.destinatari : [TUTTI];
           return (
             <div className="corsia" key={i} style={{ '--colore-corsia': coloreSezione(sez, zone) }}>
               <div className="testa">
+                <span className="maniglie">
+                  <button disabled={i === 0} aria-label="Sposta sezione su"
+                    onClick={() => aggiorna((s) => { s.sezioni = muovi(s.sezioni, i, i - 1); })}>
+                    <ChevronUp size={15} />
+                  </button>
+                  <button disabled={i === seduta.sezioni.length - 1} aria-label="Sposta sezione giù"
+                    onClick={() => aggiorna((s) => { s.sezioni = muovi(s.sezioni, i, i + 1); })}>
+                    <ChevronDown size={15} />
+                  </button>
+                </span>
                 <input
                   className="titolo-corsia"
-                  style={{ border: 0, background: 'transparent', padding: 0, minHeight: 'auto', flex: '1 1 160px' }}
+                  style={{ border: 0, background: 'transparent', padding: 0, minHeight: 'auto', flex: '1 1 150px' }}
                   value={sez.titolo || ''}
                   placeholder="Titolo sezione"
                   onChange={(e) => aggiorna((s) => { s.sezioni[i].titolo = e.target.value; })}
                 />
+                <span className="mono" style={{ color: 'var(--testo-3)', fontSize: 13 }}>
+                  {(sez.serie || []).reduce((t, x) => t + (Number(x.metri) || 0), 0)} m
+                </span>
                 <div className="destinatari">
-                  <button
-                    className="pastiglia"
-                    aria-pressed={dest.includes(TUTTI)}
-                    onClick={() => togliDestinatario(i, TUTTI)}
-                  >
-                    Tutti
-                  </button>
-                  {SPECIALIZZAZIONI.filter((s) => s !== 'Generale').map((spec) => (
-                    <button
-                      key={spec}
-                      className="pastiglia"
-                      aria-pressed={dest.includes(spec)}
-                      onClick={() => togliDestinatario(i, spec)}
-                    >
+                  <button className="pastiglia" aria-pressed={dest.includes(TUTTI)} onClick={() => togliDestinatario(i, TUTTI)}>Tutti</button>
+                  {SPECIALIZZAZIONI.filter((x) => x !== 'Generale').map((spec) => (
+                    <button key={spec} className="pastiglia" aria-pressed={dest.includes(spec)} onClick={() => togliDestinatario(i, spec)}>
                       {spec}
                     </button>
                   ))}
                 </div>
-                <button
-                  className="mini"
-                  onClick={() => aggiorna((s) => { s.sezioni.splice(i, 1); })}
-                  aria-label="Elimina sezione"
-                >
-                  ✕
+                <button className="mini" onClick={() => aggiorna((s) => { s.sezioni.splice(i, 1); })} aria-label="Elimina sezione">
+                  <X size={14} />
                 </button>
               </div>
 
               <div className="serie">
                 {(sez.serie || []).length > 0 && (
                   <div className="intestazione-serie">
-                    <span>Serie</span>
-                    <span>Zona</span>
-                    <span>Metri</span>
-                    <span className="rec">Recupero</span>
-                    <span />
+                    <span>Serie</span><span>Zona</span><span>Metri</span><span className="rec">Recupero</span><span />
                   </div>
                 )}
 
                 {(sez.serie || []).map((s, j) => (
                   <div className="riga-serie" key={j}>
-                    <input
-                      value={s.notazione || ''}
-                      placeholder="8x100 sl"
-                      onChange={(e) => cambiaSerie(i, j, 'notazione', e.target.value)}
-                    />
-                    <select value={s.zona || ''} onChange={(e) => cambiaSerie(i, j, 'zona', e.target.value)}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="maniglie">
+                        <button disabled={j === 0} aria-label="Sposta serie su"
+                          onClick={() => aggiorna((st) => { st.sezioni[i].serie = muovi(st.sezioni[i].serie, j, j - 1); })}>
+                          <ChevronUp size={13} />
+                        </button>
+                        <button disabled={j === sez.serie.length - 1} aria-label="Sposta serie giù"
+                          onClick={() => aggiorna((st) => { st.sezioni[i].serie = muovi(st.sezioni[i].serie, j, j + 1); })}>
+                          <ChevronDown size={13} />
+                        </button>
+                      </span>
+                      <input
+                        style={{ flex: 1, minWidth: 0 }}
+                        value={s.notazione || ''}
+                        placeholder="4x(1x100 + 2x50)"
+                        onChange={(e) => cambiaNotazione(i, j, e.target.value)}
+                      />
+                    </span>
+                    <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].zona = e.target.value; })}>
                       <option value="">—</option>
-                      {zone.map((z) => (
-                        <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>
-                      ))}
+                      {zone.map((z) => <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>)}
                     </select>
                     <input
                       className="mono"
@@ -285,20 +330,18 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
                       inputMode="numeric"
                       value={s.metri || ''}
                       placeholder="0"
-                      onChange={(e) => cambiaSerie(i, j, 'metri', e.target.value)}
+                      title={s.metriManuali ? 'Metri scritti a mano' : 'Calcolati dalla notazione'}
+                      onChange={(e) => cambiaMetri(i, j, e.target.value)}
                     />
                     <input
                       className="mono rec"
                       value={s.recupero || ''}
-                      placeholder={'p.1\'40"'}
-                      onChange={(e) => cambiaSerie(i, j, 'recupero', e.target.value)}
+                      placeholder="@1'40"
+                      onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
+                      onBlur={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = normalizzaRecupero(e.target.value); })}
                     />
-                    <button
-                      className="togli"
-                      aria-label="Togli serie"
-                      onClick={() => aggiorna((st) => { st.sezioni[i].serie.splice(j, 1); })}
-                    >
-                      ×
+                    <button className="togli" aria-label="Togli serie" onClick={() => aggiorna((st) => { st.sezioni[i].serie.splice(j, 1); })}>
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 ))}
@@ -308,7 +351,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
                   style={{ marginTop: 9 }}
                   onClick={() => aggiorna((s) => { s.sezioni[i].serie = [...(s.sezioni[i].serie || []), serieVuota()]; })}
                 >
-                  + serie
+                  <Plus size={13} style={{ verticalAlign: -2 }} /> serie
                 </button>
               </div>
             </div>
@@ -318,19 +361,15 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
         <button
           className="azione fantasma"
           style={{ marginTop: 12 }}
-          onClick={() =>
-            aggiorna((s) => {
-              s.sezioni.push({ titolo: '', destinatari: [TUTTI], serie: [] });
-            })
-          }
+          onClick={() => aggiorna((s) => { s.sezioni.push({ titolo: '', destinatari: [TUTTI], serie: [] }); })}
         >
-          + sezione
+          <Plus size={15} style={{ verticalAlign: -3 }} /> sezione
         </button>
       </div>
 
-      {/* --------------------------------------- volumi per specializzazione */}
+      {/* ------------------------------- volumi per specializzazione */}
       <div className="sezione">
-        <h3 style={{ marginBottom: 10 }}>Volume per specializzazione</h3>
+        <h3 style={{ marginBottom: 11 }}>Volume per specializzazione</h3>
         <div className="volumi">
           {SPECIALIZZAZIONI.map((spec) => {
             const metri = metriPerSpecializzazione(seduta.sezioni, spec);
@@ -339,32 +378,15 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
             return (
               <div className="volume" key={spec}>
                 <div className="etichetta">{spec}</div>
-                <div className="cifra">
-                  {metri.toLocaleString('it-IT')}<small>m</small>
-                </div>
+                <div className="cifra">{metri.toLocaleString('it-IT')}<small>m</small></div>
                 <div className="nastro">
-                  {Object.entries(fam).map(([f, m]) =>
-                    m > 0 ? (
-                      <i key={f} style={{ width: `${(m / tot) * 100}%`, background: COLORI_FAMIGLIA[f] }} />
-                    ) : null
-                  )}
+                  {Object.entries(fam).map(([f, m]) => (m > 0 ? (
+                    <i key={f} style={{ width: `${(m / tot) * 100}%`, background: TINTA_FAMIGLIA[f] }} />
+                  ) : null))}
                 </div>
               </div>
             );
           })}
-        </div>
-        <div className="legenda">
-          {[
-            ['aerobico', 'aerobico'],
-            ['vo2', 'VO₂max'],
-            ['lattacido', 'lattacido'],
-            ['alattacido', 'alattacido'],
-          ].map(([k, nome]) => (
-            <span key={k}>
-              <i className="punto" style={{ background: COLORI_FAMIGLIA[k] }} />
-              <b>{nome}</b>
-            </span>
-          ))}
         </div>
       </div>
 
@@ -372,11 +394,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere }) {
         <div className="sezione avviso">
           <b>Da sistemare prima di fidarsi dei numeri</b>
           <ul>
-            {problemi.slice(0, 8).map((p, k) => (
-              <li key={k}>
-                {p.campo}: {p.msg}
-              </li>
-            ))}
+            {problemi.slice(0, 8).map((p, k) => <li key={k}>{p.campo}: {p.msg}</li>)}
             {problemi.length > 8 && <li>…e altri {problemi.length - 8}</li>}
           </ul>
         </div>

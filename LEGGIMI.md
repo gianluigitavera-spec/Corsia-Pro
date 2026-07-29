@@ -25,8 +25,28 @@ Entri con lo stesso account che hai usato per creare la società.
   La categoria è derivata, non salvata.
 - **Volumi** — carico reale per atleta dalle viste SQL: metri della sua
   specializzazione, contati solo nelle sedute in cui era presente.
-- **Squadra** — codice di ingresso, richieste da approvare, ruoli dello staff.
-  Visibile a tutti, modificabile solo dal capo allenatore.
+- **Squadra** — codice di ingresso, richieste da approvare, ruoli dello staff e
+  **gruppi di allenamento**. Visibile a tutti, modificabile solo dal capo allenatore.
+- **Dashboard** — calendario del mese (sedute e competizioni) più la
+  ripartizione per zona energetica.
+
+## Come si scrive una seduta
+
+- I **metri si calcolano da soli** dalla notazione: `1x400` → 400,
+  `2x200` → 400, `4x(1x100 + 2x50)` → 800, `12/10/8x100` → 3000.
+  Se scrivi i metri a mano, quella serie smette di ricalcolarsi.
+- La **zona parte da A1**: la cambi solo dove serve.
+- Il **recupero si scrive `@1'40`** (se ometti la chiocciola la mette lei).
+- Le frecce a sinistra spostano **sezioni e serie** su e giù.
+- Ogni seduta vuole un **gruppo o una categoria**: è il destinatario, e
+  senza quello i volumi non si possono attribuire a nessuno.
+
+## Calendario
+
+Clicca un giorno: aggiungi una seduta (si apre l'editor già datato) o una
+competizione. Sei tipi, sei colori — Trofeo, Prova tempi, Campionati
+Regionali, Campionati Italiani, Regionali Salvamento, Italiani Salvamento.
+Richiede la migrazione `007_gare.sql`.
 
 ## Come entra un collega
 

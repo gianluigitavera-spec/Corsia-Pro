@@ -68,7 +68,125 @@ export function sedutaVuota({ data, gruppoId = null, categoria = null } = {}) {
 }
 
 export function serieVuota() {
-  return { notazione: "", zona: "", metri: 0, recupero: "", note: "" };
+  // La zona parte da A1: è il caso più frequente, si cambia solo quando serve.
+  return { notazione: "", zona: "A1", metri: 0, recupero: "", note: "" };
+}
+
+// ---------------------------------------------------------------------
+// METRI DALLA NOTAZIONE
+// "1x400" = 400 · "2x200" = 400 · "4x(1x100 + 2x50)" = 800
+// "12/10/8x100" = 3000 (scaletta) · "8x50 sl" = 400 (il testo si ignora)
+// Restituisce null se non riesce a leggere: in quel caso i metri restano
+// quelli scritti a mano, senza inventare nulla.
+// ---------------------------------------------------------------------
+export function metriDaNotazione(testo) {
+  if (!testo) return null;
+
+  // Via lo stile, restano cifre e operatori. Lo spazio conta: "4x100 @1'40"
+  // deve dare 400, non attaccare il recupero alla distanza.
+  const grezzo = String(testo)
+    .toLowerCase()
+    .replace(/[×*]/g, "x")
+    .replace(/[^0-9x()+/]/g, " ");
+
+  let s = "";
+  let prof = 0;
+  for (let k = 0; k < grezzo.length; k++) {
+    const ch = grezzo[k];
+    if (ch === " ") {
+      if (prof > 0) continue;                    // dentro parentesi lo spazio non conta
+      let j = k;
+      while (j < grezzo.length && grezzo[j] === " ") j++;
+      if (j >= grezzo.length) break;
+      const dopo = grezzo[j];
+      const prima = s[s.length - 1];
+      // Lo spazio si ignora solo attorno a un operatore.
+      if ("+x/)".includes(dopo) || s === "" || "+x/(".includes(prima || "")) {
+        k = j - 1;
+        continue;
+      }
+      break;                                     // un numero staccato: l'espressione finisce qui
+    }
+    if (ch === "(") prof++;
+    if (ch === ")") prof = Math.max(0, prof - 1);
+    s += ch;
+  }
+
+  if (!s) return null;
+
+  let i = 0;
+  const fine = () => i >= s.length;
+  const guarda = () => s[i];
+
+  function numero() {
+    let n = "";
+    while (!fine() && /[0-9]/.test(guarda())) n += s[i++];
+    return n === "" ? null : parseInt(n, 10);
+  }
+
+  // fattore := numero | ( somma )
+  function fattore() {
+    if (guarda() === "(") {
+      i++;
+      const v = somma();
+      if (guarda() === ")") i++;
+      return v;
+    }
+    return numero();
+  }
+
+  // termine := [ripetizioni x] fattore   (ripetizioni anche "12/10/8")
+  function termine() {
+    const partenza = i;
+    let reps = [];
+    let n = numero();
+    if (n === null) return fattore();
+
+    reps.push(n);
+    while (guarda() === "/") {
+      i++;
+      const m = numero();
+      if (m === null) { i = partenza; return fattore(); }
+      reps.push(m);
+    }
+
+    if (guarda() === "x") {
+      i++;
+      const f = fattore();
+      if (f === null) return null;
+      return reps.reduce((t, r) => t + r * f, 0);
+    }
+
+    // Nessuna "x": era una distanza secca, e la scaletta non aveva senso.
+    if (reps.length > 1) { i = partenza; return numero(); }
+    return n;
+  }
+
+  // somma := termine { + termine }
+  function somma() {
+    let tot = termine();
+    if (tot === null) return null;
+    while (guarda() === "+") {
+      i++;
+      const t = termine();
+      if (t === null) return null;
+      tot += t;
+    }
+    return tot;
+  }
+
+  const risultato = somma();
+  if (risultato === null || !isFinite(risultato) || risultato <= 0) return null;
+  return risultato;
+}
+
+// ---------------------------------------------------------------------
+// RECUPERO — si scrive @1'40, e chi scrive 1'40 lo ottiene lo stesso.
+// ---------------------------------------------------------------------
+export function normalizzaRecupero(testo) {
+  const t = String(testo || "").trim();
+  if (!t) return "";
+  return t.startsWith("@") ? t : "@" + t;
 }
 
 // Una sezione senza "destinatari" vale per tutti.

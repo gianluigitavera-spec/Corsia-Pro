@@ -286,3 +286,62 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ------------------------------------------------------- calendario */
+.griglia-mese { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.nome-giorno {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--testo-3); text-align: center; padding-bottom: 5px;
+}
+.giorno {
+  min-height: 76px; display: flex; flex-direction: column; align-items: stretch; gap: 3px;
+  background: rgba(255, 255, 255, 0.025); border: var(--riga); border-radius: 10px;
+  padding: 6px; cursor: pointer; text-align: left; color: var(--testo); overflow: hidden;
+}
+.giorno:hover { border-color: var(--bordo-vivo); background: rgba(34, 211, 238, 0.06); }
+.giorno[data-oggi='true'] { border-color: var(--ciano); box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35); }
+.giorno[data-scelto='true'] { background: rgba(34, 211, 238, 0.12); border-color: var(--ciano); }
+.giorno .numero { font-size: 13px; color: var(--testo-2); }
+.giorno[data-oggi='true'] .numero { color: var(--ciano); font-weight: 600; }
+.giorno .segno-seduta {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
+  color: var(--ciano); background: rgba(34, 211, 238, 0.12);
+  border-radius: 6px; padding: 2px 6px; align-self: flex-start;
+}
+.giorno .segno-gara {
+  font-size: 10px; color: #06121F; font-weight: 600; border-radius: 5px;
+  padding: 2px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.pannello-giorno {
+  margin-top: 16px; padding: 15px; border-radius: 12px;
+  background: rgba(7, 13, 27, 0.6); border: var(--riga);
+}
+.voce-giorno {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: rgba(255, 255, 255, 0.03); border: var(--riga); border-radius: 9px;
+  padding: 10px 12px; color: var(--testo); font-family: var(--corpo); font-size: 14px; cursor: pointer;
+}
+.voce-giorno + .voce-giorno { margin-top: 7px; }
+.voce-giorno:hover { border-color: var(--bordo-vivo); }
+.tipi-gara { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .giorno { min-height: 60px; padding: 4px; }
+  .giorno .segno-gara { font-size: 9px; }
+}
+
+/* ------------------------------------------------ maniglie di ordine */
+.maniglie { display: inline-flex; flex-direction: column; gap: 1px; }
+.maniglie button {
+  background: transparent; border: 0; color: var(--testo-3); cursor: pointer;
+  line-height: 1; padding: 2px 4px; border-radius: 4px;
+}
+.maniglie button:hover:not(:disabled) { color: var(--ciano); background: rgba(34, 211, 238, 0.1); }
+.maniglie button:disabled { opacity: 0.25; cursor: default; }
+
+.cerca { position: relative; flex: 1 1 220px; max-width: 340px; }
+.cerca input { width: 100%; padding-left: 38px; }
+.cerca svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--testo-3); }
+
+.metri-auto { color: var(--ciano); font-size: 11px; letter-spacing: 0.06em; }

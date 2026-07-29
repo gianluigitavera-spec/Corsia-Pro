@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { LayoutDashboard, Waves, ClipboardCheck, Users, BarChart3, Settings2, LogOut } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente } from './lib/dominio';
@@ -12,23 +13,26 @@ import Squadra from './componenti/Squadra';
 import SenzaSquadra from './componenti/SenzaSquadra';
 
 const SCHEDE = [
-  { id: 'dashboard', nome: 'Dashboard' },
-  { id: 'sedute', nome: 'Sedute' },
-  { id: 'appello', nome: 'Appello' },
-  { id: 'atleti', nome: 'Atleti' },
-  { id: 'volumi', nome: 'Carico atleti' },
-  { id: 'squadra', nome: 'Squadra' },
+  { id: 'dashboard', nome: 'Dashboard', Icona: LayoutDashboard },
+  { id: 'sedute', nome: 'Sedute', Icona: Waves },
+  { id: 'appello', nome: 'Appello', Icona: ClipboardCheck },
+  { id: 'atleti', nome: 'Atleti', Icona: Users },
+  { id: 'volumi', nome: 'Carico atleti', Icona: BarChart3 },
+  { id: 'squadra', nome: 'Squadra', Icona: Settings2 },
 ];
 
 export default function App() {
-  const [sessione, setSessione] = useState(undefined); // undefined = sto controllando
+  const [sessione, setSessione] = useState(undefined);
   const [societa, setSocieta] = useState(null);
   const [ruolo, setRuolo] = useState(null);
   const [scheda, setScheda] = useState('dashboard');
   const [zone, setZone] = useState([]);
+  const [categorie, setCategorie] = useState([]);
   const [fasce, setFasce] = useState([]);
+  const [gruppi, setGruppi] = useState([]);
   const [errore, setErrore] = useState(null);
   const [senzaSquadra, setSenzaSquadra] = useState(false);
+  const [apertura, setApertura] = useState(null); // {id} oppure {data}
 
   const stagione = stagioneCorrente();
 
@@ -42,26 +46,26 @@ export default function App() {
     if (!sessione) return;
     (async () => {
       try {
-        const [membri, z, f] = await Promise.all([
-          api.mieSocieta(),
-          api.leggiZone(),
-          api.leggiFasce(stagione),
+        const [membri, z, c, f] = await Promise.all([
+          api.mieSocieta(), api.leggiZone(), api.leggiCategorie(), api.leggiFasce(stagione),
         ]);
-        setZone(z);
-        setFasce(f);
+        setZone(z); setCategorie(c); setFasce(f);
         const primo = membri?.[0];
-        if (!primo?.societa) {
-          setSenzaSquadra(true);
-          return;
-        }
+        if (!primo?.societa) { setSenzaSquadra(true); return; }
         setSenzaSquadra(false);
         setSocieta(primo.societa);
         setRuolo(primo.ruolo);
-      } catch (e) {
-        setErrore(e.message);
-      }
+        setGruppi(await api.leggiGruppi(primo.societa.id));
+      } catch (e) { setErrore(e.message); }
     })();
   }, [sessione, stagione]);
+
+  // Dal calendario all'editor, con la data del giorno cliccato.
+  const apriSeduta = useCallback((id, data) => {
+    setApertura(id ? { id } : { data });
+    setScheda('sedute');
+  }, []);
+  const consumaApertura = useCallback(() => setApertura(null), []);
 
   if (!configurato) {
     return (
@@ -88,46 +92,43 @@ export default function App() {
   return (
     <div className="guscio">
       <header className="testata">
-        <div className="marchio">
-          Corsia<span>Pro</span>
-        </div>
-        <div className="societa">
-          {societa ? `${societa.nome} · stagione ${stagione}` : '…'}
-        </div>
+        <div className="marchio">Corsia<span>Pro</span></div>
+        {societa && <div className="societa">{societa.nome} · {stagione}</div>}
         <div className="spazio" />
         <button className="mini" onClick={() => api.esci()}>
-          Esci
+          <LogOut size={14} style={{ verticalAlign: -2 }} /> Esci
         </button>
       </header>
 
       <nav className="nav">
-        {SCHEDE.map((s) => (
-          <button
-            key={s.id}
-            aria-current={scheda === s.id}
-            onClick={() => setScheda(s.id)}
-          >
-            {s.nome}
+        {SCHEDE.map(({ id, nome, Icona }) => (
+          <button key={id} aria-current={scheda === id} onClick={() => setScheda(id)}>
+            <Icona size={15} style={{ verticalAlign: -3, marginRight: 7 }} />{nome}
           </button>
         ))}
       </nav>
 
-      {errore && (
-        <div className="sezione avviso errore">{errore}</div>
-      )}
+      {errore && <div className="sezione avviso errore">{errore}</div>}
 
       {societa && (
         <main className="sezione">
-          {scheda === 'dashboard' && <Dashboard societa={societa} zone={zone} />}
+          {scheda === 'dashboard' && (
+            <Dashboard societa={societa} zone={zone} puoScrivere={puoScrivere} apriSeduta={apriSeduta} />
+          )}
           {scheda === 'sedute' && (
-            <EditorSeduta societa={societa} zone={zone} puoScrivere={puoScrivere} />
+            <EditorSeduta
+              societa={societa} zone={zone} categorie={categorie} puoScrivere={puoScrivere}
+              apertura={apertura} consumaApertura={consumaApertura}
+            />
           )}
           {scheda === 'appello' && <Appello societa={societa} />}
           {scheda === 'atleti' && (
-            <Atleti societa={societa} fasce={fasce} stagione={stagione} puoScrivere={puoScrivere} />
+            <Atleti societa={societa} fasce={fasce} stagione={stagione} puoScrivere={puoScrivere} gruppi={gruppi} />
           )}
           {scheda === 'volumi' && <Volumi societa={societa} zone={zone} />}
-          {scheda === 'squadra' && <Squadra societa={societa} ruolo={ruolo} />}
+          {scheda === 'squadra' && (
+            <Squadra societa={societa} ruolo={ruolo} gruppi={gruppi} ricaricaGruppi={async () => setGruppi(await api.leggiGruppi(societa.id))} />
+          )}
         </main>
       )}
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { sb } from '../lib/supabase';
 import { SPECIALIZZAZIONI } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
+import Calendario from './Calendario';
 
 const PERIODI = [
   { g: 7, nome: 'Settimana' },
@@ -16,7 +17,7 @@ const indietro = (g) => {
   return d.toISOString().slice(0, 10);
 };
 
-export default function Dashboard({ societa, zone }) {
+export default function Dashboard({ societa, zone, puoScrivere, apriSeduta }) {
   const [giorni, setGiorni] = useState(28);
   const [spec, setSpec] = useState('Mezzofondo');
   const [righe, setRighe] = useState([]);
@@ -64,7 +65,9 @@ export default function Dashboard({ societa, zone }) {
 
   return (
     <>
-      <div className="barra">
+      <Calendario societa={societa} puoScrivere={puoScrivere} apriSeduta={apriSeduta} />
+
+      <div className="barra sezione">
         <h1>Dashboard volumi</h1>
         <div style={{ flex: 1 }} />
         <select value={spec} onChange={(e) => setSpec(e.target.value)}>

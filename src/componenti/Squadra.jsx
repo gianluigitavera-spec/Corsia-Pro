@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Copy, RefreshCw, Check, X, Plus, Trash2, Users, KeyRound, UserPlus } from 'lucide-react';
 import * as api from '../lib/dati';
 
 const NOME_RUOLO = {
@@ -7,12 +8,13 @@ const NOME_RUOLO = {
   lettore: 'Solo lettura',
 };
 
-export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
+export default function Squadra({ societa, ruolo, gruppi, ricaricaGruppi }) {
   const [dati, setDati] = useState(null);
   const [richieste, setRichieste] = useState([]);
   const [membri, setMembri] = useState([]);
   const [messaggio, setMessaggio] = useState(null);
   const [copiato, setCopiato] = useState(false);
+  const [nuovoGruppo, setNuovoGruppo] = useState('');
 
   const capo = ruolo === 'coach';
 
@@ -66,6 +68,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
       {capo && (
         <div className="scheda">
           <div className="intestazione">
+            <KeyRound size={16} style={{ color: 'var(--ciano)' }} />
             <h3>Codice di ingresso</h3>
           </div>
           <div className="corpo">
@@ -73,7 +76,9 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
               <span className="mono" style={{ fontSize: 30, letterSpacing: '0.08em' }}>
                 {dati.codice_invito}
               </span>
-              <button className="mini" onClick={copiaCodice}>{copiato ? 'Copiato' : 'Copia'}</button>
+              <button className="mini" onClick={copiaCodice}>
+                {copiato ? <Check size={14} /> : <Copy size={14} />} {copiato ? 'Copiato' : 'Copia'}
+              </button>
               <button
                 className="mini"
                 onClick={async () => {
@@ -86,7 +91,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
                   }
                 }}
               >
-                Rigenera
+                <RefreshCw size={13} style={{ verticalAlign: -2 }} /> Rigenera
               </button>
             </div>
             <p style={{ fontSize: 13, color: 'var(--testo-2)', marginBottom: 0 }}>
@@ -100,6 +105,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
       {capo && (
         <div className="scheda" style={{ marginTop: 12 }}>
           <div className="intestazione">
+            <UserPlus size={16} style={{ color: 'var(--menta)' }} />
             <h3>Richieste in attesa</h3>
             {richieste.length > 0 && <span className="mono">{richieste.length}</span>}
           </div>
@@ -140,6 +146,66 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
 
       <div className="scheda" style={{ marginTop: 12 }}>
         <div className="intestazione">
+          <h3>Gruppi di allenamento</h3>
+          <span className="mono" style={{ color: 'var(--testo-3)' }}>{(gruppi || []).length}</span>
+        </div>
+        <div className="corpo">
+          <p style={{ fontSize: 13, color: 'var(--testo-3)', marginTop: 0 }}>
+            Chi nuota insieme. Ogni seduta va assegnata a un gruppo: senza gruppi non si salva niente.
+          </p>
+          {(gruppi || []).length > 0 && (
+            <div className="destinatari" style={{ marginBottom: 12 }}>
+              {gruppi.map((g) => (
+                <span key={g.id} className="pastiglia" style={{ cursor: 'default' }}>
+                  {g.nome}
+                  {capo && (
+                    <button
+                      className="togli"
+                      style={{ minHeight: 'auto', padding: '0 0 0 7px', fontSize: 13 }}
+                      aria-label={`Elimina ${g.nome}`}
+                      onClick={async () => {
+                        if (!confirm(`Eliminare il gruppo "${g.nome}"? Le sedute già salvate restano.`)) return;
+                        try { await api.eliminaGruppo(g.id); ricaricaGruppi(); }
+                        catch (e) { setMessaggio({ testo: e.message, errore: true }); }
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+          {capo && (
+            <div className="barra" style={{ marginBottom: 0 }}>
+              <input
+                placeholder="es. Esordienti A"
+                value={nuovoGruppo}
+                onChange={(e) => setNuovoGruppo(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key !== 'Enter' || !nuovoGruppo.trim()) return;
+                  try { await api.creaGruppo(societa.id, nuovoGruppo.trim()); setNuovoGruppo(''); ricaricaGruppi(); }
+                  catch (err) { setMessaggio({ testo: err.message, errore: true }); }
+                }}
+              />
+              <button
+                className="azione fantasma"
+                disabled={!nuovoGruppo.trim()}
+                onClick={async () => {
+                  try { await api.creaGruppo(societa.id, nuovoGruppo.trim()); setNuovoGruppo(''); ricaricaGruppi(); }
+                  catch (err) { setMessaggio({ testo: err.message, errore: true }); }
+                }}
+              >
+                <Plus size={15} style={{ verticalAlign: -3 }} /> Crea gruppo
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="scheda" style={{ marginTop: 12 }}>
+        <div className="intestazione">
+          <Users size={16} style={{ color: 'var(--testo-2)' }} />
           <h3>Staff</h3>
           <span className="mono" style={{ color: 'var(--testo-2)' }}>{membri.length}</span>
         </div>

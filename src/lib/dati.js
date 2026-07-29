@@ -223,3 +223,27 @@ export async function rimuoviMembro(societaId, utenteId) {
 export async function leggiSocieta(societaId) {
   return ok(await sb.from('societa').select('*').eq('id', societaId).single());
 }
+
+// --------------------------------------------------------------- gare
+export async function leggiGare(societaId, da, a) {
+  return ok(
+    await sb.from('gare').select('*').eq('societa_id', societaId)
+      .gte('data', da).lte('data', a).order('data')
+  );
+}
+
+export async function salvaGara(gara) {
+  if (gara.id) {
+    const { id, creata_da, created_at, ...resto } = gara;
+    return ok(await sb.from('gare').update(resto).eq('id', id).select().single());
+  }
+  return ok(await sb.from('gare').insert(gara).select().single());
+}
+
+export async function eliminaGara(id) {
+  return ok(await sb.from('gare').delete().eq('id', id).select());
+}
+
+export async function eliminaGruppo(id) {
+  return ok(await sb.from('gruppi').update({ attivo: false }).eq('id', id).select());
+}
