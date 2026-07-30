@@ -538,3 +538,44 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   .riga-appello .cella-freq:nth-of-type(5) { display: none; }
   .bottone-stato { flex: 1; width: auto; height: 44px; }
 }
+
+/* --------------------------------------------------- periodizzazione */
+.periodizzazione {
+  border: var(--riga); border-radius: 12px; padding: 14px;
+  background: rgba(7, 13, 27, 0.45); margin-bottom: 4px;
+}
+.nastro-fasi {
+  display: flex; height: 46px; border-radius: 9px; overflow: hidden;
+  border: var(--riga); user-select: none; touch-action: none;
+}
+.blocco-fase {
+  position: relative; display: flex; flex-direction: column; justify-content: center;
+  padding: 0 10px; min-width: 0; color: #06121F; overflow: hidden;
+}
+.blocco-fase .nome-fase { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blocco-fase .durata-fase { font-size: 11px; opacity: 0.78; }
+.maniglia-fase {
+  position: absolute; left: -7px; top: 0; bottom: 0; width: 14px; cursor: col-resize;
+  background: linear-gradient(90deg, transparent 42%, rgba(255,255,255,0.85) 42%, rgba(255,255,255,0.85) 58%, transparent 58%);
+}
+.maniglia-fase:hover { background: linear-gradient(90deg, transparent 36%, #fff 36%, #fff 64%, transparent 64%); }
+
+.righe-fasi { margin-top: 10px; display: grid; gap: 6px; }
+.riga-fase { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
+.riga-fase .punto { width: 10px; height: 10px; border-radius: 3px; margin: 0; }
+
+/* la fase tinge il fondo del giorno, senza coprire sedute e gare */
+.giorno[data-fase]:not([data-fase='']) {
+  background: color-mix(in srgb, var(--tinta-fase) 16%, transparent);
+  border-color: color-mix(in srgb, var(--tinta-fase) 34%, transparent);
+}
+.giorno[data-fase]:not([data-fase=''])::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: var(--tinta-fase); opacity: 0.85;
+}
+.giorno { position: relative; }
+
+@media (max-width: 640px) {
+  .blocco-fase .durata-fase { display: none; }
+  .blocco-fase .nome-fase { font-size: 10px; }
+}

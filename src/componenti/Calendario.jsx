@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
-import { MACRO_CALENDARIO, rientraNelMacro } from '../lib/dominio';
+import { MACRO_CALENDARIO, rientraNelMacro, faseDelGiorno, faseDi } from '../lib/dominio';
+import Periodizzazione from './Periodizzazione';
 
 export const TIPI_GARA = {
   trofeo:              { nome: 'Trofeo',                          colore: '#A78BFA', Icona: Trophy },
@@ -25,6 +26,7 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
   const [sedute, setSedute] = useState([]);
   const [gare, setGare] = useState([]);
   const [giorno, setGiorno] = useState(null);
+  const [fasi, setFasi] = useState([]);
   const [nuovaGara, setNuovaGara] = useState(null);
   const [errore, setErrore] = useState(null);
 
@@ -32,6 +34,16 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
   const ultimo = new Date(mese.getFullYear(), mese.getMonth() + 1, 0);
 
   useEffect(() => { ricarica(); }, [societa.id, mese.getTime()]);
+
+  // Le fasce di periodizzazione esistono solo dentro una categoria:
+  // su "Tutte" il calendario resta pulito, con gare e allenamenti.
+  const codiciMacroSel = MACRO_CALENDARIO.find((m) => m.id === macro)?.codici || null;
+  useEffect(() => {
+    if (!codiciMacroSel) { setFasi([]); return; }
+    api.leggiPeriodizzazione(societa.id, codiciMacroSel)
+      .then(setFasi)
+      .catch(() => setFasi([]));
+  }, [societa.id, macro, codiciMacroSel?.join()]);
 
   async function ricarica() {
     try {
@@ -55,7 +67,7 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
     return out;
   }, [mese.getTime()]);
 
-  const codiciMacro = MACRO_CALENDARIO.find((m) => m.id === macro)?.codici || null;
+  const codiciMacro = codiciMacroSel;
   const nelFiltro = (x) => rientraNelMacro(x.categorie, codiciMacro);
 
   const seduteDi = (d) => sedute.filter((s) => s.data === iso(d) && nelFiltro(s));
@@ -102,6 +114,19 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
 
       {errore && <div className="corpo"><div className="avviso errore">{errore}</div></div>}
 
+      {codiciMacro && (
+        <div className="corpo" style={{ paddingBottom: 0 }}>
+          <Periodizzazione
+            societa={societa}
+            codici={codiciMacro}
+            nomeMacro={MACRO_CALENDARIO.find((m) => m.id === macro)?.nome}
+            gare={gare.filter((g) => rientraNelMacro(g.categorie, codiciMacro))}
+            puoScrivere={puoScrivere}
+            cambiata={() => api.leggiPeriodizzazione(societa.id, codiciMacro).then(setFasi).catch(() => {})}
+          />
+        </div>
+      )}
+
       <div className="corpo">
         <div className="griglia-mese">
           {GIORNI.map((g) => <div className="nome-giorno" key={g}>{g}</div>)}
@@ -110,12 +135,17 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
             const ss = seduteDi(d);
             const gg = gareDi(d);
             const oggiQ = iso(d) === iso(oggi);
+            const f = faseDelGiorno(fasi, iso(d));
+            const tintaFase = f ? faseDi(f.fase)?.colore : null;
             return (
               <button
                 key={iso(d)}
                 className="giorno"
                 data-oggi={oggiQ}
                 data-scelto={giorno === iso(d)}
+                data-fase={f ? f.fase : ''}
+                style={tintaFase ? { '--tinta-fase': tintaFase } : undefined}
+                title={f ? faseDi(f.fase)?.nome : undefined}
                 onClick={() => setGiorno(giorno === iso(d) ? null : iso(d))}
               >
                 <span className="numero mono">{d.getDate()}</span>

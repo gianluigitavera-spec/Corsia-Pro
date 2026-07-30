@@ -296,3 +296,35 @@ export async function tendenzaBenessere(societaId) {
 export async function leggiFrequenza(societaId) {
   return ok(await sb.from('v_frequenza').select('*').eq('societa_id', societaId));
 }
+
+// ----------------------------------------------------- periodizzazione
+export async function leggiPeriodizzazione(societaId, codici) {
+  let q = sb.from('periodizzazione').select('*').eq('societa_id', societaId).order('dal');
+  if (codici?.length) q = q.overlaps('categorie', codici);
+  return ok(await q);
+}
+
+// Le fasi di una categoria si riscrivono in blocco: prima si tolgono
+// quelle che si sovrappongono, poi si inseriscono le nuove.
+export async function salvaPeriodizzazione(societaId, codici, blocchi) {
+  const { error: errCanc } = await sb
+    .from('periodizzazione')
+    .delete()
+    .eq('societa_id', societaId)
+    .overlaps('categorie', codici);
+  if (errCanc) throw new Error(errCanc.message);
+
+  if (!blocchi?.length) return [];
+  return ok(
+    await sb.from('periodizzazione').insert(
+      blocchi.map((b) => ({
+        societa_id: societaId,
+        categorie: codici,
+        fase: b.fase,
+        dal: b.dal,
+        al: b.al,
+        gara_id: b.gara_id || null,
+      }))
+    ).select()
+  );
+}

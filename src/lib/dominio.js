@@ -425,3 +425,70 @@ export function fasceRisolte(tutte, stagione) {
 
   return { fasce, proiettata: true, base: stagioneDa(base), scarto };
 }
+
+// ---------------------------------------------------------------------
+// PERIODIZZAZIONE
+// Quattro fasi, generate a ritroso dalla gara obiettivo. Le durate sono
+// una PROPOSTA: si trascinano. Il totale (21 settimane) segue il
+// macrociclo che usiamo anche in SwimCoach.
+// ---------------------------------------------------------------------
+export const FASI = [
+  { codice: 'generale',  nome: 'Generale',  settimane: 6, colore: '#3B82F6',
+    zone: 'A1 · A2, volume alto, tecnica' },
+  { codice: 'speciale',  nome: 'Speciale',  settimane: 8, colore: '#06B6D4',
+    zone: 'A2 · B1 su fondo aerobico' },
+  { codice: 'specifica', nome: 'Specifica', settimane: 5, colore: '#F59E0B',
+    zone: 'B1 · B2 e ritmo gara, volume in calo' },
+  { codice: 'tapering',  nome: 'Tapering',  settimane: 2, colore: '#EF4444',
+    zone: 'C1 · C3, volume ridotto, freschezza' },
+];
+
+export const faseDi = (codice) => FASI.find((f) => f.codice === codice);
+
+const giorno = (iso, delta) => {
+  const d = new Date(iso + 'T12:00');
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+};
+
+// Costruisce le quattro fasce all'indietro: il tapering finisce il
+// giorno prima della gara, e a ritroso si incastrano le altre.
+export function proponiFasi(dataGara, durate = null) {
+  const settimane = durate || Object.fromEntries(FASI.map((f) => [f.codice, f.settimane]));
+  const blocchi = [];
+  let fine = giorno(dataGara, -1);
+
+  for (const f of [...FASI].reverse()) {
+    const giorni = (settimane[f.codice] || f.settimane) * 7;
+    const inizio = giorno(fine, -(giorni - 1));
+    blocchi.unshift({ fase: f.codice, dal: inizio, al: fine });
+    fine = giorno(inizio, -1);
+  }
+  return blocchi;
+}
+
+export const giorniFra = (dal, al) =>
+  Math.round((new Date(al + 'T12:00') - new Date(dal + 'T12:00')) / 86400000) + 1;
+
+export const settimaneFra = (dal, al) => (giorniFra(dal, al) / 7).toFixed(1).replace('.0', '');
+
+// Sposta il confine fra due fasi adiacenti, senza farle sparire.
+export function spostaConfine(blocchi, indice, nuovoInizio) {
+  const copia = blocchi.map((b) => ({ ...b }));
+  const prima = copia[indice - 1];
+  const dopo = copia[indice];
+  if (!prima || !dopo) return copia;
+
+  const minimo = giorno(prima.dal, 6);           // almeno una settimana
+  const massimo = giorno(dopo.al, -6);
+  let data = nuovoInizio;
+  if (data < minimo) data = minimo;
+  if (data > massimo) data = massimo;
+
+  dopo.dal = data;
+  prima.al = giorno(data, -1);
+  return copia;
+}
+
+export const faseDelGiorno = (blocchi, iso) =>
+  (blocchi || []).find((b) => iso >= b.dal && iso <= b.al) || null;

@@ -1,4 +1,4 @@
-# CorsiaPro — app · v0.9.0
+# CorsiaPro — app · v0.10.0
 
 React + Vite, legge lo schema `squadra` che hai già creato su Supabase.
 
@@ -80,6 +80,26 @@ Dentro una seduta aperta, tre tasti:
   essenziale (niente veste grafica). Da telefono: "Salva come PDF".
 - **Invia** — la seduta in testo semplice: usa la condivisione del
   telefono (WhatsApp, mail) o la copia negli appunti sul computer.
+
+## Periodizzazione
+
+Compare **solo quando scegli una categoria** nel calendario: su "Tutte"
+restano gare e allenamenti, senza fasce.
+
+1. Metti sul calendario la gara obiettivo
+2. Scegli la gara nella tendina e premi **Proponi**: le quattro fasi si
+   dispongono a ritroso — Generale 6 settimane, Speciale 8, Specifica 5,
+   Tapering 2 (macrociclo di 21 settimane)
+3. **Trascina i confini** sul nastro colorato, o usa le frecce per
+   spostare di una settimana per volta. Nessuna fase può scendere sotto
+   la settimana
+4. Salva: i giorni del calendario si tingono del colore della fase
+
+Ogni categoria ha la sua periodizzazione, indipendente dalle altre: gli
+Assoluti possono essere in tapering mentre gli Esordienti A sono ancora
+in generale.
+
+Richiede `014_periodizzazione.sql`.
 
 ## Stagione
 

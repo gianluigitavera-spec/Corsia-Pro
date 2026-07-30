@@ -3,9 +3,19 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.9.0';
+export const VERSIONE = '0.10.0';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.10.0',
+    data: '2026-07-30',
+    voci: [
+      'Periodizzazione per categoria: generale, speciale, specifica, tapering',
+      'Le fasi si generano a ritroso dalla gara obiettivo e si aggiustano trascinando i confini',
+      'Le fasce colorano i giorni del calendario, ma solo dentro una categoria: su Tutte restano gare e allenamenti',
+      'Vista v_fase_reale: i metri per zona davvero nuotati dentro ogni fase',
+    ],
+  },
   {
     versione: '0.9.0',
     data: '2026-07-30',
