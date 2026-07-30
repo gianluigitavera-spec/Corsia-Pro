@@ -328,3 +328,25 @@ export async function salvaPeriodizzazione(societaId, codici, blocchi) {
     ).select()
   );
 }
+
+
+// ------------------------------------------------------ inizio stagione
+export async function leggiImpostazioniStagione(societaId, stagione) {
+  const { data, error } = await sb
+    .from('impostazioni_stagione')
+    .select('*')
+    .eq('societa_id', societaId)
+    .eq('stagione', stagione)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function salvaInizioStagione(societaId, stagione, inizio) {
+  return ok(
+    await sb.from('impostazioni_stagione')
+      .upsert({ societa_id: societaId, stagione, inizio, updated_at: new Date().toISOString() },
+              { onConflict: 'societa_id,stagione' })
+      .select()
+  );
+}

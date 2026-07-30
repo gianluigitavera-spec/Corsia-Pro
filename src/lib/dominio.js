@@ -453,7 +453,12 @@ const giorno = (iso, delta) => {
 
 // Costruisce le quattro fasce all'indietro: il tapering finisce il
 // giorno prima della gara, e a ritroso si incastrano le altre.
-export function proponiFasi(dataGara, durate = null) {
+//
+// Il macrociclo dura 21 settimane, ma la stagione comincia prima: se
+// passi inizioStagione, la fase generale parte da lì e si allunga fino
+// all'attacco del macrociclo. Con un obiettivo ad aprile e la stagione
+// aperta a settembre, la generale copre da settembre a fine novembre.
+export function proponiFasi(dataGara, { durate = null, inizioStagione = null } = {}) {
   const settimane = durate || Object.fromEntries(FASI.map((f) => [f.codice, f.settimane]));
   const blocchi = [];
   let fine = giorno(dataGara, -1);
@@ -464,7 +469,25 @@ export function proponiFasi(dataGara, durate = null) {
     blocchi.unshift({ fase: f.codice, dal: inizio, al: fine });
     fine = giorno(inizio, -1);
   }
+
+  if (inizioStagione) {
+    const primo = blocchi[0];
+    if (inizioStagione < primo.dal) {
+      primo.dal = inizioStagione;                       // generale allungata
+    } else {
+      // Stagione aperta tardi: la generale si accorcia, mai sotto la settimana.
+      const minimo = giorno(primo.al, -6);
+      primo.dal = inizioStagione > minimo ? minimo : inizioStagione;
+    }
+  }
+
   return blocchi;
+}
+
+// Il 1° settembre dell'anno di apertura, come punto di partenza.
+export function inizioStagionePredefinito(stagione) {
+  const anno = annoInizialeDi(stagione);
+  return anno ? `${anno}-09-01` : null;
 }
 
 export const giorniFra = (dal, al) =>

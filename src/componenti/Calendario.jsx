@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
-import { MACRO_CALENDARIO, rientraNelMacro, faseDelGiorno, faseDi } from '../lib/dominio';
+import { MACRO_CALENDARIO, rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI } from '../lib/dominio';
 import Periodizzazione from './Periodizzazione';
 
 export const TIPI_GARA = {
@@ -19,7 +19,7 @@ const GIORNI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-export default function Calendario({ societa, puoScrivere, apriSeduta }) {
+export default function Calendario({ societa, puoScrivere, apriSeduta, stagione, categorie }) {
   const oggi = new Date();
   const [macro, setMacro] = useState('tutte');
   const [mese, setMese] = useState(new Date(oggi.getFullYear(), oggi.getMonth(), 1));
@@ -68,6 +68,10 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
   }, [mese.getTime()]);
 
   const codiciMacro = codiciMacroSel;
+  const codiciNoti = new Set((categorie || []).map((c) => c.codice));
+  const raggruppamentiNoti = RAGGRUPPAMENTI
+    .map((r) => ({ ...r, codici: r.codici.filter((c) => codiciNoti.size === 0 || codiciNoti.has(c)) }))
+    .filter((r) => r.codici.length > 0);
   const nelFiltro = (x) => rientraNelMacro(x.categorie, codiciMacro);
 
   const seduteDi = (d) => sedute.filter((s) => s.data === iso(d) && nelFiltro(s));
@@ -82,7 +86,7 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
         data_fine: nuovaGara.data_fine || null,
         nome: nuovaGara.nome.trim(),
         tipo: nuovaGara.tipo,
-        categorie: codiciMacro || [],
+        categorie: nuovaGara.categorie || [],
         luogo: nuovaGara.luogo || null,
       });
       setNuovaGara(null);
@@ -121,6 +125,7 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
             codici={codiciMacro}
             nomeMacro={MACRO_CALENDARIO.find((m) => m.id === macro)?.nome}
             gare={gare.filter((g) => rientraNelMacro(g.categorie, codiciMacro))}
+            stagione={stagione}
             puoScrivere={puoScrivere}
             cambiata={() => api.leggiPeriodizzazione(societa.id, codiciMacro).then(setFasi).catch(() => {})}
           />
@@ -189,7 +194,10 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
                 <div key={g.id} className="voce-giorno" style={{ cursor: 'default' }}>
                   <Icona size={15} style={{ color: t.colore }} />
                   <span>{g.nome}</span>
-                  <span style={{ color: 'var(--testo-3)', fontSize: 12 }}>{t.nome}{g.luogo ? ` · ${g.luogo}` : ''}</span>
+                  <span style={{ color: 'var(--testo-3)', fontSize: 12 }}>
+                    {t.nome}{g.luogo ? ` · ${g.luogo}` : ''}
+                    {g.categorie?.length ? ` · ${g.categorie.length} categorie` : ' · tutte'}
+                  </span>
                   <span style={{ flex: 1 }} />
                   {puoScrivere && (
                     <button
@@ -215,7 +223,10 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
                 </button>
                 <button
                   className="azione fantasma"
-                  onClick={() => setNuovaGara({ data: giorno, nome: '', tipo: 'trofeo', luogo: '', data_fine: '' })}
+                  onClick={() => setNuovaGara({
+                    data: giorno, nome: '', tipo: 'trofeo', luogo: '', data_fine: '',
+                    categorie: codiciMacro ? [...codiciMacro] : [],
+                  })}
                 >
                   <Trophy size={15} style={{ verticalAlign: -3 }} /> Competizione
                 </button>
@@ -241,6 +252,34 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
                     );
                   })}
                 </div>
+                <div>
+                  <label>Chi partecipa</label>
+                  <div className="destinatari">
+                    {raggruppamentiNoti.map((r) => {
+                      const dentro = r.codici.filter((c) => (nuovaGara.categorie || []).includes(c)).length;
+                      const tutto = dentro === r.codici.length;
+                      return (
+                        <button
+                          key={r.nome}
+                          className="pastiglia"
+                          aria-pressed={dentro > 0}
+                          data-parziale={dentro > 0 && !tutto}
+                          onClick={() => {
+                            const attuali = new Set(nuovaGara.categorie || []);
+                            r.codici.forEach((c) => (tutto ? attuali.delete(c) : attuali.add(c)));
+                            setNuovaGara({ ...nuovaGara, categorie: [...attuali] });
+                          }}
+                        >
+                          {tutto ? '✓ ' : ''}{r.nome}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--testo-3)', margin: '6px 0 0' }}>
+                    Senza nessun flag la gara compare in tutti i filtri.
+                  </p>
+                </div>
+
                 <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
                   <div className="campo">
                     <label>Nome</label>

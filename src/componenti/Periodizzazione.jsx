@@ -3,18 +3,20 @@ import { Wand2, Save, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as api from '../lib/dati';
 import {
   FASI, faseDi, proponiFasi, giorniFra, settimaneFra, spostaConfine,
+  inizioStagionePredefinito,
 } from '../lib/dominio';
 import { TIPI_GARA } from './Calendario';
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const dataIt = (s) => new Date(s + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 
-export default function Periodizzazione({ societa, codici, nomeMacro, gare, puoScrivere, cambiata }) {
+export default function Periodizzazione({ societa, codici, nomeMacro, gare, stagione, puoScrivere, cambiata }) {
   const [blocchi, setBlocchi] = useState([]);
   const [salvati, setSalvati] = useState([]);
   const [garaScelta, setGaraScelta] = useState('');
   const [messaggio, setMessaggio] = useState(null);
   const [salvo, setSalvo] = useState(false);
+  const [inizioStagione, setInizioStagione] = useState(inizioStagionePredefinito(stagione));
   const barra = useRef(null);
   const trascino = useRef(null);
 
@@ -29,17 +31,29 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, puoS
       .catch((e) => setMessaggio({ testo: e.message, errore: true }));
   }, [societa.id, codici?.join()]);
 
+  // L'inizio stagione vale per tutta la società: la generale parte da lì.
+  useEffect(() => {
+    api.leggiImpostazioniStagione(societa.id, stagione)
+      .then((r) => setInizioStagione(r?.inizio || inizioStagionePredefinito(stagione)))
+      .catch(() => setInizioStagione(inizioStagionePredefinito(stagione)));
+  }, [societa.id, stagione]);
+
   // Le gare future di questa categoria, come possibili obiettivi.
   const oggi = iso(new Date());
   const obiettivi = (gare || [])
     .filter((g) => g.data >= oggi || blocchi.length === 0)
     .sort((a, b) => a.data.localeCompare(b.data));
 
-  function proponi() {
+  async function proponi() {
     const g = obiettivi.find((x) => x.id === garaScelta);
     if (!g) return;
-    setBlocchi(proponiFasi(g.data).map((b) => ({ ...b, gara_id: g.id })));
-    setMessaggio({ testo: 'Proposta pronta: trascina i confini e poi salva.' });
+    try { await api.salvaInizioStagione(societa.id, stagione, inizioStagione); } catch { /* non blocca */ }
+    setBlocchi(proponiFasi(g.data, { inizioStagione }).map((b) => ({ ...b, gara_id: g.id })));
+    setMessaggio({
+      testo: inizioStagione < g.data
+        ? 'Proposta pronta: la generale parte dall\u2019inizio stagione. Trascina i confini e salva.'
+        : 'Proposta pronta: trascina i confini e poi salva.',
+    });
   }
 
   async function salva() {
@@ -112,6 +126,16 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, puoS
         <div style={{ flex: 1 }} />
         {puoScrivere && (
           <>
+            <label style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ whiteSpace: 'nowrap' }}>Stagione dal</span>
+              <input
+                type="date"
+                value={inizioStagione || ''}
+                onChange={(e) => setInizioStagione(e.target.value)}
+                onBlur={(e) => api.salvaInizioStagione(societa.id, stagione, e.target.value).catch(() => {})}
+                style={{ minHeight: 36, fontSize: 13 }}
+              />
+            </label>
             <select value={garaScelta} onChange={(e) => setGaraScelta(e.target.value)} style={{ minHeight: 36, fontSize: 13, maxWidth: 230 }}>
               <option value="">Gara obiettivo…</option>
               {obiettivi.map((g) => (

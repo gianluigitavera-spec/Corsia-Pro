@@ -17,7 +17,7 @@ const indietro = (g) => {
   return d.toISOString().slice(0, 10);
 };
 
-export default function Dashboard({ societa, zone, puoScrivere, apriSeduta }) {
+export default function Dashboard({ societa, zone, categorie, stagione, puoScrivere, apriSeduta }) {
   const [giorni, setGiorni] = useState(28);
   const [spec, setSpec] = useState('Mezzofondo');
   const [righe, setRighe] = useState([]);
@@ -65,7 +65,8 @@ export default function Dashboard({ societa, zone, puoScrivere, apriSeduta }) {
 
   return (
     <>
-      <Calendario societa={societa} puoScrivere={puoScrivere} apriSeduta={apriSeduta} />
+      <Calendario societa={societa} puoScrivere={puoScrivere} apriSeduta={apriSeduta}
+        stagione={stagione} categorie={categorie} />
 
       <div className="barra sezione">
         <h1>Dashboard volumi</h1>

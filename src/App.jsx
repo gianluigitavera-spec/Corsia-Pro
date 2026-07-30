@@ -160,7 +160,8 @@ export default function App() {
       {societa && (
         <main className="sezione">
           {scheda === 'dashboard' && (
-            <Dashboard societa={societa} zone={zone} puoScrivere={puoScrivere} apriSeduta={apriSeduta} />
+            <Dashboard societa={societa} zone={zone} categorie={categorie} stagione={stagione}
+              puoScrivere={puoScrivere} apriSeduta={apriSeduta} />
           )}
           {scheda === 'sedute' && (
             <EditorSeduta

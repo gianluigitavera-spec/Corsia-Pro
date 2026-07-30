@@ -3,9 +3,18 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.10.0';
+export const VERSIONE = '0.11.0';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.11.0',
+    data: '2026-07-30',
+    voci: [
+      'Data di inizio stagione: la fase generale parte da lì invece che 21 settimane prima della gara',
+      'Con obiettivo ad aprile e stagione da settembre, la generale copre tutti i mesi scoperti',
+      'Flag delle categorie sulle competizioni: un trofeo può andare dagli Esordienti B agli Assoluti',
+    ],
+  },
   {
     versione: '0.10.0',
     data: '2026-07-30',

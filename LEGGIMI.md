@@ -1,4 +1,4 @@
-# CorsiaPro — app · v0.10.0
+# CorsiaPro — app · v0.11.0
 
 React + Vite, legge lo schema `squadra` che hai già creato su Supabase.
 
@@ -86,20 +86,31 @@ Dentro una seduta aperta, tre tasti:
 Compare **solo quando scegli una categoria** nel calendario: su "Tutte"
 restano gare e allenamenti, senza fasce.
 
-1. Metti sul calendario la gara obiettivo
-2. Scegli la gara nella tendina e premi **Proponi**: le quattro fasi si
-   dispongono a ritroso — Generale 6 settimane, Speciale 8, Specifica 5,
-   Tapering 2 (macrociclo di 21 settimane)
-3. **Trascina i confini** sul nastro colorato, o usa le frecce per
+1. Imposta **Stagione dal** (il 1° settembre è solo il valore di partenza)
+2. Metti sul calendario la gara obiettivo, con i flag di chi partecipa
+3. Scegli la gara nella tendina e premi **Proponi**: il macrociclo di 21
+   settimane si dispone a ritroso — Speciale 8, Specifica 5, Tapering 2 —
+   e la **Generale si allunga fino all'inizio stagione**. Con obiettivo
+   ad aprile e stagione da settembre la generale dura circa 18 settimane
+   invece di 6, senza lasciare mesi scoperti
+4. **Trascina i confini** sul nastro colorato, o usa le frecce per
    spostare di una settimana per volta. Nessuna fase può scendere sotto
    la settimana
-4. Salva: i giorni del calendario si tingono del colore della fase
+5. Salva: i giorni del calendario si tingono del colore della fase
 
 Ogni categoria ha la sua periodizzazione, indipendente dalle altre: gli
 Assoluti possono essere in tapering mentre gli Esordienti A sono ancora
 in generale.
 
-Richiede `014_periodizzazione.sql`.
+Richiede `014_periodizzazione.sql` e `015_inizio_stagione.sql`.
+
+## Competizioni e categorie
+
+Creando una competizione scegli **chi partecipa** con gli stessi flag
+delle sedute: un trofeo può andare dagli Esordienti B agli Assoluti, i
+Campionati Italiani solo a una fascia. Senza nessun flag la gara compare
+in tutti i filtri. Il filtro del calendario nasconde le gare che non
+riguardano la categoria scelta.
 
 ## Stagione
 
