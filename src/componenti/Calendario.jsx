@@ -19,9 +19,15 @@ const GIORNI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-export default function Calendario({ societa, puoScrivere, apriSeduta, stagione, categorie }) {
+export default function Calendario({
+  societa, puoScrivere, apriSeduta, stagione, categorie, macro: macroFuori, cambiaMacro,
+}) {
   const oggi = new Date();
-  const [macro, setMacro] = useState('tutte');
+  // Se la Dashboard tiene il filtro, comanda lei: così le statistiche e
+  // il calendario guardano sempre la stessa categoria.
+  const [macroDentro, setMacroDentro] = useState('tutte');
+  const macro = macroFuori ?? macroDentro;
+  const setMacro = cambiaMacro ?? setMacroDentro;
   const [mese, setMese] = useState(new Date(oggi.getFullYear(), oggi.getMonth(), 1));
   const [sedute, setSedute] = useState([]);
   const [gare, setGare] = useState([]);

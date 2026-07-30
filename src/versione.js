@@ -3,9 +3,16 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.12.0';
+export const VERSIONE = '0.12.1';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.12.1',
+    data: '2026-07-30',
+    voci: [
+      'Il filtro per categoria della Dashboard comanda tutta la scheda: riquadri, zone e andamento settimanale, non solo il calendario',
+    ],
+  },
   {
     versione: '0.12.0',
     data: '2026-07-30',

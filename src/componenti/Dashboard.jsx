@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { sb } from '../lib/supabase';
-import { SPECIALIZZAZIONI } from '../lib/dominio';
+import { SPECIALIZZAZIONI, MACRO_CALENDARIO } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
 import Calendario from './Calendario';
 import { BarreImpilate } from './Grafici';
@@ -21,23 +21,28 @@ const indietro = (g) => {
 export default function Dashboard({ societa, zone, categorie, stagione, puoScrivere, apriSeduta }) {
   const [giorni, setGiorni] = useState(28);
   const [spec, setSpec] = useState('Mezzofondo');
+  const [macro, setMacro] = useState('tutte');
   const [righe, setRighe] = useState([]);
   const [errore, setErrore] = useState(null);
   const [caricamento, setCaricamento] = useState(true);
 
+  const macroScelto = MACRO_CALENDARIO.find((m) => m.id === macro);
+  const codiciMacro = macroScelto?.codici || null;
+
   useEffect(() => {
     setCaricamento(true);
-    sb.from('v_carico_zona')
-      .select('zona, famiglia, metri, data')
+    let q = sb.from('v_carico_zona')
+      .select('zona, famiglia, metri, data, categorie')
       .eq('societa_id', societa.id)
       .eq('specializzazione', spec)
-      .gte('data', indietro(giorni))
-      .then(({ data, error }) => {
-        if (error) setErrore(error.message);
-        else { setRighe(data || []); setErrore(null); }
-        setCaricamento(false);
-      });
-  }, [societa.id, spec, giorni]);
+      .gte('data', indietro(giorni));
+    if (codiciMacro) q = q.overlaps('categorie', codiciMacro);
+    q.then(({ data, error }) => {
+      if (error) setErrore(error.message);
+      else { setRighe(data || []); setErrore(null); }
+      setCaricamento(false);
+    });
+  }, [societa.id, spec, giorni, codiciMacro?.join()]);
 
   const perZona = righe.reduce((acc, r) => {
     const k = r.zona || '?';
@@ -95,10 +100,13 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
   return (
     <>
       <Calendario societa={societa} puoScrivere={puoScrivere} apriSeduta={apriSeduta}
-        stagione={stagione} categorie={categorie} />
+        stagione={stagione} categorie={categorie} macro={macro} cambiaMacro={setMacro} />
 
       <div className="barra sezione">
         <h1>Dashboard volumi</h1>
+        {macroScelto && macro !== 'tutte' && (
+          <span className="societa" style={{ borderColor: 'rgba(34,211,238,0.35)' }}>{macroScelto.nome}</span>
+        )}
         <div style={{ flex: 1 }} />
         <select value={spec} onChange={(e) => setSpec(e.target.value)}>
           {SPECIALIZZAZIONI.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -110,7 +118,9 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
 
       <p style={{ color: 'var(--testo-3)', fontSize: 13, marginTop: -6 }}>
         Carico di chi fa <b style={{ color: 'var(--testo-2)' }}>{spec}</b>: riscaldamento comune più la
-        sua parte centrale. Cambiando specializzazione cambiano i numeri, ed è giusto così.
+        sua parte centrale. {macro === 'tutte'
+          ? 'Tutte le categorie insieme: scegline una sopra e i numeri seguono.'
+          : <>Solo le sedute di <b style={{ color: 'var(--testo-2)' }}>{macroScelto.nome}</b>.</>}
       </p>
 
       {errore && <div className="avviso errore">{errore}</div>}
@@ -137,7 +147,11 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
           {totale === 0 ? (
             <div className="vuoto">
               <h3>Nessun metro nel periodo</h3>
-              <p>Le zone si riempiono man mano che salvi le sedute con la zona indicata su ogni serie.</p>
+              <p>
+                {macro === 'tutte'
+                  ? 'Le zone si riempiono man mano che salvi le sedute con la zona indicata su ogni serie.'
+                  : `Nessuna seduta di ${macroScelto.nome} in questo periodo: prova con "Tutte" o allarga l'orizzonte.`}
+              </p>
             </div>
           ) : (
             zone.map((z) => {
@@ -171,7 +185,9 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
         <div className="intestazione">
           <h3>Andamento settimanale</h3>
           <div style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--testo-3)' }}>{spec}</span>
+          <span style={{ fontSize: 12, color: 'var(--testo-3)' }}>
+            {spec}{macro !== 'tutte' ? ` · ${macroScelto.nome}` : ''}
+          </span>
         </div>
         <div className="corpo">
           <BarreImpilate dati={perSettimana} serie={SERIE} />
