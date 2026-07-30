@@ -12,7 +12,7 @@ const combacia = (a, q) => {
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((p) => testo.includes(p));
 };
 
-export default function Atleti({ societa, fasce, stagione, puoScrivere }) {
+export default function Atleti({ societa, fasce, stagione, proiezione, puoScrivere }) {
   const [atleti, setAtleti] = useState([]);
   const [cerca, setCerca] = useState('');
   const [nuovo, setNuovo] = useState(VUOTO);
@@ -145,12 +145,19 @@ export default function Atleti({ societa, fasce, stagione, puoScrivere }) {
         </div>
       )}
 
-      {fasce.length === 0 && (
+      {fasce.length === 0 ? (
         <div className="avviso" style={{ marginBottom: 12 }}>
-          Le fasce d'età della stagione {stagione} non sono ancora inserite, quindi la colonna Categoria resta vuota.
-          Si compila una volta sola in <span className="mono">squadra.categorie_stagione</span>.
+          Nessuna fascia d'età inserita in <span className="mono">squadra.categorie_stagione</span>:
+          senza quella la colonna Categoria resta vuota. Si compila una stagione sola, le altre
+          si ricavano da sé.
         </div>
-      )}
+      ) : proiezione ? (
+        <div className="avviso" style={{ marginBottom: 12 }}>
+          Categorie della stagione <b>{stagione}</b> ricavate da quelle del {proiezione.base},
+          spostando gli anni di {proiezione.scarto > 0 ? '+' : ''}{proiezione.scarto}.
+          Se la FIN cambia le fasce, inserisci la stagione vera e questa proiezione sparisce.
+        </div>
+      ) : null}
 
       {puoScrivere && mostraNuovo && (
         <div className="scheda" style={{ marginBottom: 12 }}>

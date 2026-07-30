@@ -40,7 +40,15 @@ export default function SenzaSquadra({ email, ricarica }) {
     try {
       await api.creaSocieta(nome, citta);
       ricarica?.();
-    } catch (e) { setEsito({ testo: e.message, errore: true }); }
+    } catch (e) {
+      const m = e.message || '';
+      setEsito({
+        errore: true,
+        testo: /fai già parte/i.test(m)
+          ? 'Il tuo account è già in una squadra: ricarica la pagina. Per entrare in un\u2019altra serve il codice.'
+          : m,
+      });
+    }
     finally { setAttesa(false); }
   }
 

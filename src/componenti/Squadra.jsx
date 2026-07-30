@@ -32,11 +32,24 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
   useEffect(() => { ricarica(); }, [societa.id]);
 
   async function ricarica() {
+    // Ogni chiamata per conto suo: se lo staff non si carica, l'anagrafica
+    // deve comparire comunque invece di lasciare la pagina bianca.
     try {
-      const [s, m] = await Promise.all([api.leggiSocieta(societa.id), api.elencoMembri(societa.id)]);
-      setDati(s); setBozza(s); setMembri(m);
-      if (capo) setRichieste(await api.richiesteDaDecidere(societa.id));
-    } catch (e) { setMessaggio({ testo: e.message, errore: true }); }
+      const s = await api.leggiSocieta(societa.id);
+      setDati(s); setBozza(s);
+    } catch (e) {
+      setMessaggio({ testo: `Dati squadra: ${e.message}`, errore: true });
+    }
+    try {
+      setMembri(await api.elencoMembri(societa.id));
+    } catch (e) {
+      setMembri([]);
+      setMessaggio({ testo: `Elenco staff non disponibile: ${e.message}`, errore: true });
+    }
+    if (capo) {
+      try { setRichieste(await api.richiesteDaDecidere(societa.id)); }
+      catch { setRichieste([]); }
+    }
   }
 
   async function salva() {
@@ -68,7 +81,17 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
     } catch (e) { setMessaggio({ testo: e.message, errore: true }); }
   }
 
-  if (!dati) return null;
+  if (!dati) {
+    return (
+      <>
+        <div className="barra"><h1>Squadra</h1></div>
+        <div className={`avviso ${messaggio?.errore ? 'errore' : ''}`}>
+          {messaggio?.testo || 'Sto caricando i dati della squadra…'}
+        </div>
+      </>
+    );
+  }
+
   const modificato = CAMPI.some(([k]) => (bozza?.[k] || '') !== (dati?.[k] || '')) || (bozza?.note || '') !== (dati?.note || '');
 
   return (

@@ -389,3 +389,39 @@ export function stagioniProposte(daDatabase = [], corrente = stagioneCorrente())
   if (a) { insieme.add(stagioneDa(a - 1)); insieme.add(stagioneDa(a + 1)); }
   return [...insieme].sort().reverse();
 }
+
+
+// ---------------------------------------------------------------------
+// FASCE DI UNA STAGIONE QUALSIASI
+// Le fasce d'età scalano di un anno esatto ogni stagione. Basta averle
+// inserite UNA volta: per le altre stagioni si proiettano spostando gli
+// anni della differenza. Così cambiando stagione tutta la squadra passa
+// di categoria, senza compilare nuove tabelle a settembre.
+// ---------------------------------------------------------------------
+export function fasceRisolte(tutte, stagione) {
+  const perStagione = {};
+  for (const r of tutte || []) {
+    (perStagione[r.stagione] ||= []).push(r);
+  }
+
+  if (perStagione[stagione]?.length) {
+    return { fasce: perStagione[stagione], proiettata: false, base: stagione, scarto: 0 };
+  }
+
+  const target = annoInizialeDi(stagione);
+  const anni = Object.keys(perStagione).map(annoInizialeDi).filter((x) => x != null);
+  if (!target || anni.length === 0) return { fasce: [], proiettata: false, base: null, scarto: 0 };
+
+  // La stagione compilata più vicina fa da riferimento.
+  const base = anni.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a));
+  const scarto = target - base;
+
+  const fasce = perStagione[stagioneDa(base)].map((r) => ({
+    ...r,
+    stagione,
+    anno_nascita_da: r.anno_nascita_da + scarto,
+    anno_nascita_a: r.anno_nascita_a + scarto,
+  }));
+
+  return { fasce, proiettata: true, base: stagioneDa(base), scarto };
+}

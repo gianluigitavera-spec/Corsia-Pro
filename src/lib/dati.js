@@ -40,7 +40,11 @@ export async function leggiCategorie() {
 }
 
 export async function leggiFasce(stagione) {
-  return ok(await sb.from('categorie_stagione').select('*').eq('stagione', stagione));
+  // Senza argomento restituisce tutte le stagioni: le mancanti si
+  // proiettano lato client con fasceRisolte().
+  let q = sb.from('categorie_stagione').select('*');
+  if (stagione) q = q.eq('stagione', stagione);
+  return ok(await q);
 }
 
 
@@ -244,12 +248,14 @@ export async function registrati(email, password) {
 }
 
 export async function creaSocieta(nome, citta) {
-  const { data: u } = await sb.auth.getUser();
-  return ok(
-    await sb.from('societa')
-      .insert({ nome: nome.trim(), citta: citta?.trim() || null, creata_da: u.user.id })
-      .select().single()
-  );
+  // Passa da una funzione lato server: l'insert dal browser inciampava
+  // nella policy RLS e non riusciva a rileggere la riga appena creata.
+  const { data, error } = await sb.rpc('crea_societa', {
+    p_nome: nome,
+    p_citta: citta || null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function aggiornaSocieta(id, campi) {

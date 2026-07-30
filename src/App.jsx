@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Settings2, LogOut } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
-import { stagioneCorrente, stagioniProposte } from './lib/dominio';
+import { stagioneCorrente, stagioniProposte, fasceRisolte } from './lib/dominio';
 import Accesso from './componenti/Accesso';
 import Atleti from './componenti/Atleti';
 import EditorSeduta from './componenti/EditorSeduta';
@@ -31,6 +31,7 @@ export default function App() {
   const [zone, setZone] = useState([]);
   const [categorie, setCategorie] = useState([]);
   const [fasce, setFasce] = useState([]);
+  const [proiezione, setProiezione] = useState(null);
   const [stagioni, setStagioni] = useState([]);
   const [errore, setErrore] = useState(null);
   const [senzaSquadra, setSenzaSquadra] = useState(false);
@@ -51,9 +52,12 @@ export default function App() {
       try {
         const [membri, z, c, f, st] = await Promise.all([
           api.mieSocieta(), api.leggiZone(), api.leggiCategorie(),
-          api.leggiFasce(stagione), api.leggiStagioni(),
+          api.leggiFasce(), api.leggiStagioni(),
         ]);
-        setZone(z); setCategorie(c); setFasce(f);
+        setZone(z); setCategorie(c);
+        const risolte = fasceRisolte(f, stagione);
+        setFasce(risolte.fasce);
+        setProiezione(risolte.proiettata ? risolte : null);
         setStagioni(stagioniProposte(st, stagioneCorrente()));
         const primo = membri?.[0];
         if (!primo?.societa) { setSenzaSquadra(true); return; }
@@ -136,7 +140,8 @@ export default function App() {
           {scheda === 'appello' && <Appello societa={societa} />}
           {scheda === 'benessere' && <Benessere societa={societa} puoScrivere={puoScrivere} />}
           {scheda === 'atleti' && (
-            <Atleti societa={societa} fasce={fasce} stagione={stagione} puoScrivere={puoScrivere} />
+            <Atleti societa={societa} fasce={fasce} stagione={stagione}
+              proiezione={proiezione} puoScrivere={puoScrivere} />
           )}
           {scheda === 'volumi' && <Volumi societa={societa} zone={zone} />}
           {scheda === 'squadra' && (
