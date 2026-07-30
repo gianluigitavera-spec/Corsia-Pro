@@ -579,3 +579,37 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   .blocco-fase .durata-fase { display: none; }
   .blocco-fase .nome-fase { font-size: 10px; }
 }
+
+/* il marchio ora è l'icona vera, senza scritta */
+.testata .marchio::before { content: none; }
+.testata .marchio .segno {
+  width: 40px; height: 40px; border-radius: 11px; flex: none;
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.22);
+}
+.accesso .marchio { display: block; }
+
+/* -------------------------------------------------------- grafici */
+.grafico { width: 100%; }
+.grafico .tela { width: 100%; height: 190px; display: block; }
+.etichette-grafico { display: grid; gap: 2px; margin-top: 7px; }
+.etichette-grafico span {
+  font-size: 10px; color: var(--testo-3); text-align: center; overflow: hidden;
+  white-space: nowrap; display: flex; flex-direction: column; gap: 1px;
+}
+.etichette-grafico b { font-size: 11px; color: var(--testo-2); font-weight: 500; }
+.vuoto-grafico { text-align: center; padding: 34px; color: var(--testo-3); font-size: 14px; }
+
+.barre-orizzontali { display: grid; gap: 7px; }
+.riga-barra { display: grid; grid-template-columns: 150px 1fr 74px; gap: 11px; align-items: center; }
+.nome-barra { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pista { position: relative; height: 16px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden; }
+.pista i { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; }
+.pista i.riferimento {
+  height: 4px; top: 6px; background: rgba(255,255,255,0.28); z-index: 1;
+}
+.valore-barra { font-size: 12px; text-align: right; color: var(--testo-2); }
+
+@media (max-width: 620px) {
+  .riga-barra { grid-template-columns: 108px 1fr 62px; gap: 8px; }
+  .etichette-grafico span { font-size: 9px; }
+}

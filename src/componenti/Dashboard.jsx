@@ -3,6 +3,7 @@ import { sb } from '../lib/supabase';
 import { SPECIALIZZAZIONI } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
 import Calendario from './Calendario';
+import { BarreImpilate } from './Grafici';
 
 const PERIODI = [
   { g: 7, nome: 'Settimana' },
@@ -62,6 +63,34 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
   ];
 
   const massimo = Math.max(1, ...Object.values(perZona));
+
+  // Andamento nel tempo: una colonna per settimana, composta per famiglia.
+  const perSettimana = (() => {
+    const lunedi = (d) => {
+      const x = new Date(d + 'T12:00');
+      x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+      return x.toISOString().slice(0, 10);
+    };
+    const m = {};
+    for (const r of righe) {
+      const s = lunedi(r.data);
+      m[s] ??= { valori: {} };
+      const f = r.famiglia || 'nonclass';
+      m[s].valori[f] = (m[s].valori[f] || 0) + (r.metri || 0);
+    }
+    return Object.entries(m).sort().map(([s, v]) => ({
+      ...v,
+      etichetta: new Date(s + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
+    }));
+  })();
+
+  const SERIE = [
+    { chiave: 'aerobico', nome: 'Aerobico', colore: TINTA_FAMIGLIA.aerobico },
+    { chiave: 'vo2', nome: 'VO₂max', colore: TINTA_FAMIGLIA.vo2 },
+    { chiave: 'lattacido', nome: 'Lattacido', colore: TINTA_FAMIGLIA.lattacido },
+    { chiave: 'alattacido', nome: 'Alattacido', colore: TINTA_FAMIGLIA.alattacido },
+    { chiave: 'nonclass', nome: 'Senza zona', colore: TINTA_FAMIGLIA.altro },
+  ];
 
   return (
     <>
@@ -135,6 +164,17 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
               percentuale. Li trovi nelle sedute con la serie priva di zona.
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="scheda sezione">
+        <div className="intestazione">
+          <h3>Andamento settimanale</h3>
+          <div style={{ flex: 1 }} />
+          <span style={{ fontSize: 12, color: 'var(--testo-3)' }}>{spec}</span>
+        </div>
+        <div className="corpo">
+          <BarreImpilate dati={perSettimana} serie={SERIE} />
         </div>
       </div>
     </>

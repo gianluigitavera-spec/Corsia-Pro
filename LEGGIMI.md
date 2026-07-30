@@ -1,4 +1,4 @@
-# CorsiaPro — app · v0.11.0
+# CorsiaPro — app · v0.12.0
 
 React + Vite, legge lo schema `squadra` che hai già creato su Supabase.
 
@@ -30,8 +30,11 @@ Entri con lo stesso account che hai usato per creare la società.
   Richiede `013_ritardi_frequenza.sql`.
 - **Atleti** — anagrafica e import CSV (`nome,cognome,sesso,anno_nascita,specializzazione`).
   La categoria è derivata, non salvata.
-- **Volumi** — carico reale per atleta dalle viste SQL: metri della sua
-  specializzazione, contati solo nelle sedute in cui era presente.
+- **Carico atleti** — scegli l'orizzonte (settimana, mese, periodo libero,
+  stagione) e vedi tre numeri distinti: **km delle sedute** (il volume del
+  programma, contato una volta sola), **frequenza media**, **km nuotati
+  dagli atleti** (la somma dei percorsi individuali). Sotto, la tabella con
+  presenze, frequenza, ritardi, previsti e nuotati, e due grafici.
 - **Squadra** — anagrafica completa (indirizzo, P.IVA, codice FIN, contatti),
   codice di ingresso rigenerabile, richieste da approvare, ruoli dello staff.
   Visibile a tutti, modificabile solo dal capo allenatore.

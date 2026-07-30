@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="fondo" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="ciano" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#00EEFF" />
+    </linearGradient>
+    <pattern id="piastrelle" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1E293B" stroke-width="1.5" opacity="0.4"/>
+    </pattern>
+  </defs>
+
+  <rect width="512" height="512" rx="115" fill="url(#fondo)" />
+  <rect width="512" height="512" rx="115" fill="url(#piastrelle)" />
+
+  <!-- La T del fondo vasca, protagonista -->
+  <g>
+    <rect x="232" y="96" width="48" height="290" fill="url(#ciano)" rx="6" opacity="0.95"/>
+    <rect x="146" y="348" width="220" height="48" fill="url(#ciano)" rx="6" opacity="0.95"/>
+  </g>
+
+  <!-- Frangiflutti di corsia -->
+  <g transform="translate(44, 60)">
+    <rect x="0" y="0"   width="20" height="46" rx="5" fill="#38BDF8" />
+    <rect x="0" y="52"  width="20" height="24" rx="5" fill="#F8FAFC" />
+    <rect x="0" y="82"  width="20" height="46" rx="5" fill="#0284C7" />
+    <rect x="0" y="134" width="20" height="46" rx="5" fill="#38BDF8" />
+    <rect x="0" y="186" width="20" height="24" rx="5" fill="#F8FAFC" />
+    <rect x="0" y="216" width="20" height="46" rx="5" fill="#0284C7" />
+    <rect x="0" y="268" width="20" height="46" rx="5" fill="#38BDF8" />
+    <rect x="0" y="320" width="20" height="24" rx="5" fill="#F8FAFC" />
+    <rect x="0" y="350" width="20" height="46" rx="5" fill="#0284C7" />
+  </g>
+  <g transform="translate(448, 60)">
+    <rect x="0" y="0"   width="20" height="46" rx="5" fill="#38BDF8" />
+    <rect x="0" y="52"  width="20" height="24" rx="5" fill="#F8FAFC" />
+    <rect x="0" y="82"  width="20" height="46" rx="5" fill="#0284C7" />
+    <rect x="0" y="134" width="20" height="46" rx="5" fill="#38BDF8" />
+    <rect x="0" y="186" width="20" height="24" rx="5" fill="#F8FAFC" />
+    <rect x="0" y="216" width="20" height="46" rx="5" fill="#0284C7" />
+    <rect x="0" y="268" width="20" height="46" rx="5" fill="#38BDF8" />
+    <rect x="0" y="320" width="20" height="24" rx="5" fill="#F8FAFC" />
+    <rect x="0" y="350" width="20" height="46" rx="5" fill="#0284C7" />
+  </g>
+
+  <!-- Onda alla base -->
+  <path d="M 146 442 C 216 427, 296 457, 366 442" fill="none" stroke="url(#ciano)" stroke-width="12" stroke-linecap="round" />
+</svg>

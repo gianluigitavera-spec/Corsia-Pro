@@ -3,9 +3,21 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.11.0';
+export const VERSIONE = '0.12.0';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.12.0',
+    data: '2026-07-30',
+    voci: [
+      'Filtri per categoria anche nel Benessere',
+      'Carico atleti: scelta fra settimana, mese, periodo libero e stagione',
+      'Km delle sedute (il volume del programma) separati dai km nuotati dagli atleti',
+      'Frequenza e ritardi dentro la tabella degli atleti; tabella Settimane eliminata',
+      'Due grafici: volume settimanale per famiglia di zona e km per atleta contro il previsto',
+      'Marchio senza scritta: corsie e T di fondo vasca',
+    ],
+  },
   {
     versione: '0.11.0',
     data: '2026-07-30',

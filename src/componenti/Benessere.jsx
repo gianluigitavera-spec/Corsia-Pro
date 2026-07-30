@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HeartPulse, Moon, BatteryLow, Activity, Smile, Check } from 'lucide-react';
 import * as api from '../lib/dati';
+import { RAGGRUPPAMENTI, categoriaAtleta } from '../lib/dominio';
 
 const VOCI = [
   { chiave: 'sonno',  nome: 'Sonno',  Icona: Moon,       basso: 'male',    alto: 'benissimo', inverti: false },
@@ -24,11 +25,12 @@ const tinta = (p) =>
     : p >= 2.25 ? 'var(--ambra)'
     : 'var(--rosso)';
 
-export default function Benessere({ societa, puoScrivere }) {
+export default function Benessere({ societa, fasce, puoScrivere }) {
   const [data, setData] = useState(oggiIso());
   const [atleti, setAtleti] = useState([]);
   const [righe, setRighe] = useState({});         // atleta_id -> riga
   const [aperto, setAperto] = useState(null);
+  const [filtro, setFiltro] = useState('tutti');
   const [messaggio, setMessaggio] = useState(null);
 
   useEffect(() => { api.leggiAtleti(societa.id).then(setAtleti).catch((e) => setMessaggio(e.message)); }, [societa.id]);
@@ -57,8 +59,16 @@ export default function Benessere({ societa, puoScrivere }) {
     } catch (e) { setMessaggio(`Non salvato: ${e.message}`); }
   }
 
+  const categoriaDi = (a) => categoriaAtleta(a, fasce);
+  const presenti = new Set(atleti.map(categoriaDi).filter(Boolean));
+  const gruppi = RAGGRUPPAMENTI.filter((r) => r.codici.some((c) => presenti.has(c)));
+
+  const filtrati = filtro === 'tutti'
+    ? atleti
+    : atleti.filter((a) => RAGGRUPPAMENTI.find((r) => r.nome === filtro)?.codici.includes(categoriaDi(a)));
+
   // I meno pronti in cima: è l'ordine con cui guardi la squadra.
-  const ordinati = [...atleti].sort((a, b) => {
+  const ordinati = [...filtrati].sort((a, b) => {
     const pa = prontezzaDi(righe[a.id]);
     const pb = prontezzaDi(righe[b.id]);
     if (pa == null && pb == null) return a.cognome.localeCompare(b.cognome);
@@ -67,7 +77,7 @@ export default function Benessere({ societa, puoScrivere }) {
     return pa - pb;
   });
 
-  const rilevati = Object.keys(righe).length;
+  const rilevati = filtrati.filter((a) => righe[a.id]).length;
   const daGuardare = ordinati.filter((a) => {
     const p = prontezzaDi(righe[a.id]);
     return p != null && p < 3;
@@ -86,12 +96,23 @@ export default function Benessere({ societa, puoScrivere }) {
         è un indicatore di prontezza, da leggere accanto al carico.
       </p>
 
+      <div className="destinatari" style={{ marginBottom: 12 }}>
+        <button className="pastiglia" aria-pressed={filtro === 'tutti'} onClick={() => setFiltro('tutti')}>
+          {filtro === 'tutti' && <Check size={13} style={{ verticalAlign: -2, marginRight: 5 }} />}Tutti
+        </button>
+        {gruppi.map((r) => (
+          <button key={r.nome} className="pastiglia" aria-pressed={filtro === r.nome} onClick={() => setFiltro(r.nome)}>
+            {filtro === r.nome && <Check size={13} style={{ verticalAlign: -2, marginRight: 5 }} />}{r.nome}
+          </button>
+        ))}
+      </div>
+
       {messaggio && <div className="avviso errore" style={{ marginBottom: 12 }}>{messaggio}</div>}
 
       <div className="volumi sezione">
         <div className="volume" style={{ '--tinta': 'var(--ciano)' }}>
           <div className="etichetta">Rilevati</div>
-          <div className="cifra">{rilevati}<small>/{atleti.length}</small></div>
+          <div className="cifra">{rilevati}<small>/{filtrati.length}</small></div>
         </div>
         <div className="volume" style={{ '--tinta': daGuardare.length ? 'var(--ambra)' : 'var(--menta)' }}>
           <div className="etichetta">Sotto la media</div>
@@ -108,8 +129,8 @@ export default function Benessere({ societa, puoScrivere }) {
           <span style={{ fontSize: 12, color: 'var(--testo-3)' }}>i meno pronti in cima</span>
         </div>
 
-        {atleti.length === 0 ? (
-          <div className="vuoto"><h3>Nessun atleta</h3><p>Carica prima la squadra dalla scheda Atleti.</p></div>
+        {ordinati.length === 0 ? (
+          <div className="vuoto"><h3>Nessun atleta</h3><p>{atleti.length ? 'Nessuno in questa categoria.' : 'Carica prima la squadra dalla scheda Atleti.'}</p></div>
         ) : (
           <div className="corpo" style={{ display: 'grid', gap: 8 }}>
             {ordinati.map((a) => {

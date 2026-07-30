@@ -103,7 +103,10 @@ export default function App() {
   return (
     <div className="guscio">
       <header className="testata">
-        <div className="marchio">Corsia<span>Pro</span></div>
+        <div className="marchio">
+          <img src="/marchio.svg" alt="" className="segno" />
+          Corsia<span>Pro</span>
+        </div>
         <button className="versione" onClick={() => setRegistro(true)} title="Cosa è cambiato">
           v{VERSIONE}
         </button>
@@ -170,12 +173,12 @@ export default function App() {
             />
           )}
           {scheda === 'appello' && <Appello societa={societa} fasce={fasce} puoScrivere={puoScrivere} />}
-          {scheda === 'benessere' && <Benessere societa={societa} puoScrivere={puoScrivere} />}
+          {scheda === 'benessere' && <Benessere societa={societa} fasce={fasce} puoScrivere={puoScrivere} />}
           {scheda === 'atleti' && (
             <Atleti societa={societa} fasce={fasce} stagione={stagione}
               proiezione={proiezione} puoScrivere={puoScrivere} />
           )}
-          {scheda === 'volumi' && <Volumi societa={societa} zone={zone} />}
+          {scheda === 'volumi' && <Volumi societa={societa} stagione={stagione} />}
           {scheda === 'squadra' && (
             <Squadra societa={societa} ruolo={ruolo} ricaricaSocieta={() => setRicarica((n) => n + 1)} />
           )}
