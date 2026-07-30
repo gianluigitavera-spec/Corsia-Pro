@@ -168,7 +168,7 @@ export default function App() {
               apertura={apertura} consumaApertura={consumaApertura}
             />
           )}
-          {scheda === 'appello' && <Appello societa={societa} />}
+          {scheda === 'appello' && <Appello societa={societa} fasce={fasce} puoScrivere={puoScrivere} />}
           {scheda === 'benessere' && <Benessere societa={societa} puoScrivere={puoScrivere} />}
           {scheda === 'atleti' && (
             <Atleti societa={societa} fasce={fasce} stagione={stagione}

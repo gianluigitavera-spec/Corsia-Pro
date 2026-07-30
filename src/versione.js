@@ -3,9 +3,20 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.8.0';
+export const VERSIONE = '0.9.0';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.9.0',
+    data: '2026-07-30',
+    voci: [
+      'Appello a elenco, filtrabile per categoria come le sedute',
+      'Quattro stati: presente, ritardo, giustificato, assente',
+      'Frequenza settimanale, mensile e totale accanto a ogni nome, più il conto dei ritardi',
+      'Solo l\u2019assenza fa scendere la percentuale; ritardo e giustificato contano come presenza',
+      'I metri di chi arriva in ritardo entrano nel carico: era in acqua',
+    ],
+  },
   {
     versione: '0.8.0',
     data: '2026-07-30',

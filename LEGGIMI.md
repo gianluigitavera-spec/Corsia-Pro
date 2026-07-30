@@ -1,4 +1,4 @@
-# CorsiaPro — app · v0.8.0
+# CorsiaPro — app · v0.9.0
 
 React + Vite, legge lo schema `squadra` che hai già creato su Supabase.
 
@@ -19,8 +19,15 @@ Entri con lo stesso account che hai usato per creare la società.
   destinatari (Tutti / Velocità / Mezzofondo / Salvamento) e i volumi
   per specializzazione si aggiornano mentre scrivi. Sotto, la validazione
   segnala le serie senza zona o senza metri.
-- **Appello** — un tocco cicla non rilevato → P → A → G. Chi non tocchi
-  resta "non rilevato": non finisce fra i presenti.
+- **Appello** — elenco filtrabile per categoria, con quattro stati per
+  riga: **P** presente, **R** ritardo, **G** giustificato, **A** assente.
+  Ritoccando lo stesso stato si annulla. Chi non tocchi resta "non
+  rilevato" e non entra in nessun conteggio.
+  Accanto a ogni nome la frequenza a **settimana / mese / totale** e il
+  numero di ritardi. Regola: solo l'assenza fa scendere la percentuale —
+  ritardo e giustificato contano come presenza. I metri di chi arriva in
+  ritardo entrano nel carico, perché in acqua c'era.
+  Richiede `013_ritardi_frequenza.sql`.
 - **Atleti** — anagrafica e import CSV (`nome,cognome,sesso,anno_nascita,specializzazione`).
   La categoria è derivata, non salvata.
 - **Volumi** — carico reale per atleta dalle viste SQL: metri della sua

@@ -291,3 +291,8 @@ export async function salvaBenessere(riga) {
 export async function tendenzaBenessere(societaId) {
   return ok(await sb.from('v_benessere_tendenza').select('*').eq('societa_id', societaId));
 }
+
+// ----------------------------------------------------------- frequenza
+export async function leggiFrequenza(societaId) {
+  return ok(await sb.from('v_frequenza').select('*').eq('societa_id', societaId));
+}

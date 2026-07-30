@@ -498,3 +498,43 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 }
 .voce-registro ul { margin: 7px 0 0; padding-left: 19px; color: var(--testo-2); font-size: 14px; }
 .voce-registro li { margin-bottom: 4px; }
+
+/* ------------------------------------------------- appello a elenco */
+.intestazione-appello, .riga-appello {
+  display: grid; grid-template-columns: 1fr 176px 56px 56px 56px 44px;
+  gap: 10px; align-items: center; padding: 10px 16px;
+}
+.intestazione-appello {
+  border-bottom: var(--riga); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--testo-3);
+}
+.riga-appello { border-bottom: 1px solid rgba(30,46,79,0.5); border-left: 3px solid transparent; }
+.riga-appello:last-child { border-bottom: 0; }
+.riga-appello[data-stato='P'] { border-left-color: var(--menta); }
+.riga-appello[data-stato='R'] { border-left-color: var(--ciano); }
+.riga-appello[data-stato='G'] { border-left-color: var(--ambra); }
+.riga-appello[data-stato='A'] { border-left-color: var(--rosso); }
+.nome-appello { font-size: 15px; min-width: 0; }
+.sotto-appello { display: flex; gap: 10px; font-size: 11px; color: var(--testo-3); margin-top: 2px; }
+.cella-stati { display: inline-flex; gap: 5px; }
+.cella-freq { text-align: right; font-size: 13px; }
+.bottone-stato {
+  width: 38px; height: 38px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600;
+  background: var(--fondo-2); border: var(--riga); color: var(--testo-3); font-family: var(--dati);
+}
+.bottone-stato:hover:not(:disabled) { color: var(--testo); border-color: var(--bordo-vivo); }
+
+@media (max-width: 720px) {
+  .intestazione-appello { display: none; }
+  .riga-appello {
+    grid-template-columns: 1fr auto; grid-template-areas: 'nome freq' 'stati stati';
+    row-gap: 8px; padding: 12px 14px;
+  }
+  .riga-appello .nome-appello { grid-area: nome; }
+  .riga-appello .cella-stati { grid-area: stati; }
+  .riga-appello .cella-freq:nth-of-type(2) { grid-area: freq; }
+  .riga-appello .cella-freq:nth-of-type(3),
+  .riga-appello .cella-freq:nth-of-type(4),
+  .riga-appello .cella-freq:nth-of-type(5) { display: none; }
+  .bottone-stato { flex: 1; width: auto; height: 44px; }
+}
