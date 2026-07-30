@@ -254,7 +254,14 @@ export async function creaSocieta(nome, citta) {
     p_nome: nome,
     p_citta: citta || null,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === 'PGRST202' || /could not find the function/i.test(error.message || '')) {
+      throw new Error(
+        'Sul database manca la funzione crea_societa: lancia la migrazione 010_crea_societa.sql nel SQL Editor.'
+      );
+    }
+    throw new Error(error.message);
+  }
   return data;
 }
 

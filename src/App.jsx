@@ -3,6 +3,8 @@ import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, S
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte } from './lib/dominio';
+import { VERSIONE, CAMBIAMENTI } from './versione';
+import { ETICHETTA, BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
 import Atleti from './componenti/Atleti';
 import EditorSeduta from './componenti/EditorSeduta';
@@ -36,6 +38,7 @@ export default function App() {
   const [errore, setErrore] = useState(null);
   const [senzaSquadra, setSenzaSquadra] = useState(false);
   const [apertura, setApertura] = useState(null); // {id} oppure {data}
+  const [registro, setRegistro] = useState(false);
   const [ricarica, setRicarica] = useState(0);
 
   const [stagione, setStagione] = useState(stagioneCorrente());
@@ -101,6 +104,9 @@ export default function App() {
     <div className="guscio">
       <header className="testata">
         <div className="marchio">Corsia<span>Pro</span></div>
+        <button className="versione" onClick={() => setRegistro(true)} title="Cosa è cambiato">
+          v{VERSIONE}
+        </button>
         {societa && <div className="societa">{societa.nome}</div>}
         <div className="spazio" />
         <select
@@ -114,6 +120,7 @@ export default function App() {
         <button className="mini" onClick={() => api.esci()}>
           <LogOut size={14} style={{ verticalAlign: -2 }} /> Esci
         </button>
+        <span className="versione mono" title={`build ${BUILD}`}>{ETICHETTA}</span>
       </header>
 
       <nav className="nav">
@@ -125,6 +132,30 @@ export default function App() {
       </nav>
 
       {errore && <div className="sezione avviso errore">{errore}</div>}
+
+      {registro && (
+        <div className="registro" role="dialog" aria-label="Registro dei cambiamenti">
+          <div className="registro-riquadro">
+            <div className="intestazione">
+              <h3>Cosa è cambiato</h3>
+              <div style={{ flex: 1 }} />
+              <button className="mini" onClick={() => setRegistro(false)}>Chiudi</button>
+            </div>
+            <div className="corpo">
+              {CAMBIAMENTI.map((c) => (
+                <div key={c.versione} className="voce-registro">
+                  <div className="riga-versione">
+                    <span className="mono numero-versione">v{c.versione}</span>
+                    <span className="mono" style={{ color: 'var(--testo-3)', fontSize: 12 }}>{c.data}</span>
+                    {c.versione === VERSIONE && <span className="attuale">in uso</span>}
+                  </div>
+                  <ul>{c.voci.map((v, i) => <li key={i}>{v}</li>)}</ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {societa && (
         <main className="sezione">

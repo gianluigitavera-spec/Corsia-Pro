@@ -1,4 +1,4 @@
-# CorsiaPro — app
+# CorsiaPro — app · v0.8.0
 
 React + Vite, legge lo schema `squadra` che hai già creato su Supabase.
 
@@ -110,3 +110,23 @@ Se lo modifichi qui, riportalo anche là: è la fonte di verità comune.
 
 L'app scrive solo se il tuo ruolo in `squadra.membri` è `coach` o
 `collega`. Un `lettore` vede tutto senza poter modificare.
+
+
+## Versioni
+
+Il numero è in alto accanto al marchio: cliccalo e si apre il registro dei
+cambiamenti, versione per versione. Serve a sapere **cosa stai guardando**:
+se il numero a schermo non è quello dello zip che hai caricato, il deploy
+non è andato a fondo.
+
+Ad ogni consegna cambio `src/versione.js` (numero + voci), il `CACHE` in
+`public/sw.js` e la `version` di `package.json`. Sono i tre posti, non ce
+ne sono altri.
+
+## Se il sito mostra ancora la versione vecchia
+
+1. Su GitHub controlla la data dell'ultimo commit sui file
+2. Su Vercel → Deployments, verifica che l'ultimo sia "Ready" e non fallito
+3. Sul telefono, se l'hai installata come app: chiudila e riaprila (il
+   service worker prende la build nuova al secondo avvio), o rimuovi
+   l'icona e riaggiungila

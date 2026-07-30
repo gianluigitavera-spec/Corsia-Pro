@@ -459,3 +459,42 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   .foglio-volumi td { padding: 1.4mm 0; font-size: 11pt; }
   .foglio-note-finali { font-size: 10pt; margin-top: 4mm; }
 }
+
+.versione {
+  font-size: 11px; color: var(--testo-3); letter-spacing: 0.04em;
+  border: var(--riga); border-radius: 999px; padding: 3px 8px;
+}
+.versione-accesso { margin-bottom: 0 !important; font-size: 11px; letter-spacing: 0.06em; }
+
+.segno-prontezza {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  font-size: 12px; border: 1px solid; border-radius: 999px; padding: 3px 8px;
+}
+
+/* ------------------------------------------------- versione e registro */
+.versione {
+  font-family: var(--dati); font-size: 11px; letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.05); border: var(--riga); border-radius: 999px;
+  color: var(--testo-3); padding: 3px 9px; cursor: pointer; min-height: auto;
+}
+.versione:hover { color: var(--ciano); border-color: var(--ciano); }
+
+.registro {
+  position: fixed; inset: 0; z-index: 70; background: rgba(3, 8, 18, 0.78);
+  display: grid; place-items: center; padding: 18px;
+}
+.registro-riquadro {
+  width: 100%; max-width: 620px; max-height: 84vh; overflow: auto;
+  background: linear-gradient(180deg, rgba(22,35,63,0.98), rgba(16,27,51,0.98));
+  border: var(--riga); border-radius: var(--raggio); box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+.voce-registro { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid rgba(30,46,79,0.6); }
+.voce-registro:last-child { border-bottom: 0; margin-bottom: 0; }
+.riga-versione { display: flex; align-items: baseline; gap: 10px; }
+.numero-versione { font-size: 16px; color: var(--ciano); }
+.attuale {
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #06121F;
+  background: var(--menta); border-radius: 999px; padding: 2px 8px;
+}
+.voce-registro ul { margin: 7px 0 0; padding-left: 19px; color: var(--testo-2); font-size: 14px; }
+.voce-registro li { margin-bottom: 4px; }

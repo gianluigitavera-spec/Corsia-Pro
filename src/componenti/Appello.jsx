@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { HeartPulse } from 'lucide-react';
 import * as api from '../lib/dati';
 
 // Un tocco cicla: non rilevato → P → A → G → non rilevato.
@@ -10,6 +11,7 @@ export default function Appello({ societa }) {
   const [sedutaId, setSedutaId] = useState('');
   const [atleti, setAtleti] = useState([]);
   const [stati, setStati] = useState({});
+  const [prontezza, setProntezza] = useState({});
   const [messaggio, setMessaggio] = useState(null);
 
   useEffect(() => {
@@ -31,7 +33,16 @@ export default function Appello({ societa }) {
       .leggiPresenze(sedutaId)
       .then((righe) => setStati(Object.fromEntries(righe.map((r) => [r.atleta_id, r.stato]))))
       .catch((e) => setMessaggio(e.message));
-  }, [sedutaId]);
+
+    // Il benessere del giorno della seduta: serve qui, mentre decidi chi
+    // manda cosa in acqua, non in una schermata a parte.
+    const seduta = sedute.find((s) => s.id === sedutaId);
+    if (!seduta) return;
+    api
+      .leggiBenessere(societa.id, seduta.data)
+      .then((righe) => setProntezza(Object.fromEntries(righe.map((r) => [r.atleta_id, Number(r.prontezza)]))))
+      .catch(() => setProntezza({}));
+  }, [sedutaId, sedute, societa.id]);
 
   async function tocca(atletaId) {
     const prossimo = CICLO[stati[atletaId] ?? 'undefined'];
@@ -75,6 +86,9 @@ export default function Appello({ societa }) {
       <div className="barra" style={{ color: 'var(--testo-2)', fontSize: 14 }}>
         <span className="mono">{rilevati}/{atleti.length}</span> rilevati · <span className="mono">{presenti}</span> presenti
         {rilevati < atleti.length && <span>· i non toccati restano “non rilevato”, non presenti</span>}
+        {Object.keys(prontezza).length > 0 && (
+          <span>· il numero a destra è la prontezza del giorno</span>
+        )}
       </div>
 
       {messaggio && <div className="avviso errore" style={{ marginBottom: 12 }}>{messaggio}</div>}
@@ -82,6 +96,12 @@ export default function Appello({ societa }) {
       <div className="appello">
         {atleti.map((a) => {
           const stato = stati[a.id] || null;
+          const p = prontezza[a.id];
+          const tintaP = p == null ? null
+            : p >= 4 ? 'var(--menta)'
+            : p >= 3 ? 'var(--ciano)'
+            : p >= 2.25 ? 'var(--ambra)'
+            : 'var(--rosso)';
           return (
             <button
               key={a.id}
@@ -96,6 +116,16 @@ export default function Appello({ societa }) {
                 <br />
                 <span className="spec">{a.specializzazione}</span>
               </span>
+              <span style={{ flex: 1 }} />
+              {p != null && (
+                <span
+                  className="mono segno-prontezza"
+                  style={{ color: tintaP, borderColor: tintaP }}
+                  title={`Prontezza ${p.toFixed(1)} su 5`}
+                >
+                  <HeartPulse size={12} /> {p.toFixed(1)}
+                </span>
+              )}
             </button>
           );
         })}

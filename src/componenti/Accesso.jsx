@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LogIn, UserPlus, Mail } from 'lucide-react';
 import * as api from '../lib/dati';
+import { ETICHETTA, BUILD } from '../lib/versione';
 
 export default function Accesso() {
   const [modo, setModo] = useState('entra');   // entra | registra
@@ -41,6 +42,7 @@ export default function Accesso() {
     <div className="accesso">
       <div className="riquadro">
         <div className="marchio">Corsia<span>Pro</span></div>
+        <p className="sotto versione-accesso" title={`build ${BUILD}`}>{ETICHETTA} · </p>
         <p className="sotto">Il registro della squadra, a bordo vasca.</p>
 
         <div className="nav" style={{ marginBottom: 20 }}>

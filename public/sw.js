@@ -1,6 +1,6 @@
 // Service worker minimo: rende l'app installabile e serve il guscio
 // anche senza rete. I dati restano online (Supabase), non finti.
-const CACHE = 'corsiapro-v1';
+const CACHE = 'corsiapro-0.5.0';
 const GUSCIO = ['/', '/index.html', '/manifest.webmanifest', '/icona-192.png', '/icona-512.png'];
 
 self.addEventListener('install', (e) => {

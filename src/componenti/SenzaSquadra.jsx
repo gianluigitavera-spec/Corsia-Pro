@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { KeyRound, Building2, ArrowLeft } from 'lucide-react';
 import * as api from '../lib/dati';
+import { ETICHETTA, BUILD } from '../lib/versione';
 
 const ESITI = {
   inviata: (s) => `Richiesta inviata a ${s}. Ti apre il capo allenatore.`,
@@ -58,6 +59,7 @@ export default function SenzaSquadra({ email, ricarica }) {
     <div className="accesso">
       <div className="riquadro">
         <div className="marchio">Corsia<span>Pro</span></div>
+        <p className="sotto versione-accesso" title={`build ${BUILD}`}>{ETICHETTA} · </p>
         <p className="sotto">Non fai ancora parte di una squadra.</p>
 
         {inAttesa.length > 0 ? (
