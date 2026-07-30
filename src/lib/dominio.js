@@ -52,11 +52,10 @@ export const CATEGORIE = [
 // ---------------------------------------------------------------------
 // Seduta — il contratto. Stessa forma se scritta a mano o generata.
 // ---------------------------------------------------------------------
-export function sedutaVuota({ data, gruppoId = null, categoria = null } = {}) {
+export function sedutaVuota({ data, categorie = [] } = {}) {
   return {
     data: data || new Date().toISOString().slice(0, 10),
-    gruppo_id: gruppoId,
-    categoria,
+    categorie,
     origine: "manuale",
     titolo: "",
     sezioni: [
@@ -279,8 +278,8 @@ export function stagioneCorrente(oggi = new Date()) {
 export function validaSeduta(seduta, zoneValide = ZONE.map((z) => z.codice)) {
   const problemi = [];
   if (!seduta?.data) problemi.push({ campo: "data", msg: "Manca la data" });
-  if (!seduta?.gruppo_id && !seduta?.categoria)
-    problemi.push({ campo: "gruppo", msg: "Serve un gruppo o una categoria" });
+  if (!seduta?.categorie?.length)
+    problemi.push({ campo: "categorie", msg: "Scegli almeno una categoria" });
 
   const sezioni = seduta?.sezioni || [];
   if (sezioni.length === 0) problemi.push({ campo: "sezioni", msg: "Seduta vuota" });
@@ -308,12 +307,11 @@ export function validaSeduta(seduta, zoneValide = ZONE.map((z) => z.codice)) {
 // Da SwimCoach AI a CorsiaPro: un solo punto di contatto.
 // Adatta i nomi dei campi alla forma delle sezioni di SwimCoach.
 // ---------------------------------------------------------------------
-export function daSwimCoach(workout, { societaId, gruppoId, categoria = null }) {
+export function daSwimCoach(workout, { societaId, categorie = [] }) {
   return {
     societa_id: societaId,
     data: workout.data || new Date().toISOString().slice(0, 10),
-    gruppo_id: gruppoId,
-    categoria,
+    categorie,
     origine: "swimcoach",
     riferimento_esterno: workout.id ? String(workout.id) : null,
     titolo: workout.titolo || workout.nome || "",
@@ -330,4 +328,64 @@ export function daSwimCoach(workout, { societaId, gruppoId, categoria = null }) 
       })),
     })),
   };
+}
+
+
+// ---------------------------------------------------------------------
+// RAGGRUPPAMENTI PER LA SCELTA DELLE CATEGORIE
+// Un flag seleziona più codici insieme, come li tratti in vasca:
+// gli Esordienti B nuotano assieme, i Ragazzi 3 restano a parte.
+// ---------------------------------------------------------------------
+export const RAGGRUPPAMENTI = [
+  { nome: "Propaganda",   codici: ["PROP_01", "PROP_2"] },
+  { nome: "Teen",         codici: ["TEEN_0", "TEEN_1", "TEEN_2"] },
+  { nome: "Esordienti B", codici: ["ESO_B1", "ESO_B2"] },
+  { nome: "Esordienti A", codici: ["ESO_A1", "ESO_A2"] },
+  { nome: "Ragazzi 1-2",  codici: ["RAG_1", "RAG_2"] },
+  { nome: "Ragazzi 3",    codici: ["RAG_3M"] },
+  { nome: "Juniores",     codici: ["JUN_1", "JUN_2"] },
+  { nome: "Cadetti",      codici: ["CAD_1", "CAD_2"] },
+  { nome: "Senior",       codici: ["SEN_1", "SEN_2"] },
+  { nome: "Assoluti",     codici: ["ASS"] },
+];
+
+// Filtri del calendario: come guardi la settimana quando pianifichi.
+export const MACRO_CALENDARIO = [
+  { id: "tutte",      nome: "Tutte",        codici: null },
+  { id: "propaganda", nome: "Propaganda",   codici: ["PROP_01", "PROP_2"] },
+  { id: "teen",       nome: "Teen",         codici: ["TEEN_0", "TEEN_1", "TEEN_2"] },
+  { id: "eso_b",      nome: "Esordienti B", codici: ["ESO_B1", "ESO_B2"] },
+  { id: "eso_a",      nome: "Esordienti A", codici: ["ESO_A1", "ESO_A2"] },
+  { id: "ragazzi",    nome: "Ragazzi",      codici: ["RAG_1", "RAG_2", "RAG_3M"] },
+  { id: "jcs",        nome: "J/C/S e Assoluti", codici: ["JUN_1", "JUN_2", "CAD_1", "CAD_2", "SEN_1", "SEN_2", "ASS"] },
+];
+
+// Un elemento (seduta o gara) rientra nel filtro se una delle sue
+// categorie è fra quelle del macro-gruppo.
+export function rientraNelMacro(categorie, codici) {
+  if (!codici) return true;
+  const c = categorie || [];
+  if (c.length === 0) return true;        // senza categorie resta sempre visibile
+  return c.some((x) => codici.includes(x));
+}
+
+// ---------------------------------------------------------------------
+// STAGIONI — partono a settembre. "2025/26", "2026/27", ...
+// ---------------------------------------------------------------------
+export function stagioneDa(annoIniziale) {
+  return `${annoIniziale}/${String(annoIniziale + 1).slice(2)}`;
+}
+
+export function annoInizialeDi(stagione) {
+  const n = parseInt(String(stagione).slice(0, 4), 10);
+  return isNaN(n) ? null : n;
+}
+
+// Elenco per il selettore: quelle presenti nel database più le due
+// adiacenti a quella corrente, senza doppioni.
+export function stagioniProposte(daDatabase = [], corrente = stagioneCorrente()) {
+  const a = annoInizialeDi(corrente);
+  const insieme = new Set([...daDatabase, corrente]);
+  if (a) { insieme.add(stagioneDa(a - 1)); insieme.add(stagioneDa(a + 1)); }
+  return [...insieme].sort().reverse();
 }

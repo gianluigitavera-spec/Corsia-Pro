@@ -8,3 +8,10 @@ createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
+
+// Installazione sul telefono: "Aggiungi a schermata Home".
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

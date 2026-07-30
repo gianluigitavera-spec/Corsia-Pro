@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { KeyRound, Building2, ArrowLeft } from 'lucide-react';
 import * as api from '../lib/dati';
 
-const MESSAGGI = {
+const ESITI = {
   inviata: (s) => `Richiesta inviata a ${s}. Ti apre il capo allenatore.`,
   gia_richiesta: (s) => `Hai già una richiesta in attesa per ${s}.`,
   gia_membro: (s) => `Fai già parte di ${s}. Ricarica la pagina.`,
@@ -9,31 +10,38 @@ const MESSAGGI = {
   non_autenticato: () => 'Sessione scaduta: esci e rientra.',
 };
 
-export default function SenzaSquadra({ email }) {
+export default function SenzaSquadra({ email, ricarica }) {
+  const [scelta, setScelta] = useState(null);      // null | 'codice' | 'crea'
   const [codice, setCodice] = useState('');
+  const [nome, setNome] = useState('');
+  const [citta, setCitta] = useState('');
   const [esito, setEsito] = useState(null);
   const [attesa, setAttesa] = useState(false);
   const [richieste, setRichieste] = useState([]);
 
-  useEffect(() => {
-    api.mieRichieste().then(setRichieste).catch(() => {});
-  }, [esito]);
+  useEffect(() => { api.mieRichieste().then(setRichieste).catch(() => {}); }, [esito]);
 
-  async function invia() {
-    setAttesa(true);
-    setEsito(null);
+  async function chiedi() {
+    setAttesa(true); setEsito(null);
     try {
       const r = await api.chiediAccesso(codice);
       setEsito({
-        testo: (MESSAGGI[r.esito] || (() => r.esito))(r.societa),
-        errore: r.esito === 'codice_sconosciuto' || r.esito === 'non_autenticato',
+        testo: (ESITI[r.esito] || (() => r.esito))(r.societa),
+        errore: ['codice_sconosciuto', 'non_autenticato'].includes(r.esito),
       });
       if (r.esito === 'inviata') setCodice('');
-    } catch (e) {
-      setEsito({ testo: e.message, errore: true });
-    } finally {
-      setAttesa(false);
-    }
+      if (r.esito === 'gia_membro') ricarica?.();
+    } catch (e) { setEsito({ testo: e.message, errore: true }); }
+    finally { setAttesa(false); }
+  }
+
+  async function crea() {
+    setAttesa(true); setEsito(null);
+    try {
+      await api.creaSocieta(nome, citta);
+      ricarica?.();
+    } catch (e) { setEsito({ testo: e.message, errore: true }); }
+    finally { setAttesa(false); }
   }
 
   const inAttesa = richieste.filter((r) => r.stato === 'in_attesa');
@@ -48,46 +56,71 @@ export default function SenzaSquadra({ email }) {
           <div className="avviso">
             Richiesta in attesa. Quando il capo allenatore la approva, ricarica la pagina ed entri.
           </div>
+        ) : !scelta ? (
+          <div style={{ display: 'grid', gap: 10 }}>
+            <button className="azione" onClick={() => setScelta('crea')}>
+              <Building2 size={16} style={{ verticalAlign: -3, marginRight: 7 }} />
+              Crea la tua squadra
+            </button>
+            <button className="azione fantasma" onClick={() => setScelta('codice')}>
+              <KeyRound size={16} style={{ verticalAlign: -3, marginRight: 7 }} />
+              Entra con un codice
+            </button>
+            <p style={{ fontSize: 13, color: 'var(--testo-3)', textAlign: 'center', marginBottom: 0 }}>
+              Crei la squadra se sei il capo allenatore. Usi il codice se la squadra esiste già
+              e te l'ha passato lui.
+            </p>
+          </div>
+        ) : scelta === 'crea' ? (
+          <>
+            <div className="campo">
+              <label>Nome della squadra</label>
+              <input autoFocus value={nome} placeholder="es. Aquamore Acqua 13"
+                onChange={(e) => setNome(e.target.value)} />
+            </div>
+            <div className="campo">
+              <label>Città</label>
+              <input value={citta} onChange={(e) => setCitta(e.target.value)} />
+            </div>
+            <button className="azione" onClick={crea} disabled={attesa || !nome.trim()}>
+              {attesa ? 'Creo…' : 'Crea squadra'}
+            </button>
+            <p style={{ fontSize: 13, color: 'var(--testo-3)', marginTop: 12, marginBottom: 0 }}>
+              Diventi capo allenatore e ricevi il codice da passare ai colleghi.
+              Il resto dei dati (indirizzo, P.IVA) lo compili dopo, dalla scheda Squadra.
+            </p>
+          </>
         ) : (
           <>
             <div className="campo">
-              <label htmlFor="cod">Codice squadra</label>
-              <input
-                id="cod"
-                className="mono"
-                placeholder="AQ13-7K2M"
-                value={codice}
+              <label>Codice squadra</label>
+              <input autoFocus className="mono" placeholder="AQ13-7K2M" value={codice}
                 autoCapitalize="characters"
                 onChange={(e) => setCodice(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && codice && invia()}
-              />
+                onKeyDown={(e) => e.key === 'Enter' && codice && chiedi()} />
             </div>
-            <p style={{ fontSize: 13, color: 'var(--testo-2)', marginTop: 8 }}>
-              Il codice te lo dà il capo allenatore della squadra.
-            </p>
-            <button className="azione" onClick={invia} disabled={attesa || codice.length < 4}>
+            <button className="azione" onClick={chiedi} disabled={attesa || codice.length < 4}>
               {attesa ? 'Invio…' : 'Chiedi di entrare'}
             </button>
           </>
         )}
 
-        {esito && (
-          <div className={`avviso ${esito.errore ? 'errore' : ''}`} style={{ marginTop: 14 }}>
-            {esito.testo}
-          </div>
+        {scelta && inAttesa.length === 0 && (
+          <button className="mini" style={{ marginTop: 14 }} onClick={() => { setScelta(null); setEsito(null); }}>
+            <ArrowLeft size={13} style={{ verticalAlign: -2 }} /> Indietro
+          </button>
         )}
 
-        <hr style={{ border: 0, borderTop: 'var(--riga)', margin: '24px 0 16px' }} />
+        {esito && (
+          <div className={`avviso ${esito.errore ? 'errore' : ''}`} style={{ marginTop: 14 }}>{esito.testo}</div>
+        )}
 
-        <p style={{ fontSize: 13, color: 'var(--testo-2)' }}>
-          CorsiaPro è lo strumento degli allenatori: anagrafica, presenze e volumi della squadra.
-          Se sei un atleta, i tuoi allenamenti sono su SwimCoach AI — stesso account, non serve
-          registrarsi di nuovo.
+        <hr style={{ border: 0, borderTop: 'var(--riga)', margin: '22px 0 14px' }} />
+        <p style={{ fontSize: 13, color: 'var(--testo-3)' }}>
+          CorsiaPro è lo strumento degli allenatori. Se sei un atleta, i tuoi allenamenti
+          sono su SwimCoach AI — stesso account, non serve registrarsi di nuovo.
         </p>
-
-        <button className="mini" style={{ marginTop: 14 }} onClick={() => api.esci()}>
-          Esci{email ? ` (${email})` : ''}
-        </button>
+        <button className="mini" onClick={() => api.esci()}>Esci{email ? ` (${email})` : ''}</button>
       </div>
     </div>
   );

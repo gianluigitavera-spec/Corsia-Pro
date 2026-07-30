@@ -345,3 +345,117 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 .cerca svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--testo-3); }
 
 .metri-auto { color: var(--ciano); font-size: 11px; letter-spacing: 0.06em; }
+
+.pastiglia[data-parziale='true'] {
+  border-color: var(--ambra); color: var(--ambra); background: rgba(251, 191, 36, 0.12);
+}
+.pastiglia[data-parziale='true']::after { content: ' ·'; }
+textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
+
+/* ------------------------------------------------------- benessere */
+.riga-benessere { background: rgba(255,255,255,0.03); border: var(--riga); border-radius: var(--raggio-p); overflow: hidden; }
+.riga-benessere[data-espanso='true'] { border-color: var(--bordo-vivo); }
+.testa-benessere {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+  background: transparent; border: 0; padding: 11px 13px; min-height: 58px;
+  color: var(--testo); font-family: var(--corpo); font-size: 15px;
+}
+.testa-benessere .punteggio {
+  width: 42px; height: 42px; flex: none; display: grid; place-items: center;
+  border: 2px solid; border-radius: 50%; font-size: 15px; font-weight: 500;
+}
+.corpo-benessere { padding: 4px 13px 14px; display: grid; gap: 11px; }
+.voce-benessere { display: grid; grid-template-columns: 92px auto 1fr; gap: 10px; align-items: center; }
+.voce-benessere .nome-voce { font-size: 13px; color: var(--testo-2); }
+.voce-benessere .estremi { font-size: 11px; color: var(--testo-3); }
+.scala { display: inline-flex; gap: 5px; }
+.scala button {
+  width: 40px; height: 40px; border-radius: 9px; cursor: pointer; font-size: 14px;
+  background: var(--fondo-2); border: var(--riga); color: var(--testo-2);
+}
+.scala button[aria-pressed='true'] {
+  background: rgba(34,211,238,0.18); border-color: var(--ciano); color: var(--ciano); font-weight: 600;
+}
+@media (max-width: 560px) {
+  .voce-benessere { grid-template-columns: 78px auto; }
+  .voce-benessere .estremi { display: none; }
+}
+
+/* --------------------------------------------------------- lavagna */
+.lavagna {
+  position: fixed; inset: 0; z-index: 60; background: var(--fondo);
+  display: flex; flex-direction: column; padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+}
+.barra-lavagna { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: var(--riga); }
+.titolo-lavagna { font-family: var(--display); font-size: 21px; letter-spacing: 0.02em; }
+.chiudi-lavagna {
+  background: transparent; border: var(--riga); border-radius: 10px; color: var(--testo-2);
+  width: 42px; height: 42px; display: grid; place-items: center; cursor: pointer;
+}
+.corpo-lavagna { flex: 1; overflow: auto; padding: 18px 0; }
+.testa-lavagna { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.testa-lavagna h2 {
+  font-size: calc(34px * var(--scala, 1)); color: var(--ciano); text-transform: uppercase; letter-spacing: 0.02em;
+}
+.chi-lavagna {
+  font-size: 13px; color: var(--ambra); border: 1px solid rgba(251,191,36,0.4);
+  background: rgba(251,191,36,0.1); border-radius: 999px; padding: 3px 11px;
+}
+.metri-lavagna { margin-left: auto; font-size: calc(20px * var(--scala, 1)); color: var(--testo-2); }
+.serie-lavagna { list-style: none; margin: 0; padding: 0; }
+.serie-lavagna li {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: calc(13px * var(--scala, 1)) 0; border-bottom: 1px solid rgba(30,46,79,0.6);
+}
+.serie-lavagna .notaz {
+  font-family: var(--display); font-size: calc(42px * var(--scala, 1)); line-height: 1.05; letter-spacing: 0.01em;
+}
+.serie-lavagna .rec { font-size: calc(26px * var(--scala, 1)); color: var(--testo-2); }
+.serie-lavagna .zona {
+  font-family: var(--dati); font-size: calc(17px * var(--scala, 1)); font-weight: 600;
+  color: #06121F; border-radius: 7px; padding: 3px 11px;
+}
+.serie-lavagna .nota { font-size: calc(16px * var(--scala, 1)); color: var(--testo-3); flex-basis: 100%; }
+.piede-lavagna { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: var(--riga); flex-wrap: wrap; }
+.punti-lavagna { display: inline-flex; gap: 7px; }
+.punti-lavagna i { width: 9px; height: 9px; border-radius: 50%; background: var(--bordo-vivo); display: block; }
+.punti-lavagna i[data-attivo='true'] { background: var(--ciano); box-shadow: 0 0 12px var(--ciano); }
+.totali-lavagna { display: inline-flex; gap: 14px; font-size: 13px; color: var(--testo-3); flex-wrap: wrap; }
+
+/* ---------------------------------------------------------- stampa */
+.foglio { display: none; }
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body {
+    background: #fff !important; color: #000 !important;
+    font-family: 'Public Sans', system-ui, sans-serif; font-size: 11pt;
+  }
+  body * { visibility: hidden !important; }
+  .foglio, .foglio * { visibility: visible !important; }
+  .foglio {
+    display: block !important; position: absolute; left: 0; top: 0; width: 100%;
+    color: #000; background: #fff;
+  }
+  .foglio-testata {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 2px solid #000; padding-bottom: 6mm; margin-bottom: 6mm;
+  }
+  .foglio-testata h1 { font-size: 19pt; margin: 0; font-weight: 700; }
+  .foglio-sotto { margin: 2mm 0 0; font-size: 10pt; color: #333; }
+  .foglio-societa { font-size: 10pt; text-align: right; color: #333; }
+  .foglio-sezione { margin-bottom: 6mm; break-inside: avoid; }
+  .foglio-sezione-testa { font-size: 11pt; border-bottom: 1px solid #999; padding-bottom: 1.5mm; margin-bottom: 2mm; }
+  .foglio-metri { float: right; }
+  .foglio-tabella { width: 100%; border-collapse: collapse; }
+  .foglio-tabella td { padding: 1.4mm 0; border-bottom: 1px dotted #ccc; font-size: 11pt; }
+  .foglio-notaz { font-weight: 600; }
+  .foglio-rec, .foglio-zona, .foglio-m { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; white-space: nowrap; }
+  .foglio-rec { width: 24mm; }
+  .foglio-zona { width: 14mm; text-align: center; }
+  .foglio-m { width: 20mm; text-align: right; }
+  .foglio-note { font-size: 9.5pt; color: #444; margin: 2mm 0 0; padding-left: 5mm; }
+  .foglio-volumi { width: 100%; border-top: 2px solid #000; margin-top: 4mm; border-collapse: collapse; }
+  .foglio-volumi td { padding: 1.4mm 0; font-size: 11pt; }
+  .foglio-note-finali { font-size: 10pt; margin-top: 4mm; }
+}

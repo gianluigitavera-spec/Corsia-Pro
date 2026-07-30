@@ -43,15 +43,6 @@ export async function leggiFasce(stagione) {
   return ok(await sb.from('categorie_stagione').select('*').eq('stagione', stagione));
 }
 
-export async function leggiGruppi(societaId) {
-  return ok(
-    await sb.from('gruppi').select('*').eq('societa_id', societaId).eq('attivo', true).order('nome')
-  );
-}
-
-export async function creaGruppo(societaId, nome) {
-  return ok(await sb.from('gruppi').insert({ societa_id: societaId, nome }).select().single());
-}
 
 // ------------------------------------------------------------- atleti
 export async function leggiAtleti(societaId) {
@@ -85,7 +76,7 @@ export async function importaAtleti(righe) {
 export async function leggiSedute(societaId, { da, a } = {}) {
   let q = sb
     .from('sedute')
-    .select('id, data, titolo, origine, gruppo_id, categoria, sezioni')
+    .select('id, data, titolo, origine, categorie, sezioni')
     .eq('societa_id', societaId)
     .order('data', { ascending: false })
     .limit(60);
@@ -244,6 +235,46 @@ export async function eliminaGara(id) {
   return ok(await sb.from('gare').delete().eq('id', id).select());
 }
 
-export async function eliminaGruppo(id) {
-  return ok(await sb.from('gruppi').update({ attivo: false }).eq('id', id).select());
+
+// ------------------------------------------------------------ account
+export async function registrati(email, password) {
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function creaSocieta(nome, citta) {
+  const { data: u } = await sb.auth.getUser();
+  return ok(
+    await sb.from('societa')
+      .insert({ nome: nome.trim(), citta: citta?.trim() || null, creata_da: u.user.id })
+      .select().single()
+  );
+}
+
+export async function aggiornaSocieta(id, campi) {
+  return ok(await sb.from('societa').update(campi).eq('id', id).select().single());
+}
+
+export async function leggiStagioni() {
+  const { data, error } = await sb.from('v_stagioni').select('stagione');
+  if (error) return [];
+  return (data || []).map((r) => r.stagione);
+}
+
+// ------------------------------------------------------------ benessere
+export async function leggiBenessere(societaId, data) {
+  return ok(await sb.from('v_benessere').select('*').eq('societa_id', societaId).eq('data', data));
+}
+
+export async function salvaBenessere(riga) {
+  return ok(
+    await sb.from('benessere')
+      .upsert(riga, { onConflict: 'atleta_id,data' })
+      .select()
+  );
+}
+
+export async function tendenzaBenessere(societaId) {
+  return ok(await sb.from('v_benessere_tendenza').select('*').eq('societa_id', societaId));
 }

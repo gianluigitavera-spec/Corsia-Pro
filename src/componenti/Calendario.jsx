@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
+import { MACRO_CALENDARIO, rientraNelMacro } from '../lib/dominio';
 
 export const TIPI_GARA = {
   trofeo:              { nome: 'Trofeo',                          colore: '#A78BFA', Icona: Trophy },
@@ -19,6 +20,7 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 
 export default function Calendario({ societa, puoScrivere, apriSeduta }) {
   const oggi = new Date();
+  const [macro, setMacro] = useState('tutte');
   const [mese, setMese] = useState(new Date(oggi.getFullYear(), oggi.getMonth(), 1));
   const [sedute, setSedute] = useState([]);
   const [gare, setGare] = useState([]);
@@ -53,8 +55,12 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
     return out;
   }, [mese.getTime()]);
 
-  const seduteDi = (d) => sedute.filter((s) => s.data === iso(d));
-  const gareDi = (d) => gare.filter((g) => g.data === iso(d) || (g.data_fine && iso(d) >= g.data && iso(d) <= g.data_fine));
+  const codiciMacro = MACRO_CALENDARIO.find((m) => m.id === macro)?.codici || null;
+  const nelFiltro = (x) => rientraNelMacro(x.categorie, codiciMacro);
+
+  const seduteDi = (d) => sedute.filter((s) => s.data === iso(d) && nelFiltro(s));
+  const gareDi = (d) => gare.filter((g) =>
+    nelFiltro(g) && (g.data === iso(d) || (g.data_fine && iso(d) >= g.data && iso(d) <= g.data_fine)));
 
   async function creaGara() {
     try {
@@ -64,6 +70,7 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
         data_fine: nuovaGara.data_fine || null,
         nome: nuovaGara.nome.trim(),
         tipo: nuovaGara.tipo,
+        categorie: codiciMacro || [],
         luogo: nuovaGara.luogo || null,
       });
       setNuovaGara(null);
@@ -81,6 +88,16 @@ export default function Calendario({ societa, puoScrivere, apriSeduta }) {
         <button className="mini" onClick={() => sposta(1)} aria-label="Mese successivo">›</button>
         <div style={{ flex: 1 }} />
         <button className="mini" onClick={() => setMese(new Date(oggi.getFullYear(), oggi.getMonth(), 1))}>Oggi</button>
+      </div>
+
+      <div className="corpo" style={{ paddingBottom: 0 }}>
+        <div className="destinatari">
+          {MACRO_CALENDARIO.map((m) => (
+            <button key={m.id} className="pastiglia" aria-pressed={macro === m.id} onClick={() => setMacro(m.id)}>
+              {m.nome}
+            </button>
+          ))}
+        </div>
       </div>
 
       {errore && <div className="corpo"><div className="avviso errore">{errore}</div></div>}

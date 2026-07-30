@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Plus, Trash2, ChevronUp, ChevronDown, Save, ArrowLeft, Waves, X, AlertTriangle,
+  Plus, Trash2, ChevronUp, ChevronDown, Save, ArrowLeft, Waves, X, AlertTriangle, Check,
+  Printer, Share2, Presentation,
 } from 'lucide-react';
 import * as api from '../lib/dati';
 import {
   TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
-  caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero,
+  caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
+import { condividiSeduta } from '../lib/testoSeduta';
+import Lavagna from './Lavagna';
+import FoglioStampa from './FoglioStampa';
 
 function coloreSezione(sezione, zone) {
   const mappa = Object.fromEntries(zone.map((z) => [z.codice, z.famiglia]));
@@ -30,18 +34,14 @@ const muovi = (arr, da, a) => {
 
 export default function EditorSeduta({ societa, zone, puoScrivere, categorie, apertura, consumaApertura }) {
   const [elenco, setElenco] = useState([]);
-  const [gruppi, setGruppi] = useState([]);
   const [seduta, setSeduta] = useState(null);
   const [messaggio, setMessaggio] = useState(null);
   const [salvataggio, setSalvataggio] = useState(false);
-  const [nuovoGruppo, setNuovoGruppo] = useState('');
+  const [lavagna, setLavagna] = useState(false);
 
   const codiciZona = zone.map((z) => z.codice);
 
-  useEffect(() => {
-    ricarica();
-    api.leggiGruppi(societa.id).then(setGruppi).catch(() => {});
-  }, [societa.id]);
+  useEffect(() => { ricarica(); }, [societa.id]);
 
   // Arrivo dal calendario: apri una seduta esistente o creane una per quel giorno.
   useEffect(() => {
@@ -95,15 +95,6 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
       if (sez.destinatari.length === 0) sez.destinatari = [TUTTI];
     });
 
-  async function creaGruppo() {
-    try {
-      const g = await api.creaGruppo(societa.id, nuovoGruppo.trim());
-      setGruppi([...gruppi, g]);
-      aggiorna((s) => { s.gruppo_id = g.id; });
-      setNuovoGruppo('');
-    } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
-  }
-
   async function salva() {
     setSalvataggio(true);
     setMessaggio(null);
@@ -114,13 +105,32 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
       setMessaggio({ tipo: 'ok', testo: "Seduta salvata: la trovi nell'elenco e sul calendario." });
     } catch (e) {
       const testo = /check/i.test(e.message)
-        ? 'Serve un gruppo o una categoria: il database non accetta sedute senza destinatario.'
+        ? 'Scegli almeno una categoria: il database non accetta sedute senza destinatario.'
         : e.message;
       setMessaggio({ tipo: 'errore', testo });
     } finally { setSalvataggio(false); }
   }
 
-  const senzaDestinatario = seduta && !seduta.gruppo_id && !seduta.categoria;
+  const senzaDestinatario = seduta && !(seduta.categorie || []).length;
+
+  // I flag lavorano sui raggruppamenti: un tocco accende o spegne tutti i
+  // codici che stanno insieme in vasca.
+  const codiciNoti = new Set((categorie || []).map((c) => c.codice));
+  const raggruppamenti = RAGGRUPPAMENTI
+    .map((r) => ({ ...r, codici: r.codici.filter((c) => codiciNoti.has(c)) }))
+    .filter((r) => r.codici.length > 0);
+
+  const scelte = new Set(seduta?.categorie || []);
+  const statoRaggruppamento = (r) => {
+    const dentro = r.codici.filter((c) => scelte.has(c)).length;
+    return dentro === 0 ? 'no' : dentro === r.codici.length ? 'tutto' : 'parte';
+  };
+  const togliRaggruppamento = (r) => aggiorna((s) => {
+    const attuali = new Set(s.categorie || []);
+    const pieno = r.codici.every((c) => attuali.has(c));
+    r.codici.forEach((c) => (pieno ? attuali.delete(c) : attuali.add(c)));
+    s.categorie = [...attuali];
+  });
 
   // ------------------------------------------------------------- elenco
   if (!seduta) {
@@ -151,14 +161,14 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
           <div className="scheda">
             <table>
               <thead>
-                <tr><th>Data</th><th>Titolo</th><th>Origine</th><th style={{ textAlign: 'right' }}>Sezioni</th><th /></tr>
+                <tr><th>Data</th><th>Titolo</th><th>Categorie</th><th style={{ textAlign: 'right' }}>Sezioni</th><th /></tr>
               </thead>
               <tbody>
                 {elenco.map((s) => (
                   <tr key={s.id}>
                     <td className="mono">{s.data}</td>
                     <td>{s.titolo || '—'}</td>
-                    <td style={{ color: 'var(--testo-3)' }}>{s.origine}</td>
+                    <td style={{ color: 'var(--testo-3)', fontSize: 13 }}>{(s.categorie || []).join(' · ') || '—'}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{(s.sezioni || []).length}</td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="mini" onClick={() => api.leggiSeduta(s.id).then(setSeduta)}>Apri</button>
@@ -179,6 +189,22 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
       <div className="barra">
         <button className="mini" onClick={() => { setSeduta(null); setMessaggio(null); }}>
           <ArrowLeft size={14} style={{ verticalAlign: -2 }} /> Sedute
+        </button>
+        <button className="mini" onClick={() => setLavagna(true)} title="Lavagna a bordo vasca">
+          <Presentation size={14} style={{ verticalAlign: -2 }} /> Lavagna
+        </button>
+        <button className="mini" onClick={() => window.print()} title="Stampa o salva in PDF">
+          <Printer size={14} style={{ verticalAlign: -2 }} /> PDF
+        </button>
+        <button
+          className="mini"
+          title="Invia la seduta come testo"
+          onClick={async () => {
+            const esito = await condividiSeduta(seduta, { nomeSquadra: societa.nome });
+            if (esito === 'copiato') setMessaggio({ tipo: 'ok', testo: 'Seduta copiata: incollala dove vuoi.' });
+          }}
+        >
+          <Share2 size={14} style={{ verticalAlign: -2 }} /> Invia
         </button>
         <div style={{ flex: 1 }} />
         {seduta.id && puoScrivere && (
@@ -206,20 +232,6 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
             <label>Data</label>
             <input type="date" value={seduta.data || ''} onChange={(e) => aggiorna((s) => { s.data = e.target.value; })} />
           </div>
-          <div className="campo">
-            <label>Gruppo</label>
-            <select value={seduta.gruppo_id || ''} onChange={(e) => aggiorna((s) => { s.gruppo_id = e.target.value || null; })}>
-              <option value="">—</option>
-              {gruppi.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
-            </select>
-          </div>
-          <div className="campo">
-            <label>Oppure categoria</label>
-            <select value={seduta.categoria || ''} onChange={(e) => aggiorna((s) => { s.categoria = e.target.value || null; })}>
-              <option value="">—</option>
-              {(categorie || []).map((c) => <option key={c.codice} value={c.codice}>{c.nome}</option>)}
-            </select>
-          </div>
           <div className="campo" style={{ gridColumn: 'span 2' }}>
             <label>Titolo</label>
             <input
@@ -230,24 +242,32 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
           </div>
         </div>
 
+        <div className="corpo" style={{ paddingTop: 0 }}>
+          <label>Categorie a cui è rivolta</label>
+          <div className="destinatari">
+            {raggruppamenti.map((r) => {
+              const st = statoRaggruppamento(r);
+              return (
+                <button
+                  key={r.nome}
+                  className="pastiglia"
+                  aria-pressed={st !== 'no'}
+                  data-parziale={st === 'parte'}
+                  onClick={() => togliRaggruppamento(r)}
+                >
+                  {st === 'tutto' ? <Check size={13} style={{ verticalAlign: -2, marginRight: 5 }} /> : null}
+                  {r.nome}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {senzaDestinatario && (
           <div className="corpo" style={{ paddingTop: 0 }}>
             <div className="avviso">
               <AlertTriangle size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
-              Scegli un gruppo o una categoria: senza destinatario la seduta non si salva.
-              {gruppi.length === 0 && (
-                <div className="barra" style={{ marginTop: 10, marginBottom: 0 }}>
-                  <input
-                    placeholder="Nome del primo gruppo (es. Esordienti A)"
-                    value={nuovoGruppo}
-                    onChange={(e) => setNuovoGruppo(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && nuovoGruppo.trim() && creaGruppo()}
-                  />
-                  <button className="azione fantasma" onClick={creaGruppo} disabled={!nuovoGruppo.trim()}>
-                    <Plus size={15} style={{ verticalAlign: -3 }} /> Crea gruppo
-                  </button>
-                </div>
-              )}
+              Scegli almeno una categoria: senza destinatario la seduta non si salva.
             </div>
           </div>
         )}
@@ -403,6 +423,9 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
       {messaggio && (
         <div className={`sezione avviso ${messaggio.tipo === 'errore' ? 'errore' : ''}`}>{messaggio.testo}</div>
       )}
+
+      {lavagna && <Lavagna seduta={seduta} zone={zone} chiudi={() => setLavagna(false)} />}
+      <FoglioStampa seduta={seduta} societa={societa} categorie={categorie} />
     </>
   );
 }

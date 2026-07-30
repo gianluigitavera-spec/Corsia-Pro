@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutDashboard, Waves, ClipboardCheck, Users, BarChart3, Settings2, LogOut } from 'lucide-react';
+import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Settings2, LogOut } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
-import { stagioneCorrente } from './lib/dominio';
+import { stagioneCorrente, stagioniProposte } from './lib/dominio';
 import Accesso from './componenti/Accesso';
 import Atleti from './componenti/Atleti';
 import EditorSeduta from './componenti/EditorSeduta';
 import Appello from './componenti/Appello';
 import Volumi from './componenti/Volumi';
 import Dashboard from './componenti/Dashboard';
+import Benessere from './componenti/Benessere';
 import Squadra from './componenti/Squadra';
 import SenzaSquadra from './componenti/SenzaSquadra';
 
@@ -16,6 +17,7 @@ const SCHEDE = [
   { id: 'dashboard', nome: 'Dashboard', Icona: LayoutDashboard },
   { id: 'sedute', nome: 'Sedute', Icona: Waves },
   { id: 'appello', nome: 'Appello', Icona: ClipboardCheck },
+  { id: 'benessere', nome: 'Benessere', Icona: HeartPulse },
   { id: 'atleti', nome: 'Atleti', Icona: Users },
   { id: 'volumi', nome: 'Carico atleti', Icona: BarChart3 },
   { id: 'squadra', nome: 'Squadra', Icona: Settings2 },
@@ -29,12 +31,13 @@ export default function App() {
   const [zone, setZone] = useState([]);
   const [categorie, setCategorie] = useState([]);
   const [fasce, setFasce] = useState([]);
-  const [gruppi, setGruppi] = useState([]);
+  const [stagioni, setStagioni] = useState([]);
   const [errore, setErrore] = useState(null);
   const [senzaSquadra, setSenzaSquadra] = useState(false);
   const [apertura, setApertura] = useState(null); // {id} oppure {data}
+  const [ricarica, setRicarica] = useState(0);
 
-  const stagione = stagioneCorrente();
+  const [stagione, setStagione] = useState(stagioneCorrente());
 
   useEffect(() => {
     sb.auth.getSession().then(({ data }) => setSessione(data.session));
@@ -46,19 +49,20 @@ export default function App() {
     if (!sessione) return;
     (async () => {
       try {
-        const [membri, z, c, f] = await Promise.all([
-          api.mieSocieta(), api.leggiZone(), api.leggiCategorie(), api.leggiFasce(stagione),
+        const [membri, z, c, f, st] = await Promise.all([
+          api.mieSocieta(), api.leggiZone(), api.leggiCategorie(),
+          api.leggiFasce(stagione), api.leggiStagioni(),
         ]);
         setZone(z); setCategorie(c); setFasce(f);
+        setStagioni(stagioniProposte(st, stagioneCorrente()));
         const primo = membri?.[0];
         if (!primo?.societa) { setSenzaSquadra(true); return; }
         setSenzaSquadra(false);
         setSocieta(primo.societa);
         setRuolo(primo.ruolo);
-        setGruppi(await api.leggiGruppi(primo.societa.id));
       } catch (e) { setErrore(e.message); }
     })();
-  }, [sessione, stagione]);
+  }, [sessione, stagione, ricarica]);
 
   // Dal calendario all'editor, con la data del giorno cliccato.
   const apriSeduta = useCallback((id, data) => {
@@ -85,7 +89,7 @@ export default function App() {
 
   if (sessione === undefined) return null;
   if (!sessione) return <Accesso />;
-  if (senzaSquadra) return <SenzaSquadra email={sessione.user?.email} />;
+  if (senzaSquadra) return <SenzaSquadra email={sessione.user?.email} ricarica={() => setRicarica((n) => n + 1)} />;
 
   const puoScrivere = ruolo === 'coach' || ruolo === 'collega';
 
@@ -93,8 +97,16 @@ export default function App() {
     <div className="guscio">
       <header className="testata">
         <div className="marchio">Corsia<span>Pro</span></div>
-        {societa && <div className="societa">{societa.nome} · {stagione}</div>}
+        {societa && <div className="societa">{societa.nome}</div>}
         <div className="spazio" />
+        <select
+          value={stagione}
+          onChange={(e) => setStagione(e.target.value)}
+          aria-label="Stagione"
+          style={{ minHeight: 36, padding: '5px 9px', fontSize: 13 }}
+        >
+          {stagioni.map((x) => <option key={x} value={x}>Stagione {x}</option>)}
+        </select>
         <button className="mini" onClick={() => api.esci()}>
           <LogOut size={14} style={{ verticalAlign: -2 }} /> Esci
         </button>
@@ -122,12 +134,13 @@ export default function App() {
             />
           )}
           {scheda === 'appello' && <Appello societa={societa} />}
+          {scheda === 'benessere' && <Benessere societa={societa} puoScrivere={puoScrivere} />}
           {scheda === 'atleti' && (
-            <Atleti societa={societa} fasce={fasce} stagione={stagione} puoScrivere={puoScrivere} gruppi={gruppi} />
+            <Atleti societa={societa} fasce={fasce} stagione={stagione} puoScrivere={puoScrivere} />
           )}
           {scheda === 'volumi' && <Volumi societa={societa} zone={zone} />}
           {scheda === 'squadra' && (
-            <Squadra societa={societa} ruolo={ruolo} gruppi={gruppi} ricaricaGruppi={async () => setGruppi(await api.leggiGruppi(societa.id))} />
+            <Squadra societa={societa} ruolo={ruolo} ricaricaSocieta={() => setRicarica((n) => n + 1)} />
           )}
         </main>
       )}

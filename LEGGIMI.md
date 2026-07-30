@@ -25,8 +25,9 @@ Entri con lo stesso account che hai usato per creare la società.
   La categoria è derivata, non salvata.
 - **Volumi** — carico reale per atleta dalle viste SQL: metri della sua
   specializzazione, contati solo nelle sedute in cui era presente.
-- **Squadra** — codice di ingresso, richieste da approvare, ruoli dello staff e
-  **gruppi di allenamento**. Visibile a tutti, modificabile solo dal capo allenatore.
+- **Squadra** — anagrafica completa (indirizzo, P.IVA, codice FIN, contatti),
+  codice di ingresso rigenerabile, richieste da approvare, ruoli dello staff.
+  Visibile a tutti, modificabile solo dal capo allenatore.
 - **Dashboard** — calendario del mese (sedute e competizioni) più la
   ripartizione per zona energetica.
 
@@ -38,15 +39,52 @@ Entri con lo stesso account che hai usato per creare la società.
 - La **zona parte da A1**: la cambi solo dove serve.
 - Il **recupero si scrive `@1'40`** (se ometti la chiocciola la mette lei).
 - Le frecce a sinistra spostano **sezioni e serie** su e giù.
-- Ogni seduta vuole un **gruppo o una categoria**: è il destinatario, e
-  senza quello i volumi non si possono attribuire a nessuno.
+- Ogni seduta si rivolge a **una o più categorie**, scelte con i flag:
+  Esordienti B, Esordienti A, Ragazzi 1-2, Ragazzi 3, Juniores, Cadetti,
+  Senior, Assoluti, Propaganda, Teen. Il flag mezzo giallo significa che
+  hai preso solo una parte del raggruppamento.
+- I gruppi di allenamento non esistono più, in nessuna schermata.
 
 ## Calendario
 
 Clicca un giorno: aggiungi una seduta (si apre l'editor già datato) o una
 competizione. Sei tipi, sei colori — Trofeo, Prova tempi, Campionati
 Regionali, Campionati Italiani, Regionali Salvamento, Italiani Salvamento.
-Richiede la migrazione `007_gare.sql`.
+Il filtro in cima al calendario mostra solo una fascia per volta: Propaganda,
+Teen, Esordienti B, Esordienti A, Ragazzi, oppure J/C/S e Assoluti.
+Richiede le migrazioni `007_gare.sql` e `008_categorie_stagioni.sql`.
+
+## Benessere
+
+Scheda dedicata: per ogni atleta quattro valori da 1 a 5 — sonno, fatica,
+dolori, umore — e la **prontezza** calcolata invertendo fatica e dolori.
+L'elenco mette in cima i meno pronti, che è l'ordine con cui guardi la
+squadra prima di far partire la serie. Non è una valutazione clinica: è un
+indicatore da leggere accanto al carico. Richiede `009_benessere.sql`.
+
+## Lavagna e PDF
+
+Dentro una seduta aperta, tre tasti:
+
+- **Lavagna** — schermo pieno, una sezione per volta, caratteri enormi con
+  zoom regolabile. Frecce ← → per cambiare sezione, Esc per uscire.
+  Da tablet a bordo vasca si legge da lontano.
+- **PDF** — apre la stampa del sistema con un foglio A4 bianco ed
+  essenziale (niente veste grafica). Da telefono: "Salva come PDF".
+- **Invia** — la seduta in testo semplice: usa la condivisione del
+  telefono (WhatsApp, mail) o la copia negli appunti sul computer.
+
+## Stagione
+
+Il selettore in alto a destra cambia la stagione. Le categorie degli atleti
+si ricalcolano da sole: cambi stagione e tutta la squadra passa alla
+categoria dell'anno dopo, senza toccare un solo record.
+
+## Installazione sul telefono
+
+L'app è una PWA. Da telefono, apri l'indirizzo nel browser e scegli
+"Aggiungi a schermata Home" (Safari: tasto condividi; Chrome: menù ⋮).
+Compare l'icona e si apre a schermo pieno, senza barra del browser.
 
 ## Come entra un collega
 

@@ -12,7 +12,7 @@ const combacia = (a, q) => {
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((p) => testo.includes(p));
 };
 
-export default function Atleti({ societa, fasce, stagione, puoScrivere, gruppi }) {
+export default function Atleti({ societa, fasce, stagione, puoScrivere }) {
   const [atleti, setAtleti] = useState([]);
   const [cerca, setCerca] = useState('');
   const [nuovo, setNuovo] = useState(VUOTO);
@@ -59,7 +59,6 @@ export default function Atleti({ societa, fasce, stagione, puoScrivere, gruppi }
         sesso: inModifica.sesso,
         anno_nascita: Number(inModifica.anno_nascita),
         specializzazione: inModifica.specializzazione,
-        gruppo_id: inModifica.gruppo_id || null,
       });
       setInModifica(null);
       ricarica();
@@ -192,7 +191,7 @@ export default function Atleti({ societa, fasce, stagione, puoScrivere, gruppi }
             <thead>
               <tr>
                 <th>Atleta</th><th>Sesso</th><th>Anno</th><th>Categoria</th>
-                <th>Specializzazione</th><th>Gruppo</th>{puoScrivere && <th />}
+                <th>Specializzazione</th>{puoScrivere && <th />}
               </tr>
             </thead>
             <tbody>
@@ -224,12 +223,6 @@ export default function Atleti({ societa, fasce, stagione, puoScrivere, gruppi }
                           {SPECIALIZZAZIONI.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </td>
-                      <td>
-                        <select value={m.gruppo_id || ''} onChange={(e) => setInModifica({ ...m, gruppo_id: e.target.value })}>
-                          <option value="">—</option>
-                          {(gruppi || []).map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
-                        </select>
-                      </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="mini" onClick={() => setInModifica(null)} aria-label="Annulla"><X size={14} /></button>{' '}
                         <button className="azione" style={{ padding: '7px 12px', minHeight: 34 }} onClick={salvaModifica} aria-label="Salva">
@@ -246,16 +239,12 @@ export default function Atleti({ societa, fasce, stagione, puoScrivere, gruppi }
                     <td className="mono">{a.anno_nascita}</td>
                     <td className="mono" style={{ color: 'var(--ciano)' }}>{categoriaAtleta(a, fasce) || '—'}</td>
                     <td>{a.specializzazione}</td>
-                    <td style={{ color: 'var(--testo-3)' }}>
-                      {(gruppi || []).find((g) => g.id === a.gruppo_id)?.nome || '—'}
-                    </td>
                     {puoScrivere && (
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="mini" aria-label="Modifica"
                           onClick={() => setInModifica({
                             id: a.id, nome: a.nome, cognome: a.cognome, sesso: a.sesso,
                             anno_nascita: a.anno_nascita, specializzazione: a.specializzazione,
-                            gruppo_id: a.gruppo_id || '',
                           })}>
                           <Pencil size={14} />
                         </button>{' '}
