@@ -3,9 +3,18 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.14.0';
+export const VERSIONE = '0.14.1';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.14.1',
+    data: '2026-07-31',
+    voci: [
+      'CORRETTO: scrivendo il recupero l\u2019app poteva restare a schermo vuoto',
+      'Il calcolo della ripartenza esce dalla fase di disegno: un errore lì dentro faceva crollare tutta la pagina',
+      'Rete di sicurezza generale: al posto dello schermo nero compare il messaggio d\u2019errore e il tasto per ricaricare',
+    ],
+  },
   {
     versione: '0.14.0',
     data: '2026-07-31',

@@ -76,9 +76,31 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
       }
       // Se la partenza nasce da un passo base, cambiando la distanza si rifà.
       if (serie.base) {
-        const r = ripartenzaDaBase('@@' + serie.base, valore);
-        if (r) serie.recupero = r.recupero;
+        try {
+          const r = ripartenzaDaBase('@@' + serie.base, valore);
+          if (r) serie.recupero = r.recupero;
+        } catch { /* la partenza resta com'è */ }
       }
+    });
+  }
+
+  // Fuori dal render: qui un errore è un errore, non uno schermo nero.
+  function sistemaRecupero(i, j, valore) {
+    let recupero = valore;
+    let base = null;
+    try {
+      const dalBase = ripartenzaDaBase(valore, seduta.sezioni[i]?.serie[j]?.notazione);
+      if (dalBase) { recupero = dalBase.recupero; base = dalBase.base; }
+      else recupero = normalizzaRecupero(valore);
+    } catch (e) {
+      console.error('Recupero non interpretato:', e);
+      recupero = String(valore || '');
+    }
+    aggiorna((st) => {
+      const serie = st.sezioni[i]?.serie[j];
+      if (!serie) return;
+      serie.recupero = recupero;
+      if (base) serie.base = base; else delete serie.base;
     });
   }
 
@@ -363,12 +385,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
                       value={s.recupero || ''}
                       placeholder="@1:40 o @@2:00"
                       onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
-                      onBlur={(e) => aggiorna((st) => {
-                        const serie = st.sezioni[i].serie[j];
-                        const dalBase = ripartenzaDaBase(e.target.value, serie.notazione);
-                        if (dalBase) { serie.recupero = dalBase.recupero; serie.base = dalBase.base; }
-                        else { serie.recupero = normalizzaRecupero(e.target.value); delete serie.base; }
-                      })}
+                      onBlur={(e) => sistemaRecupero(i, j, e.target.value)}
                     />
                     {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
                     <button className="togli" aria-label="Togli serie" onClick={() => aggiorna((st) => { st.sezioni[i].serie.splice(j, 1); })}>
