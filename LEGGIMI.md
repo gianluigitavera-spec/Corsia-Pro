@@ -1,4 +1,4 @@
-# CorsiaPro — app · v0.14.0
+# CorsiaPro — app · v0.15.0
 
 React + Vite, legge lo schema `squadra` che hai già creato su Supabase.
 
@@ -40,6 +40,25 @@ Entri con lo stesso account che hai usato per creare la società.
   Visibile a tutti, modificabile solo dal capo allenatore.
 - **Dashboard** — calendario del mese (sedute e competizioni) più la
   ripartizione per zona energetica.
+
+## Due modi di scrivere una seduta
+
+**A corsie** — l'editor strutturato, sezione per sezione.
+
+**Scrivi o incolla** — un riquadro unico dove scrivi come sei abituato.
+A destra la seduta compare interpretata mentre digiti, con un semaforo per
+riga: verde letta, gialla da confermare, rossa non capita. Correggi metri e
+zona lì, premi "Usa questa seduta" e finisce nell'editor a corsie come
+qualsiasi altra.
+
+Cosa riconosce: `8x75`, `4x(100+2x50)`, i blocchi aperti da `4x` da solo,
+le ripartenze (`@1:30`, `40"`, `rec 3'`), stili, attrezzi, e le tue sigle
+(PS, BN, FP, PF, CP, fff, TC, GB, c25, fraz, prog, sub, regr, crono).
+Partenze, virate e lavoro a secco entrano con zero metri.
+
+La regola più utile: **le sotto-righe che sommano la distanza della riga
+sopra sono composizione**, non lavoro in più. `6x100` seguito da
+`25 remate 25 completo 25gb 25 ps` resta 600 m, non 700.
 
 ## Come si scrive una seduta
 

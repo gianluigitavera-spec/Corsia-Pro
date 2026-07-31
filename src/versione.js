@@ -3,9 +3,21 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.14.1';
+export const VERSIONE = '0.15.0';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.15.0',
+    data: '2026-07-31',
+    voci: [
+      'Secondo modo di scrivere una seduta: "Scrivi o incolla" in un riquadro unico',
+      'Analizzatore della notazione: metri, ripartenze, stili, attrezzi, modalità e zona quando è deducibile',
+      'Blocchi "4x" e righe di composizione riconosciuti: i sotto-tratti che sommano la distanza sopra non aggiungono metri',
+      'Schermata di revisione con semafori: verde letta, gialla da confermare, rossa non capita',
+      'Partenze, virate e lavoro a secco entrano nella seduta con zero metri',
+      'Confermando, la seduta finisce nell\u2019editor a corsie come tutte le altre',
+    ],
+  },
   {
     versione: '0.14.1',
     data: '2026-07-31',

@@ -295,6 +295,8 @@ export function validaSeduta(seduta, zoneValide = ZONE.map((z) => z.codice)) {
     (sez.serie || []).forEach((s, j) => {
       const dove = `${sez.titolo || "sezione " + (i + 1)} → serie ${j + 1}`;
       if (!s.notazione) problemi.push({ campo: dove, msg: "Manca la notazione" });
+      // Partenze, virate, lavoro a secco: stanno nella seduta senza fare metri.
+      if (s.senzaMetri) return;
       if (!Number(s.metri)) problemi.push({ campo: dove, msg: "Metri a zero" });
       if (!s.zona) problemi.push({ campo: dove, msg: "Zona non indicata" });
       else if (!zoneValide.includes(s.zona))

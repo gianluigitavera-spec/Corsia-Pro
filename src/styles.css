@@ -689,3 +689,33 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   font-size: 10px; color: var(--ciano); background: rgba(34,211,238,0.12);
   border: 1px solid rgba(34,211,238,0.3); border-radius: 999px; padding: 2px 7px; white-space: nowrap;
 }
+
+/* ------------------------------------------------------- revisione */
+.revisione { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.testo-seduta {
+  width: 100%; font-family: var(--dati); font-size: 13.5px; line-height: 1.7;
+  background: var(--fondo); min-height: 380px;
+}
+.titolo-letto {
+  display: flex; align-items: baseline; gap: 10px; font-family: var(--display);
+  font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ciano); border-bottom: var(--riga); padding-bottom: 6px; margin-bottom: 8px;
+}
+.titolo-letto .mono { margin-left: auto; color: var(--testo-3); font-size: 12px; }
+.riga-letta {
+  display: grid; grid-template-columns: 16px 1fr 68px 62px 58px; gap: 8px;
+  align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(30,46,79,0.4);
+}
+.riga-letta:last-child { border-bottom: 0; }
+.testo-letto { font-size: 13.5px; min-width: 0; }
+.dettagli-letti { display: block; font-size: 11px; color: var(--testo-3); }
+.metri-letti { min-height: 34px; padding: 4px 6px; font-size: 13px; text-align: right; }
+.riga-letta select { min-height: 34px; padding: 4px 6px; font-size: 13px; }
+.rec-letto { font-size: 12px; color: var(--testo-2); text-align: right; }
+
+@media (max-width: 900px) {
+  .revisione { grid-template-columns: 1fr; }
+  .testo-seduta { min-height: 240px; }
+  .riga-letta { grid-template-columns: 16px 1fr 60px 56px; }
+  .riga-letta .rec-letto { display: none; }
+}

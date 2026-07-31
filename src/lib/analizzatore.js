@@ -30,15 +30,23 @@ const ATTREZZI = {
 
 // Modalità di esecuzione: NON sono metri in più, sono come si nuota.
 export const MODALITA = [
-  [/\bps\b/i, 'proprio stile'],
-  [/\bff\b/i, 'forte'],
-  [/\bn\b(?![a-z])/i, 'normale'],
+  [/(?<![a-z])ps(?![a-z])/i, 'proprio stile'],
+  [/(?<![a-z])bn(?![a-z])/i, 'ben nuotato'],
+  [/(?<![a-z])fp(?![a-z])/i, 'forte-piano'],
+  [/(?<![a-z])pf(?![a-z])/i, 'piano-forte'],
+  [/(?<![a-z])cp(?![a-z])/i, 'con partenza dal blocco'],
+  [/\bcrono\w*/i, 'cronometrato'],
+  [/\bregr\w*/i, 'regressione'],
+  [/\bde\s+su(l)?\s+do\b/i, 'gambe delfino sul dorso'],
+  [/(?<![a-z])c(?![a-z0-9.])/i, 'completo'],
+  [/(?<![a-z])ff(?![a-z])/i, 'forte'],
+  [/(?<![a-z])n(?![a-z])/i, 'normale'],
   [/\bc\.?\s?25\b/i, 'cambio al 25'],
   [/\bfraz\w*/i, 'frazionato'],
   [/\bprog\w*\s*(\d\/\d)?/i, 'progressione'],
-  [/\bsub\b/i, 'subacquea'],
-  [/\btc\b/i, 'tecnica'],
-  [/\bgb\b/i, 'gambe'],
+  [/(?<![a-z])sub(?![a-z])/i, 'subacquea'],
+  [/(?<![a-z])tc(?![a-z])/i, 'tecnica'],
+  [/(?<![a-z])gb(?![a-z])/i, 'gambe'],
   [/\bipossia\b/i, 'ipossia'],
   [/\bsost\w*/i, 'sostenuto'],
 ];
@@ -58,12 +66,22 @@ const ZONE_PAROLE = [
   [/\b(c2|lattacid\w+)\b/i, 'C2'],
   [/\b(c3|max\b|massimo|sprint|scatt\w+|al max)\b/i, 'C3'],
   [/\b(tecnica|tc\b|esercizi\w*|es\b|drill)\b/i, 'A1'],
-  [/\bff\b/i, 'C3'],                        // forte
+  [/(?<![a-z])f{2,3}(?![a-z])/i, 'C3'],                    // ff / fff = forte
   [/\bfraz\w*/i, 'B2'],                     // frazionato: ritmo gara
+  [/\bcrono\w*/i, 'C3'],                    // cronometrato: C3 o D secondo il periodo
+  [/(?<![a-z])bn(?![a-z])/i, 'A2'],                        // ben nuotato: andatura di lavoro
   [/\b(gambe|gb\b|braccia)\b/i, null],       // non decide la zona da sola
 ];
 
 const ZONA_ESPLICITA = /\b(A1|A2|B1|B2\+?|C1|C2|C3|D)\b/;
+
+// "1 serie x stile", "MX 1x", "1 serie x": la serie si ripete per ogni
+// stile. Quattro di norma, ma se gli stili sono tre il conto cambia:
+// resta gialla, la confermi in revisione.
+export const PER_STILE = /\b(?:1\s*)?serie\s*x\s*stil\w*|\bmx\s*1x\b|\b1\s*serie\s*x\b/i;
+
+// Lavoro a terra: sta nella seduta ma non fa metri.
+export const A_SECCO = /\b(secco|palestra|plank|salti|elastic\w+|core|addominali|circuito a terra)\b/i;
 
 // Righe che non sono metri: partenze, virate, esercizi a secco
 const NON_METRI = /^\s*\d*\s*(partenz\w+|virat\w+|arriv\w+|tuffi?|esercizi\w*\s+(a vuoto|con elastic\w+|virate)|pausa|rec\b)/i;
@@ -187,7 +205,7 @@ export function analizzaTesto(testo) {
     if (!sezione) nuovaSezione('Riscaldamento');
 
     // Righe senza metri: partenze, virate, esercizi a secco
-    if (NON_METRI.test(riga)) {
+    if (NON_METRI.test(riga) || A_SECCO.test(riga)) {
       sezione.serie.push({
         notazione: riga, metri: 0, zona: '', recupero: trovaRecupero(riga),
         senzaMetri: true, fiducia: 'gialla',
@@ -235,9 +253,14 @@ export function analizzaTesto(testo) {
       stile: trovaStile(riga),
       attrezzi: trovaAttrezzi(riga),
       modalita: trovaModalita(riga),
+      perStile: PER_STILE.test(riga) ? 4 : null,
       fiducia: zona ? (sicura ? 'verde' : 'gialla') : 'gialla',
     };
-    serie.metri = metriRiga * moltiplicatoreAttivo;
+    if (serie.perStile) {
+      serie.fiducia = 'gialla';
+      serie.note = [serie.note, 'una serie per stile: metri × 4, controlla quanti stili'].filter(Boolean).join(' · ');
+    }
+    serie.metri = metriRiga * moltiplicatoreAttivo * (serie.perStile || 1);
     if (moltiplicatoreAttivo > 1) serie.moltiplicato = moltiplicatoreAttivo;
     sezione.serie.push(serie);
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Save, ArrowLeft, Waves, X, AlertTriangle, Check,
-  Printer, Share2, Presentation,
+  Printer, Share2, Presentation, PenLine,
 } from 'lucide-react';
 import * as api from '../lib/dati';
 import {
@@ -9,6 +9,7 @@ import {
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
+import RevisioneTesto from './RevisioneTesto';
 import { condividiSeduta } from '../lib/testoSeduta';
 import Lavagna from './Lavagna';
 import FoglioStampa from './FoglioStampa';
@@ -38,6 +39,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
   const [messaggio, setMessaggio] = useState(null);
   const [salvataggio, setSalvataggio] = useState(false);
   const [lavagna, setLavagna] = useState(false);
+  const [daTesto, setDaTesto] = useState(false);
 
   const codiciZona = zone.map((z) => z.codice);
 
@@ -159,6 +161,20 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
     s.categorie = [...attuali];
   });
 
+  // Dal testo libero all'editor: stessa seduta, stessa forma.
+  if (daTesto) {
+    return (
+      <RevisioneTesto
+        zone={zone}
+        indietro={() => setDaTesto(false)}
+        usaSeduta={(sezioni) => {
+          setSeduta({ ...sedutaVuota(), sezioni });
+          setDaTesto(false);
+        }}
+      />
+    );
+  }
+
   // ------------------------------------------------------------- elenco
   if (!seduta) {
     return (
@@ -167,9 +183,14 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
           <h1>Sedute</h1>
           <div style={{ flex: 1 }} />
           {puoScrivere && (
-            <button className="azione" onClick={() => setSeduta(sedutaVuota())}>
-              <Plus size={16} style={{ verticalAlign: -3 }} /> Nuova seduta
-            </button>
+            <>
+              <button className="azione fantasma" onClick={() => setDaTesto(true)}>
+                <PenLine size={15} style={{ verticalAlign: -3 }} /> Scrivi o incolla
+              </button>
+              <button className="azione" onClick={() => setSeduta(sedutaVuota())}>
+                <Plus size={16} style={{ verticalAlign: -3 }} /> Nuova seduta
+              </button>
+            </>
           )}
         </div>
 
@@ -181,7 +202,12 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
               <Waves size={30} style={{ color: 'var(--testo-3)' }} />
               <h3 style={{ marginTop: 10 }}>Nessuna seduta</h3>
               <p>La prima la scrivi a mano. Quelle generate da SwimCoach arriveranno qui con la stessa forma.</p>
-              {puoScrivere && <button className="azione" onClick={() => setSeduta(sedutaVuota())}>Scrivi la prima</button>}
+              {puoScrivere && (
+                <div className="barra" style={{ justifyContent: 'center' }}>
+                  <button className="azione" onClick={() => setSeduta(sedutaVuota())}>A corsie</button>
+                  <button className="azione fantasma" onClick={() => setDaTesto(true)}>Scrivi o incolla</button>
+                </div>
+              )}
             </div>
           </div>
         ) : (
