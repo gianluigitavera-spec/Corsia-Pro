@@ -3,9 +3,29 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.12.1';
+export const VERSIONE = '0.14.0';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.14.0',
+    data: '2026-07-31',
+    voci: [
+      'Lavagna sistemata sul telefono: non finisce più sotto la tacca e il contenuto sta al centro',
+      'Ripartenza dal passo base: scrivi @@2:00 su un 250 e diventa @5:00, arrotondata ai 5 secondi',
+      'La base resta legata alla serie: se cambi la distanza, la partenza si ricalcola',
+      'Recupero con i due punti: @1:30. Le vecchie forme con l\u2019apice si convertono da sole',
+    ],
+  },
+  {
+    versione: '0.13.0',
+    data: '2026-07-30',
+    voci: [
+      'Tutorial guidato al primo accesso: nove passi che cambiano scheda mentre spiegano',
+      'Un passo dedicato a come invitare un altro allenatore con il codice',
+      'Flag "Non mostrare più" e ✕ in alto per uscire quando vuoi',
+      'Il punto interrogativo accanto a Esci lo riapre in qualsiasi momento',
+    ],
+  },
   {
     versione: '0.12.1',
     data: '2026-07-30',

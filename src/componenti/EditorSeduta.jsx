@@ -74,6 +74,11 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
         const m = metriDaNotazione(valore);
         if (m !== null) serie.metri = m;
       }
+      // Se la partenza nasce da un passo base, cambiando la distanza si rifà.
+      if (serie.base) {
+        const r = ripartenzaDaBase('@@' + serie.base, valore);
+        if (r) serie.recupero = r.recupero;
+      }
     });
   }
 
@@ -356,10 +361,16 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
                     <input
                       className="mono rec"
                       value={s.recupero || ''}
-                      placeholder="@1'40"
+                      placeholder="@1:40 o @@2:00"
                       onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
-                      onBlur={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = normalizzaRecupero(e.target.value); })}
+                      onBlur={(e) => aggiorna((st) => {
+                        const serie = st.sezioni[i].serie[j];
+                        const dalBase = ripartenzaDaBase(e.target.value, serie.notazione);
+                        if (dalBase) { serie.recupero = dalBase.recupero; serie.base = dalBase.base; }
+                        else { serie.recupero = normalizzaRecupero(e.target.value); delete serie.base; }
+                      })}
                     />
+                    {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
                     <button className="togli" aria-label="Togli serie" onClick={() => aggiorna((st) => { st.sezioni[i].serie.splice(j, 1); })}>
                       <Trash2 size={14} />
                     </button>

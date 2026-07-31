@@ -183,8 +183,10 @@ export function metriDaNotazione(testo) {
 // RECUPERO — si scrive @1'40, e chi scrive 1'40 lo ottiene lo stesso.
 // ---------------------------------------------------------------------
 export function normalizzaRecupero(testo) {
-  const t = String(testo || "").trim();
+  let t = String(testo || "").trim();
   if (!t) return "";
+  // Convenzione unica: @1:30. L'apice e il punto diventano due punti.
+  t = t.replace(/(\d{1,2})\s*['.]\s*(\d{2})\s*"?/, "$1:$2");
   return t.startsWith("@") ? t : "@" + t;
 }
 
@@ -515,3 +517,48 @@ export function spostaConfine(blocchi, indice, nuovoInizio) {
 
 export const faseDelGiorno = (blocchi, iso) =>
   (blocchi || []).find((b) => iso >= b.dal && iso <= b.al) || null;
+
+
+// ---------------------------------------------------------------------
+// RIPARTENZA CALCOLATA DAL PASSO BASE
+// Si scrive @@2:00 nel campo recupero: è il tempo base sui 100. L'app
+// lo scala sulla distanza della singola ripetizione — 250 con base 2:00
+// diventa @5:00 — e arrotonda ai 5 secondi, come si legge sul cronometro.
+// La base resta memorizzata: se cambi la distanza, la partenza si rifà.
+// ---------------------------------------------------------------------
+
+// La distanza di UNA ripetizione: "12x75" → 75 · "300 stile" → 300
+export function distanzaSingola(notazione) {
+  const t = String(notazione || '').replace(/[×*]/g, 'x');
+  let m = t.match(/(\d{1,3})\s*x\s*(\d{2,4})/);
+  if (m) return +m[2];
+  m = t.match(/(\d{2,4})/);
+  return m ? +m[1] : null;
+}
+
+const inSecondi = (testo) => {
+  const m = String(testo || '').match(/(\d{1,2})[:.'](\d{2})/);
+  if (m) return +m[1] * 60 + +m[2];
+  const soli = String(testo || '').match(/^(\d{1,3})$/);
+  return soli ? +soli[1] : null;
+};
+
+const inTempo = (secondi) => {
+  const s = Math.max(5, Math.round(secondi / 5) * 5);       // ai 5 secondi
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+// Restituisce { recupero, base } oppure null se non è una base.
+export function ripartenzaDaBase(testo, notazione, suMetriPredefiniti = 100) {
+  // "@@2:00" = base sui 100 · "@@0:35/25" = base sui 25
+  const m = String(testo || '').trim().match(/^@@\s*([^/]+?)(?:\s*\/\s*(\d{2,3}))?$/);
+  if (!m) return null;
+  const suMetri = m[2] ? +m[2] : suMetriPredefiniti;
+  const base = inSecondi(m[1]);
+  const distanza = distanzaSingola(notazione);
+  if (!base || !distanza) return null;
+  return {
+    recupero: `@${inTempo(base * (distanza / suMetri))}`,
+    base: `${inTempo(base)}/${suMetri}`,
+  };
+}

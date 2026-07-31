@@ -384,15 +384,23 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 /* --------------------------------------------------------- lavagna */
 .lavagna {
   position: fixed; inset: 0; z-index: 60; background: var(--fondo);
-  display: flex; flex-direction: column; padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column;
+  padding: calc(12px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
 }
-.barra-lavagna { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: var(--riga); }
+.barra-lavagna {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-bottom: 10px; border-bottom: var(--riga); min-height: 46px;
+}
 .titolo-lavagna { font-family: var(--display); font-size: 21px; letter-spacing: 0.02em; }
 .chiudi-lavagna {
   background: transparent; border: var(--riga); border-radius: 10px; color: var(--testo-2);
   width: 42px; height: 42px; display: grid; place-items: center; cursor: pointer;
 }
-.corpo-lavagna { flex: 1; overflow: auto; padding: 18px 0; }
+.corpo-lavagna {
+  flex: 1; overflow: auto; padding: 16px 0;
+  display: flex; flex-direction: column; justify-content: center;
+}
 .testa-lavagna { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
 .testa-lavagna h2 {
   font-size: calc(34px * var(--scala, 1)); color: var(--ciano); text-transform: uppercase; letter-spacing: 0.02em;
@@ -612,4 +620,72 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 @media (max-width: 620px) {
   .riga-barra { grid-template-columns: 108px 1fr 62px; gap: 8px; }
   .etichette-grafico span { font-size: 9px; }
+}
+
+/* -------------------------------------------------------- tutorial */
+.velo-tutorial {
+  position: fixed; inset: 0; z-index: 80;
+  background: linear-gradient(180deg, rgba(3,8,18,0.35) 0%, rgba(3,8,18,0.82) 55%);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 18px; padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+.riquadro-tutorial {
+  position: relative; width: 100%; max-width: 560px; padding: 20px 22px 18px;
+  background: linear-gradient(180deg, rgba(22,35,63,0.98), rgba(13,23,44,0.99));
+  border: 1px solid var(--bordo-vivo); border-radius: 18px;
+  box-shadow: 0 26px 70px rgba(0,0,0,0.55);
+}
+.chiudi-tutorial {
+  position: absolute; top: 12px; right: 12px; width: 36px; height: 36px;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; border: var(--riga); border-radius: 10px; color: var(--testo-2);
+}
+.chiudi-tutorial:hover { color: var(--testo); border-color: var(--bordo-vivo); }
+
+.testa-tutorial { display: flex; gap: 13px; align-items: flex-start; padding-right: 40px; }
+.icona-tutorial {
+  width: 42px; height: 42px; flex: none; display: grid; place-items: center; border-radius: 12px;
+  background: rgba(34,211,238,0.14); color: var(--ciano); border: 1px solid rgba(34,211,238,0.3);
+}
+.passo-tutorial { font-size: 11px; letter-spacing: 0.1em; color: var(--testo-3); display: block; }
+.testa-tutorial h3 { text-transform: none; letter-spacing: 0; color: var(--testo); font-size: 20px; }
+.testo-tutorial { color: var(--testo-2); font-size: 14.5px; line-height: 1.55; margin: 12px 0 16px; }
+
+.punti-tutorial { display: flex; gap: 6px; margin-bottom: 16px; }
+.punti-tutorial button {
+  width: 100%; height: 4px; border: 0; border-radius: 999px; padding: 0; cursor: pointer;
+  background: var(--bordo-vivo);
+}
+.punti-tutorial button[data-attivo='true'] { background: var(--ciano); box-shadow: 0 0 10px var(--ciano); }
+
+.piede-tutorial { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.flag-tutorial {
+  display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;
+  font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--testo-3);
+}
+.flag-tutorial input { width: 17px; height: 17px; min-height: auto; accent-color: var(--ciano); cursor: pointer; }
+
+@media (max-width: 560px) {
+  .velo-tutorial { padding: 10px; }
+  .riquadro-tutorial { padding: 18px 16px 16px; border-radius: 16px; }
+  .testo-tutorial { font-size: 14px; }
+  .piede-tutorial .flag-tutorial { order: 3; width: 100%; margin-top: 4px; }
+}
+
+
+/* la lavagna su schermo stretto: titolo su una riga sua, testi ridotti */
+@media (max-width: 560px) {
+  .barra-lavagna .titolo-lavagna { font-size: 17px; flex: 1 1 100%; order: -1; }
+  .lavagna .testa-lavagna h2 { font-size: calc(26px * var(--scala, 1)); }
+  .lavagna .metri-lavagna { font-size: calc(17px * var(--scala, 1)); }
+  .serie-lavagna .notaz { font-size: calc(30px * var(--scala, 1)); }
+  .serie-lavagna .rec { font-size: calc(20px * var(--scala, 1)); }
+  .serie-lavagna li { gap: 10px; padding: calc(10px * var(--scala, 1)) 0; }
+  .piede-lavagna { gap: 8px; }
+  .totali-lavagna { flex-basis: 100%; justify-content: space-between; }
+}
+
+.base-passo {
+  font-size: 10px; color: var(--ciano); background: rgba(34,211,238,0.12);
+  border: 1px solid rgba(34,211,238,0.3); border-radius: 999px; padding: 2px 7px; white-space: nowrap;
 }

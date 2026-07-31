@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Settings2, LogOut } from 'lucide-react';
+import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Settings2, LogOut, HelpCircle } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte } from './lib/dominio';
@@ -14,6 +14,7 @@ import Dashboard from './componenti/Dashboard';
 import Benessere from './componenti/Benessere';
 import Squadra from './componenti/Squadra';
 import SenzaSquadra from './componenti/SenzaSquadra';
+import Tutorial from './componenti/Tutorial';
 
 const SCHEDE = [
   { id: 'dashboard', nome: 'Dashboard', Icona: LayoutDashboard },
@@ -39,6 +40,7 @@ export default function App() {
   const [senzaSquadra, setSenzaSquadra] = useState(false);
   const [apertura, setApertura] = useState(null); // {id} oppure {data}
   const [registro, setRegistro] = useState(false);
+  const [tutorial, setTutorial] = useState(false);
   const [ricarica, setRicarica] = useState(0);
 
   const [stagione, setStagione] = useState(stagioneCorrente());
@@ -70,6 +72,21 @@ export default function App() {
       } catch (e) { setErrore(e.message); }
     })();
   }, [sessione, stagione, ricarica]);
+
+  // Alla prima visita il tutorial parte da solo; poi solo se lo richiami.
+  useEffect(() => {
+    if (!societa) return;
+    try {
+      if (localStorage.getItem('corsiapro:tutorial') !== 'visto') setTutorial(true);
+    } catch { /* navigazione privata: pazienza, non parte */ }
+  }, [societa?.id]);
+
+  const chiudiTutorial = useCallback((nonPiu) => {
+    setTutorial(false);
+    if (nonPiu) {
+      try { localStorage.setItem('corsiapro:tutorial', 'visto'); } catch { /* niente */ }
+    }
+  }, []);
 
   // Dal calendario all'editor, con la data del giorno cliccato.
   const apriSeduta = useCallback((id, data) => {
@@ -120,6 +137,9 @@ export default function App() {
         >
           {stagioni.map((x) => <option key={x} value={x}>Stagione {x}</option>)}
         </select>
+        <button className="mini" onClick={() => setTutorial(true)} title="Rivedi il tutorial" aria-label="Tutorial">
+          <HelpCircle size={15} />
+        </button>
         <button className="mini" onClick={() => api.esci()}>
           <LogOut size={14} style={{ verticalAlign: -2 }} /> Esci
         </button>
@@ -135,6 +155,10 @@ export default function App() {
       </nav>
 
       {errore && <div className="sezione avviso errore">{errore}</div>}
+
+      {tutorial && societa && (
+        <Tutorial vaiA={setScheda} chiudi={chiudiTutorial} />
+      )}
 
       {registro && (
         <div className="registro" role="dialog" aria-label="Registro dei cambiamenti">

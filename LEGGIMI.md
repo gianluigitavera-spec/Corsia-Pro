@@ -1,4 +1,4 @@
-# CorsiaPro — app · v0.12.0
+# CorsiaPro — app · v0.14.0
 
 React + Vite, legge lo schema `squadra` che hai già creato su Supabase.
 
@@ -47,7 +47,13 @@ Entri con lo stesso account che hai usato per creare la società.
   `2x200` → 400, `4x(1x100 + 2x50)` → 800, `12/10/8x100` → 3000.
   Se scrivi i metri a mano, quella serie smette di ricalcolarsi.
 - La **zona parte da A1**: la cambi solo dove serve.
-- Il **recupero si scrive `@1'40`** (se ometti la chiocciola la mette lei).
+- Il **recupero si scrive `@1:40`** (se ometti la chiocciola la mette lei;
+  se scrivi `1'40` lo converte).
+- **Ripartenza dal passo base**: scrivi `@@2:00` e l'app la calcola sulla
+  distanza della singola ripetizione — su un 250 diventa `@5:00`, su un 50
+  `@1:00`. Arrotonda ai 5 secondi. La base resta legata alla serie: se
+  cambi la distanza, la partenza si rifà da sola. Per una base diversa dai
+  100 metri: `@@0:35/25`.
 - Le frecce a sinistra spostano **sezioni e serie** su e giù.
 - Ogni seduta si rivolge a **una o più categorie**, scelte con i flag:
   Esordienti B, Esordienti A, Ragazzi 1-2, Ragazzi 3, Juniores, Cadetti,
@@ -152,6 +158,17 @@ Se lo modifichi qui, riportalo anche là: è la fonte di verità comune.
 L'app scrive solo se il tuo ruolo in `squadra.membri` è `coach` o
 `collega`. Un `lettore` vede tutto senza poter modificare.
 
+
+## Tutorial
+
+Al primo accesso parte da solo: nove passi che **cambiano scheda mentre
+spiegano**, così dietro al riquadro si vede la schermata vera. Uno dei
+passi è dedicato a come invitare un collega con il codice di ingresso.
+
+Si esce con la ✕ in alto o con Esc; il flag **Non mostrare più** lo
+disattiva per sempre su quel dispositivo (è salvato nel browser, non nel
+database: su un altro telefono riparte una volta). Il punto interrogativo
+accanto a Esci lo riapre quando vuoi.
 
 ## Versioni
 
