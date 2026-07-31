@@ -89,6 +89,19 @@ const NON_METRI = /^\s*\d*\s*(partenz\w+|virat\w+|arriv\w+|tuffi?|esercizi\w*\s+
 // --------------------------------------------------------- utilità
 const pulisci = (r) => r.replace(/\s+/g, ' ').trim();
 
+// Riga fatta di sola zona: "C3", "B1", "A2 " → vale per quello che segue,
+// non è il titolo di una sezione.
+const SOLA_ZONA = /^\s*(A1|A2|B1|B2\+?|C1|C2|C3|D)\s*:?\s*$/i;
+
+// Passo base: "@@1:30" su un 150 → @2:15. Stessa regola dell'editor.
+function ripartenzaDaBase(riga, distanza) {
+  const m = riga.match(/@@\s*(\d{1,2})[:.'](\d{2})/);
+  if (!m || !distanza) return null;
+  const base = +m[1] * 60 + +m[2];
+  const totale = Math.max(5, Math.round((base * distanza / 100) / 5) * 5);
+  return `@${Math.floor(totale / 60)}:${String(totale % 60).padStart(2, '0')}`;
+}
+
 function trovaRecupero(riga) {
   // @1:30 · @0:50 · @1.40 · @1'40" · rec 3' · rec 5 min · pausa base 1'30"
   let m = riga.match(/@\s*(\d{1,2})[:.'](\d{2})"?/);
@@ -150,6 +163,7 @@ export function analizzaTesto(testo) {
   let sezione = null;
   let gruppo = null;          // blocco aperto da "4x"
   let moltiplicatoreAttivo = 1;
+  let zonaCorrente = '';        // dichiarata da una riga di sola zona
   const avvisi = [];
 
   const nuovaSezione = (titolo) => {
@@ -179,6 +193,18 @@ export function analizzaTesto(testo) {
 
     if (!riga) { chiudiGruppo(); moltiplicatoreAttivo = 1; continue; }
 
+    // "C3" da solo: da qui in avanti il lavoro è C3, finché non cambia.
+    const soloZona = riga.match(SOLA_ZONA);
+    if (soloZona) {
+      // Vale come zona per quello che segue e, siccome tu la usi per
+      // separare i blocchi, apre anche una sezione con quel nome.
+      chiudiGruppo();
+      zonaCorrente = soloZona[1].toUpperCase().replace('+', '');
+      moltiplicatoreAttivo = 1;
+      nuovaSezione(zonaCorrente);
+      continue;
+    }
+
     // Intestazioni di sezione o di gruppo
     if (/^\[main\]$/i.test(riga)) { chiudiGruppo(); nuovaSezione('Parte centrale'); continue; }
     if (/^(riscaldamento|warm ?up|wu)\b/i.test(riga)) { chiudiGruppo(); nuovaSezione('Riscaldamento'); continue; }
@@ -189,7 +215,7 @@ export function analizzaTesto(testo) {
       chiudiGruppo(); nuovaSezione(riga.replace(':', '')); continue;
     }
     // "Garetto:", "Edo/teo", "Salvamento:" → destinatari particolari
-    if (/^[A-ZÀ-Ù][\wÀ-ù/ ]{1,24}:?$/.test(riga) && !trovaMisure(riga)) {
+    if (/^[A-ZÀ-Ù][\wÀ-ù/ ]{1,24}:?$/.test(riga) && !trovaMisure(riga) && !SOLA_ZONA.test(riga)) {
       chiudiGruppo();
       const s = nuovaSezione(riga.replace(':', ''));
       s.particolare = true;
@@ -244,12 +270,14 @@ export function analizzaTesto(testo) {
 
     const { ripetizioni, distanza } = misure;
     const metriRiga = ripetizioni * distanza;
-    const { zona, sicura } = trovaZona(riga);
+    let { zona, sicura } = trovaZona(riga);
+    if (!zona && zonaCorrente) { zona = zonaCorrente; sicura = true; }
     const serie = {
       notazione: riga,
       metri: metriRiga,
       zona,
-      recupero: trovaRecupero(riga),
+      recupero: ripartenzaDaBase(riga, distanza) || trovaRecupero(riga),
+      passoBase: /@@/.test(riga) || undefined,
       stile: trovaStile(riga),
       attrezzi: trovaAttrezzi(riga),
       modalita: trovaModalita(riga),

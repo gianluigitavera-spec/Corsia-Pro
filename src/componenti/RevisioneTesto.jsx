@@ -133,12 +133,12 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
                         <Icona size={14} style={{ color: stato.colore, flex: 'none' }} />
                         <span className="testo-letto">
                           {s.notazione}
-                          {(s.modalita?.length || s.attrezzi?.length) && (
+                          {(s.modalita?.length > 0 || s.attrezzi?.length > 0) ? (
                             <span className="dettagli-letti">
                               {[...(s.attrezzi || []), ...(s.modalita || [])].join(' · ')}
                             </span>
-                          )}
-                          {s.note && <span className="dettagli-letti">{s.note}</span>}
+                          ) : null}
+                          {s.note ? <span className="dettagli-letti">{s.note}</span> : null}
                         </span>
 
                         <input

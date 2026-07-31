@@ -3,9 +3,18 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.15.0';
+export const VERSIONE = '0.15.1';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.15.1',
+    data: '2026-07-31',
+    voci: [
+      'CORRETTO: uno 0 comparso in coda alle notazioni senza attrezzi né modalità',
+      'Una riga con la sola zona (C3, B1, A2) apre la sezione E assegna la zona a tutto il blocco',
+      'Il passo base @@1:30 funziona anche nel testo libero: su un 150 diventa @2:15',
+    ],
+  },
   {
     versione: '0.15.0',
     data: '2026-07-31',
