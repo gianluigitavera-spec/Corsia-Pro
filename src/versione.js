@@ -3,9 +3,17 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.19.1';
+export const VERSIONE = '0.19.2';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.19.2',
+    data: '2026-07-31',
+    voci: [
+      'CORRETTO: aprendo le Sedute compariva "dataIt is not defined" — mancavano quattro funzioni fra gli import dell\u2019editor',
+      'Controllo automatico degli import prima di ogni consegna, così questo tipo di errore non arriva più a schermo',
+    ],
+  },
   {
     versione: '0.19.1',
     data: '2026-07-31',

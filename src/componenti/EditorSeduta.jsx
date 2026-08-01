@@ -7,6 +7,7 @@ import * as api from '../lib/dati';
 import {
   TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
+  ripartenzaDaBase, dataIt, durataStimata, inOreMinuti,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
