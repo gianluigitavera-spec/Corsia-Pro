@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
-import { MACRO_CALENDARIO, rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI } from '../lib/dominio';
+import { MACRO_CALENDARIO, rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga } from '../lib/dominio';
 import Periodizzazione from './Periodizzazione';
 
 export const TIPI_GARA = {
@@ -179,7 +179,7 @@ export default function Calendario({
         {giorno && (
           <div className="pannello-giorno">
             <div className="barra" style={{ marginBottom: 10 }}>
-              <b>{new Date(giorno + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</b>
+              <b>{dataItLunga(giorno)}</b>
               <div style={{ flex: 1 }} />
               <button className="mini" onClick={() => setGiorno(null)} aria-label="Chiudi"><X size={14} /></button>
             </div>

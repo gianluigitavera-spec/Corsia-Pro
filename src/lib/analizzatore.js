@@ -80,6 +80,21 @@ const ZONA_ESPLICITA = /\b(A1|A2|B1|B2\+?|C1|C2|C3|D)\b/;
 // resta gialla, la confermi in revisione.
 export const PER_STILE = /\b(?:1\s*)?serie\s*x\s*stil\w*|\bmx\s*1x\b|\b1\s*serie\s*x\b/i;
 
+// Intestazioni che indicano A CHI è rivolto il lavoro. "Centrale" vale
+// per tutti; "Velocisti", "Mezzofondo", "Salvamento" restringono la
+// sezione a quel gruppo, dentro le categorie scelte per la seduta.
+export const DESTINATARI_TITOLO = [
+  [/^\s*(velocist\w*|velocit[aà])\s*:?\s*$/i, ['Velocità']],
+  [/^\s*(mezzofondist\w*|mezzofondo|fondo)\s*:?\s*$/i, ['Mezzofondo']],
+  [/^\s*(salvament\w*|salvamentist\w*)\s*:?\s*$/i, ['Salvamento']],
+  [/^\s*(velocist\w*\s*[e+/]\s*mezzofond\w*)\s*:?\s*$/i, ['Velocità', 'Mezzofondo']],
+];
+
+export function destinatariDaTitolo(riga) {
+  for (const [re, chi] of DESTINATARI_TITOLO) if (re.test(riga)) return chi;
+  return null;
+}
+
 // Lavoro a terra: sta nella seduta ma non fa metri.
 export const A_SECCO = /\b(secco|palestra|plank|salti|elastic\w+|core|addominali|circuito a terra)\b/i;
 
@@ -103,10 +118,12 @@ function ripartenzaDaBase(riga, distanza) {
 }
 
 function trovaRecupero(riga) {
-  // @1:30 · @0:50 · @1.40 · @1'40" · rec 3' · rec 5 min · pausa base 1'30"
+  // @1:30 · @0:50 · @1.40 · @1'40" · @3' (tre minuti) · rec 3' · rec 5 min
   let m = riga.match(/@\s*(\d{1,2})[:.'](\d{2})"?/);
   if (m) return `@${m[1]}:${m[2]}`;
-  m = riga.match(/@\s*(\d{1,3})"?\b/);
+  m = riga.match(/@\s*(\d{1,2})\s*'(?!\d)/);          // l'apice segna i minuti
+  if (m) return `@${m[1]}:00`;
+  m = riga.match(/@\s*(\d{1,3})"?(?!\d)/);
   if (m) return `@0:${String(m[1]).padStart(2, '0')}`;
   m = riga.match(/\brec\.?\s*(\d{1,2})\s*(?:'|min|m\b)/i);
   if (m) return `rec ${m[1]}'`;
@@ -147,8 +164,10 @@ function trovaMisure(riga) {
   let m = t.match(/^\s*(\d{1,3})\s*x\s*(\d{2,4})\b/);
   if (m) return { ripetizioni: +m[1], distanza: +m[2] };
 
-  m = t.match(/^\s*(\d{1,3})\s*x\s*(?:volte?\s*)?(?:\(.*\))?\s*:?\s*$/i);
-  if (m) return { moltiplicatore: +m[1] };       // "4x", "6x (gio 4 volte)", "4 volte:"
+  // "4x", "6x (gio 4 volte)", "4 volte:", e anche "4x A2" — la zona
+  // scritta sull'apertura vale per tutto il blocco.
+  m = t.match(/^\s*(\d{1,3})\s*x\s*(?:volte?\s*)?(?:\(.*\))?\s*(A1|A2|B1|B2\+?|C1|C2|C3|D)?\s*:?\s*$/i);
+  if (m) return { moltiplicatore: +m[1], zonaBlocco: m[2] ? m[2].toUpperCase().replace('+', '') : null };
 
   m = t.match(/^\s*(\d{2,4})\b/);                  // "300 stile"
   if (m) return { ripetizioni: 1, distanza: +m[1] };
@@ -166,8 +185,8 @@ export function analizzaTesto(testo) {
   let zonaCorrente = '';        // dichiarata da una riga di sola zona
   const avvisi = [];
 
-  const nuovaSezione = (titolo) => {
-    sezione = { titolo, destinatari: ['*'], serie: [] };
+  const nuovaSezione = (titolo, destinatari = ['*']) => {
+    sezione = { titolo, destinatari, serie: [] };
     sezioni.push(sezione);
     return sezione;
   };
@@ -202,6 +221,16 @@ export function analizzaTesto(testo) {
       zonaCorrente = soloZona[1].toUpperCase().replace('+', '');
       moltiplicatoreAttivo = 1;
       nuovaSezione(zonaCorrente);
+      continue;
+    }
+
+    // "Velocisti", "Mezzofondo", "Salvamento": da qui il lavoro è loro.
+    const chi = destinatariDaTitolo(riga);
+    if (chi) {
+      chiudiGruppo();
+      moltiplicatoreAttivo = 1;
+      const s = nuovaSezione(riga.replace(':', '').trim(), chi);
+      if (zonaCorrente) s.zonaEreditata = zonaCorrente;
       continue;
     }
 
@@ -244,9 +273,14 @@ export function analizzaTesto(testo) {
     if (misure?.moltiplicatore) {
       chiudiGruppo();
       moltiplicatoreAttivo = misure.moltiplicatore;
+      // "4x A2": la zona scritta qui vale per tutte le righe del blocco.
+      const zonaBlocco = trovaZona(riga);
+      if (zonaBlocco.zona) zonaCorrente = zonaBlocco.zona;
+      if (misure.zonaBlocco) zonaCorrente = misure.zonaBlocco;
       gruppo = { moltiplicatore: misure.moltiplicatore, figli: [], padre: null };
       sezione.serie.push({
-        notazione: riga, metri: 0, zona: '', apreBlocco: misure.moltiplicatore, fiducia: 'verde',
+        notazione: riga, metri: 0, zona: misure.zonaBlocco || '', senzaMetri: true,
+        apreBlocco: misure.moltiplicatore, fiducia: 'verde',
       });
       continue;
     }

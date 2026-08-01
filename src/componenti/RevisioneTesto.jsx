@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Wand2, ArrowLeft, Check, AlertTriangle, CircleHelp } from 'lucide-react';
 import { analizzaTesto } from '../lib/analizzatore';
-import { TUTTI } from '../lib/dominio';
+import { TUTTI, durataStimata, inOreMinuti } from '../lib/dominio';
 
 const ESEMPIO = `300 stile
 
@@ -35,6 +35,24 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
   const correggi = (i, j, campo, v) =>
     setCorrezioni((c) => ({ ...c, [chiave(i, j)]: { ...c[chiave(i, j)], [campo]: v } }));
 
+  // La zona scelta su una riga "4x" scende su tutto il blocco: fino alla
+  // fine della sezione o al blocco successivo.
+  function correggiZona(i, j, v) {
+    const serie = letto.sezioni[i]?.serie || [];
+    const apre = serie[j]?.apreBlocco;
+    setCorrezioni((c) => {
+      const nuove = { ...c };
+      const tocca = (k) => {
+        nuove[chiave(i, k)] = { ...nuove[chiave(i, k)], zona: v, confermata: true };
+      };
+      tocca(j);
+      if (apre) {
+        for (let k = j + 1; k < serie.length && !serie[k].apreBlocco; k++) tocca(k);
+      }
+      return nuove;
+    });
+  }
+
   // Metri totali tenendo conto delle correzioni fatte qui
   const metri = letto.sezioni.reduce((t, sez, i) =>
     t + sez.serie.reduce((x, s, j) => x + Number(valore(i, j, 'metri', s.metri) || 0), 0), 0);
@@ -45,7 +63,7 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
   function conferma() {
     const sezioni = letto.sezioni.map((sez, i) => ({
       titolo: sez.titolo,
-      destinatari: [TUTTI],
+      destinatari: sez.destinatari?.length ? sez.destinatari : [TUTTI],
       serie: sez.serie.map((s, j) => ({
         notazione: s.notazione,
         metri: Number(valore(i, j, 'metri', s.metri)) || 0,
@@ -69,6 +87,12 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
         <h1 style={{ marginLeft: 6 }}>Scrivi o incolla</h1>
         <div style={{ flex: 1 }} />
         <span className="mono" style={{ color: 'var(--testo-2)' }}>{metri.toLocaleString('it-IT')} m</span>
+        {(() => {
+          const d = durataStimata(letto.sezioni);
+          return d.secondi
+            ? <span className="mono" style={{ color: 'var(--ciano)', fontSize: 13 }}>~{inOreMinuti(d.secondi)}</span>
+            : null;
+        })()}
         {daVedere > 0 && (
           <span className="mono" style={{ color: 'var(--ambra)', fontSize: 13 }}>{daVedere} da vedere</span>
         )}
@@ -120,6 +144,9 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
                 <div key={i} style={{ marginBottom: 16 }}>
                   <div className="titolo-letto">
                     {sez.titolo}
+                    {sez.destinatari?.length && !sez.destinatari.includes(TUTTI) ? (
+                      <span className="chi-sezione">{sez.destinatari.join(' · ')}</span>
+                    ) : null}
                     <span className="mono">
                       {sez.serie.reduce((t, s, j) => t + Number(valore(i, j, 'metri', s.metri) || 0), 0)} m
                     </span>
@@ -150,7 +177,7 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
                         />
                         <select
                           value={valore(i, j, 'zona', s.zona) || ''}
-                          onChange={(e) => { correggi(i, j, 'zona', e.target.value); correggi(i, j, 'confermata', true); }}
+                          onChange={(e) => correggiZona(i, j, e.target.value)}
                           aria-label="Zona"
                         >
                           <option value="">—</option>

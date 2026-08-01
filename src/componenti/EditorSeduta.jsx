@@ -128,7 +128,11 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
     setSalvataggio(true);
     setMessaggio(null);
     try {
-      const salvata = await api.salvaSeduta({ ...seduta, societa_id: societa.id });
+      // Senza titolo, prende il nome delle categorie a cui è rivolta.
+      const titolo = seduta.titolo?.trim() || (seduta.categorie || [])
+        .map((c) => (categorie || []).find((x) => x.codice === c)?.nome || c)
+        .join(' · ');
+      const salvata = await api.salvaSeduta({ ...seduta, titolo, societa_id: societa.id });
       setSeduta(salvata);
       await ricarica();
       setMessaggio({ tipo: 'ok', testo: "Seduta salvata: la trovi nell'elenco e sul calendario." });
@@ -219,7 +223,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
               <tbody>
                 {elenco.map((s) => (
                   <tr key={s.id}>
-                    <td className="mono">{s.data}</td>
+                    <td className="mono">{dataIt(s.data)}</td>
                     <td>{s.titolo || '—'}</td>
                     <td style={{ color: 'var(--testo-3)', fontSize: 13 }}>{(s.categorie || []).join(' · ') || '—'}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{(s.sezioni || []).length}</td>
@@ -443,7 +447,22 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
 
       {/* ------------------------------- volumi per specializzazione */}
       <div className="sezione">
-        <h3 style={{ marginBottom: 11 }}>Volume per specializzazione</h3>
+        <div className="barra" style={{ marginBottom: 11 }}>
+          <h3 style={{ margin: 0 }}>Volume per specializzazione</h3>
+          <div style={{ flex: 1 }} />
+          {(() => {
+            const d = durataStimata(seduta.sezioni);
+            if (!d.secondi) return null;
+            return (
+              <span style={{ fontSize: 13, color: 'var(--testo-2)' }}>
+                durata stimata <b className="mono" style={{ color: 'var(--ciano)' }}>{inOreMinuti(d.secondi)}</b>
+                {d.senzaPartenza > 0 && (
+                  <span style={{ color: 'var(--testo-3)' }}> · {d.senzaPartenza} serie senza partenza non contate</span>
+                )}
+              </span>
+            );
+          })()}
+        </div>
         <div className="volumi">
           {SPECIALIZZAZIONI.map((spec) => {
             const metri = metriPerSpecializzazione(seduta.sezioni, spec);

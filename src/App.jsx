@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Settings2, LogOut, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Dumbbell, Settings2, LogOut, HelpCircle } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte } from './lib/dominio';
@@ -13,6 +13,8 @@ import Volumi from './componenti/Volumi';
 import Dashboard from './componenti/Dashboard';
 import Benessere from './componenti/Benessere';
 import Squadra from './componenti/Squadra';
+import Esercizi from './componenti/Esercizi';
+import Feedback from './componenti/Feedback';
 import SenzaSquadra from './componenti/SenzaSquadra';
 import Tutorial from './componenti/Tutorial';
 
@@ -23,6 +25,7 @@ const SCHEDE = [
   { id: 'benessere', nome: 'Benessere', Icona: HeartPulse },
   { id: 'atleti', nome: 'Atleti', Icona: Users },
   { id: 'volumi', nome: 'Carico atleti', Icona: BarChart3 },
+  { id: 'esercizi', nome: 'Esercizi', Icona: Dumbbell },
   { id: 'squadra', nome: 'Squadra', Icona: Settings2 },
 ];
 
@@ -137,6 +140,7 @@ export default function App() {
         >
           {stagioni.map((x) => <option key={x} value={x}>Stagione {x}</option>)}
         </select>
+        <Feedback scheda={scheda} societa={societa} />
         <button className="mini" onClick={() => setTutorial(true)} title="Rivedi il tutorial" aria-label="Tutorial">
           <HelpCircle size={15} />
         </button>
@@ -203,6 +207,7 @@ export default function App() {
               proiezione={proiezione} puoScrivere={puoScrivere} />
           )}
           {scheda === 'volumi' && <Volumi societa={societa} stagione={stagione} />}
+          {scheda === 'esercizi' && <Esercizi societa={societa} puoScrivere={puoScrivere} />}
           {scheda === 'squadra' && (
             <Squadra societa={societa} ruolo={ruolo} ricaricaSocieta={() => setRicarica((n) => n + 1)} />
           )}

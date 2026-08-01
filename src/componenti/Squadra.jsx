@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Copy, RefreshCw, Check, Users, KeyRound, UserPlus, Save, Building2 } from 'lucide-react';
 import * as api from '../lib/dati';
+import { dataIt } from '../lib/dominio';
 
 const NOME_RUOLO = { coach: 'Capo allenatore', collega: 'Allenatore', lettore: 'Solo lettura' };
 
@@ -148,7 +149,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
               {richieste.map((r) => (
                 <tr key={r.id}>
                   <td><b>{r.email}</b></td>
-                  <td className="mono" style={{ color: 'var(--testo-3)' }}>{String(r.created_at).slice(0, 10)}</td>
+                  <td className="mono" style={{ color: 'var(--testo-3)' }}>{dataIt(String(r.created_at).slice(0, 10))}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button className="mini" onClick={() => decidi(r.id, false)}>Rifiuta</button>{' '}
                     <button className="azione" style={{ padding: '7px 13px', minHeight: 34 }} onClick={() => decidi(r.id, true)}>Approva</button>

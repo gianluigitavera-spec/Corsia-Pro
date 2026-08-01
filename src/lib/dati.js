@@ -350,3 +350,105 @@ export async function salvaInizioStagione(societaId, stagione, inizio) {
       .select()
   );
 }
+
+// ----------------------------------------------------------- esercizi
+export async function leggiEsercizi(societaId) {
+  // Comuni (societa_id null) più quelli della squadra, in un colpo solo.
+  return ok(
+    await sb.from('esercizi').select('*').eq('attivo', true)
+      .or(`societa_id.is.null,societa_id.eq.${societaId}`)
+      .order('codice')
+  );
+}
+
+export async function salvaEsercizio(esercizio) {
+  if (esercizio.id) {
+    const { id, created_at, creato_da, ...resto } = esercizio;
+    return ok(await sb.from('esercizi').update(resto).eq('id', id).select().single());
+  }
+  return ok(await sb.from('esercizi').insert(esercizio).select().single());
+}
+
+export async function archiviaEsercizio(id) {
+  return ok(await sb.from('esercizi').update({ attivo: false }).eq('id', id).select());
+}
+
+export async function segnaStatoLink(id, ok_) {
+  return ok(
+    await sb.from('esercizi')
+      .update({ link_ok: ok_, link_visto_il: new Date().toISOString() })
+      .eq('id', id).select()
+  );
+}
+
+export async function leggiSettimana(societaId, settimana) {
+  return ok(
+    await sb.from('esercizi_settimana')
+      .select('*, esercizio:esercizio_id (*)')
+      .eq('societa_id', societaId).eq('settimana', settimana)
+      .order('ordine')
+  );
+}
+
+export async function aggiungiAllaSettimana(societaId, settimana, esercizioId, ordine = 0) {
+  return ok(
+    await sb.from('esercizi_settimana')
+      .upsert({ societa_id: societaId, settimana, esercizio_id: esercizioId, ordine },
+              { onConflict: 'societa_id,settimana,esercizio_id' })
+      .select()
+  );
+}
+
+export async function togliDallaSettimana(societaId, settimana, esercizioId) {
+  return ok(
+    await sb.from('esercizi_settimana').delete()
+      .eq('societa_id', societaId).eq('settimana', settimana).eq('esercizio_id', esercizioId)
+      .select()
+  );
+}
+
+// ------------------------------------------------------ obiettivi fase
+export async function leggiObiettivi(societaId, codici) {
+  let q = sb.from('obiettivi_fase').select('*').eq('societa_id', societaId);
+  if (codici?.length) q = q.overlaps('categorie', codici);
+  return ok(await q);
+}
+
+export async function salvaObiettivo(societaId, codici, fase, ripartizione, kmSettimana) {
+  return ok(
+    await sb.from('obiettivi_fase')
+      .upsert({
+        societa_id: societaId,
+        categorie: codici,
+        fase,
+        ripartizione,
+        km_settimana: kmSettimana ?? null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'societa_id,categorie,fase' })
+      .select()
+  );
+}
+
+export async function confrontoFasi(societaId, codici) {
+  let q = sb.from('v_fase_confronto').select('*').eq('societa_id', societaId);
+  if (codici?.length) q = q.overlaps('categorie', codici);
+  return ok(await q);
+}
+
+// ----------------------------------------------------------- feedback
+export async function inviaFeedback({ tipo, testo, versione, contesto, societa }) {
+  const { data: u } = await sb.auth.getUser();
+  // La tabella sta in public: è condivisa con SwimCoach.
+  const { error } = await sb.schema('public').from('feedback').insert({
+    app: 'corsiapro',
+    tipo,
+    testo: testo.trim(),
+    versione,
+    contesto,
+    dispositivo: `${navigator.userAgent.slice(0, 180)} · ${window.innerWidth}x${window.innerHeight}`,
+    user_id: u?.user?.id,
+    email: u?.user?.email,
+    societa: societa || null,
+  });
+  if (error) throw new Error(error.message);
+}

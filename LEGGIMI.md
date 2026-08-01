@@ -178,6 +178,27 @@ L'app scrive solo se il tuo ruolo in `squadra.membri` è `coach` o
 `collega`. Un `lettore` vede tutto senza poter modificare.
 
 
+## Esercizi
+
+Tre livelli, dalla scheda **Esercizi**:
+
+1. **Questa settimana** — la selezione dell'allenatore per la settimana
+   corrente, con l'anteprima del video. È quello che serve a bordo vasca.
+2. **Della squadra** — il tuo catalogo, modificabile solo da voi.
+3. **Comuni** — condivisi da tutte le squadre; si curano dal pannello
+   Supabase, così nessuno li rovina per gli altri.
+
+Il **codice** (DO-01, TC-03) nasce con l'esercizio e non cambia mai: è
+quello che le sedute citeranno. Scegliendo lo stile viene proposto il
+primo numero libero.
+
+I **link ai video**: "Controlla i video" verifica quelli di YouTube e
+segna in rosso quelli rimossi, con la data del controllo. Gli altri siti
+non sono verificabili dal browser — c'è il triangolino per segnalarli a
+mano quando ci clicchi e non trovi niente.
+
+Richiede `017_esercizi.sql`.
+
 ## Tutorial
 
 Al primo accesso parte da solo: nove passi che **cambiano scheda mentre

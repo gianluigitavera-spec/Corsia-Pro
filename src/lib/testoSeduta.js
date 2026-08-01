@@ -1,7 +1,6 @@
 // La seduta in testo semplice: per WhatsApp, per un'email, per gli appunti.
-import { TUTTI, metriPerSpecializzazione, SPECIALIZZAZIONI } from './dominio';
+import { TUTTI, metriPerSpecializzazione, SPECIALIZZAZIONI, dataIt, durataStimata, inOreMinuti } from './dominio';
 
-const dataIt = (d) => (d ? new Date(d + 'T12:00').toLocaleDateString('it-IT') : '');
 
 export function sedutaInTesto(seduta, { nomeSquadra } = {}) {
   const r = [];
@@ -25,6 +24,8 @@ export function sedutaInTesto(seduta, { nomeSquadra } = {}) {
     r.push('');
   }
 
+  const durata = durataStimata(seduta.sezioni);
+  if (durata.secondi) r.push(`Durata stimata: ~${inOreMinuti(durata.secondi)}`);
   r.push('Volumi:');
   for (const spec of SPECIALIZZAZIONI) {
     const m = metriPerSpecializzazione(seduta.sezioni, spec);

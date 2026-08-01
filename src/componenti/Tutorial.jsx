@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   X, ChevronLeft, ChevronRight, LayoutDashboard, Waves, ClipboardCheck,
-  HeartPulse, Users, BarChart3, Settings2, Sparkles, KeyRound,
+  HeartPulse, Users, BarChart3, Settings2, Sparkles, KeyRound, Smartphone,
 } from 'lucide-react';
 
 // Il tutorial cambia scheda mentre spiega: dietro al riquadro c'è la
@@ -54,6 +54,12 @@ const PASSI = [
     Icona: KeyRound,
     titolo: 'Invitare un altro allenatore',
     testo: 'Qui trovi il codice di ingresso della squadra, tipo AQ13-7K2M. Passalo al collega: lui apre CorsiaPro, si registra, sceglie "Entra con un codice" e lo incolla. A te arriva la richiesta in questa stessa schermata: Approva, e decidi se farlo Allenatore (scrive tutto) o Solo lettura. Chi non ha il codice non trova nemmeno la squadra.',
+  },
+  {
+    scheda: 'dashboard',
+    Icona: Smartphone,
+    titolo: 'Mettila sul telefono',
+    testo: 'CorsiaPro si installa come un\u2019app vera, senza passare da nessuno store. Su iPhone: apri l\u2019indirizzo in Safari, tocca il tasto Condividi in basso e scegli "Aggiungi a schermata Home". Su Android, dal menù ⋮ di Chrome, "Installa app" o "Aggiungi a schermata Home". Compare l\u2019icona e si apre a schermo pieno, senza la barra del browser: a bordo vasca guadagni due centimetri di schermo.',
   },
   {
     scheda: 'squadra',

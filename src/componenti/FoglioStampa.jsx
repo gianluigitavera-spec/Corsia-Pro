@@ -1,12 +1,11 @@
-import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione } from '../lib/dominio';
+import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataItLunga, durataStimata, inOreMinuti } from '../lib/dominio';
 
 // Foglio da stampa: invisibile a schermo, è quello che finisce nel PDF.
 // Bianco, essenziale, senza la veste grafica dell'app.
 export default function FoglioStampa({ seduta, societa, categorie }) {
   const nomeCategoria = (c) => categorie?.find((x) => x.codice === c)?.nome || c;
-  const dataIt = seduta.data
-    ? new Date(seduta.data + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    : '';
+  const quando = dataItLunga(seduta.data);
+  const durata = durataStimata(seduta.sezioni);
 
   return (
     <div className="foglio" aria-hidden="true">
@@ -14,8 +13,9 @@ export default function FoglioStampa({ seduta, societa, categorie }) {
         <div>
           <h1>{seduta.titolo || 'Seduta di allenamento'}</h1>
           <p className="foglio-sotto">
-            {dataIt}
+            {quando}
             {seduta.categorie?.length ? ` · ${seduta.categorie.map(nomeCategoria).join(', ')}` : ''}
+            {durata.secondi ? ` · ~${inOreMinuti(durata.secondi)}` : ''}
           </p>
         </div>
         <div className="foglio-societa">{societa?.nome}</div>

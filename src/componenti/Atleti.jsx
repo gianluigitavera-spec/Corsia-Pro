@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
-import { Search, Plus, Upload, Pencil, Check, X, Archive, Users } from 'lucide-react';
+import { Search, Plus, Upload, Download, Pencil, Check, X, Archive, Users } from 'lucide-react';
 import * as api from '../lib/dati';
 import { SPECIALIZZAZIONI, categoriaAtleta } from '../lib/dominio';
 
@@ -91,7 +91,11 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
         });
 
         if (righe.length === 0) {
-          setMessaggio({ tipo: 'errore', testo: 'Nessuna riga valida. Servono le colonne nome, cognome, sesso, anno_nascita.' });
+          setMessaggio({
+            tipo: 'errore',
+            testo: 'Nessuna riga valida. Servono le colonne nome, cognome, sesso, anno_nascita: '
+              + 'scarica il modello qui sopra e compila quello.',
+          });
           return;
         }
         try {
@@ -107,6 +111,24 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
   }
 
   const completo = nuovo.nome && nuovo.cognome && Number(nuovo.anno_nascita) > 1900;
+
+  // Modello vuoto da compilare in Excel o Fogli Google. Due righe di
+  // esempio: si cancellano, servono solo a far vedere come si scrive.
+  function scaricaModello() {
+    const righe = [
+      'nome,cognome,sesso,anno_nascita,specializzazione',
+      'Mario,Rossi,M,2013,Velocità',
+      'Giulia,Bianchi,F,2014,Generale',
+    ];
+    // Il BOM serve a Excel per leggere le lettere accentate.
+    const testo = '\ufeff' + righe.join('\r\n') + '\r\n';
+    const url = URL.createObjectURL(new Blob([testo], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modello_atleti_corsiapro.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <>
@@ -131,7 +153,10 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
               <Plus size={16} style={{ verticalAlign: -3 }} /> Atleta
             </button>
             <button className="azione fantasma" onClick={() => fileRef.current?.click()}>
-              <Upload size={15} style={{ verticalAlign: -3 }} /> CSV
+              <Upload size={15} style={{ verticalAlign: -3 }} /> Importa CSV
+            </button>
+            <button className="mini" onClick={scaricaModello} title="Scarica il modello CSV vuoto">
+              <Download size={14} style={{ verticalAlign: -2 }} /> Modello
             </button>
             <input ref={fileRef} type="file" accept=".csv,text/csv" hidden
               onChange={(e) => e.target.files?.[0] && importaCsv(e.target.files[0])} />
@@ -190,8 +215,13 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
             <p>
               {cerca
                 ? 'Prova con il cognome, o con l\'anno di nascita.'
-                : 'Aggiungi il primo atleta, oppure carica il CSV con nome, cognome, sesso, anno_nascita.'}
+                : 'Aggiungi il primo atleta, oppure scarica il modello CSV, compilalo e ricaricalo.'}
             </p>
+            {!cerca && puoScrivere && (
+              <button className="azione fantasma" onClick={scaricaModello}>
+                <Download size={15} style={{ verticalAlign: -3 }} /> Scarica il modello
+              </button>
+            )}
           </div>
         ) : (
           <table>

@@ -6,9 +6,10 @@ import {
   inizioStagionePredefinito,
 } from '../lib/dominio';
 import { TIPI_GARA } from './Calendario';
+import ObiettiviFase from './ObiettiviFase';
 
 const iso = (d) => d.toISOString().slice(0, 10);
-const dataIt = (s) => new Date(s + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+const dataIt = (s) => new Date(s + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
 export default function Periodizzazione({ societa, codici, nomeMacro, gare, stagione, puoScrivere, cambiata }) {
   const [blocchi, setBlocchi] = useState([]);
@@ -217,6 +218,8 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
       {messaggio && (
         <div className={`avviso ${messaggio.errore ? 'errore' : ''}`} style={{ marginTop: 10 }}>{messaggio.testo}</div>
       )}
+
+      <ObiettiviFase societa={societa} codici={codici} nomeMacro={nomeMacro} puoScrivere={puoScrivere} />
     </div>
   );
 }

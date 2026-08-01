@@ -3,9 +3,56 @@
 // la usa il service worker per la cache, e finisce nel nome dello zip.
 // Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
 // =====================================================================
-export const VERSIONE = '0.15.1';
+export const VERSIONE = '0.19.1';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.19.1',
+    data: '2026-07-31',
+    voci: [
+      'Tasto "Modello" in Atleti: scarica il CSV vuoto già intestato, con due righe di esempio da cancellare',
+    ],
+  },
+  {
+    versione: '0.19.0',
+    data: '2026-07-31',
+    voci: [
+      'Tasto "Scrivimi" in alto: problema, idea o altro, con versione e schermata allegate in automatico',
+      'Le segnalazioni finiscono nella stessa tabella di SwimCoach AI, distinte dal campo app',
+    ],
+  },
+  {
+    versione: '0.18.0',
+    data: '2026-07-31',
+    voci: [
+      'Obiettivi di fase decisi dall\u2019allenatore, categoria per categoria: nessun numero standard',
+      'Programmato contro nuotato in Carico atleti: barra chiara l\u2019atteso, barra piena il reale, con lo scarto',
+      'Gli obiettivi si impostano dal calendario, sotto la periodizzazione della categoria',
+    ],
+  },
+  {
+    versione: '0.17.0',
+    data: '2026-07-31',
+    voci: [
+      'Nel testo libero "Velocisti", "Mezzofondo" e "Salvamento" restringono la sezione a quel gruppo; "Centrale" resta per tutti',
+      'Nuova scheda Esercizi su tre livelli: della settimana, della squadra, comuni',
+      'Codice permanente per ogni esercizio (DO-01), proposto in automatico secondo lo stile',
+      'Link ai video con anteprima; i link YouTube rotti diventano rossi al controllo, gli altri si segnalano a mano',
+      'In Carico atleti "Nuotati dagli atleti" sostituito dal numero di sedute del periodo',
+    ],
+  },
+  {
+    versione: '0.16.0',
+    data: '2026-07-31',
+    voci: [
+      'Date in formato gg.mm.aaaa in tutta l\u2019app',
+      '"@3\u2019" ora vuol dire tre minuti, non tre secondi',
+      'Durata stimata della seduta, calcolata da ripetizioni × ripartenza',
+      'La zona scelta sulla riga "4x" scende su tutte le serie del blocco',
+      'Senza titolo, la seduta prende il nome delle categorie a cui è rivolta',
+      'Il tutorial spiega come installare l\u2019app sul telefono',
+    ],
+  },
   {
     versione: '0.15.1',
     data: '2026-07-31',

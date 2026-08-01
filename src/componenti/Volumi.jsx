@@ -5,6 +5,7 @@ import * as api from '../lib/dati';
 import { metriPerSpecializzazione } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 import { BarreImpilate, BarreOrizzontali, km } from './Grafici';
+import Confronto from './Confronto';
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const giorniFa = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return iso(d); };
@@ -112,7 +113,6 @@ export default function Volumi({ societa, stagione }) {
     { chiave: 'nonclass', nome: 'Senza zona', colore: TINTA_FAMIGLIA.altro },
   ];
 
-  const totNuotati = perAtleta.reduce((t, x) => t + x.nuotati, 0);
   const freqMedia = perAtleta.length
     ? Math.round(perAtleta.reduce((t, x) => t + (freq(x) || 0), 0) / perAtleta.length) : null;
 
@@ -167,9 +167,9 @@ export default function Volumi({ societa, stagione }) {
           <div className="sotto">{perAtleta.length} atleti con rilevazioni</div>
         </div>
         <div className="volume" style={{ '--tinta': 'var(--ambra)' }}>
-          <div className="etichetta">Nuotati dagli atleti</div>
-          <div className="cifra">{km(totNuotati)}<small>km</small></div>
-          <div className="sotto">somma dei percorsi individuali</div>
+          <div className="etichetta">Sedute</div>
+          <div className="cifra">{sedute.length}</div>
+          <div className="sotto">nel periodo scelto</div>
         </div>
       </div>
 
@@ -223,6 +223,8 @@ export default function Volumi({ societa, stagione }) {
           <BarreImpilate dati={perSettimana} serie={SERIE} />
         </div>
       </div>
+
+      <Confronto societa={societa} />
 
       <div className="scheda sezione">
         <div className="intestazione">

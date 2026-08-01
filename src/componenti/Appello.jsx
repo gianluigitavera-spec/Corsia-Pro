@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HeartPulse, Check } from 'lucide-react';
 import * as api from '../lib/dati';
-import { RAGGRUPPAMENTI, categoriaAtleta } from '../lib/dominio';
+import { RAGGRUPPAMENTI, categoriaAtleta, dataIt } from '../lib/dominio';
 
 // Quattro stati. L'assenza non conta come presenza; ritardo e
 // giustificato sì — il ritardo però viene contato a parte.
@@ -109,7 +109,7 @@ export default function Appello({ societa, fasce, puoScrivere }) {
         <div style={{ flex: 1 }} />
         <select value={sedutaId} onChange={(e) => setSedutaId(e.target.value)} style={{ maxWidth: 300 }}>
           {sedute.map((s) => (
-            <option key={s.id} value={s.id}>{s.data} · {s.titolo || 'senza titolo'}</option>
+            <option key={s.id} value={s.id}>{dataIt(s.data)} · {s.titolo || 'senza titolo'}</option>
           ))}
         </select>
       </div>

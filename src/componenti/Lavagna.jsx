@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
-import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione } from '../lib/dominio';
+import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataIt } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 
 // La lavagna del bordo vasca: una sezione per volta, caratteri grandi,
@@ -41,7 +41,7 @@ export default function Lavagna({ seduta, zone, chiudi }) {
       <div className="barra-lavagna">
         <span className="titolo-lavagna">{seduta.titolo || 'Seduta'}</span>
         <span className="mono" style={{ color: 'var(--testo-3)' }}>
-          {new Date((seduta.data || '') + 'T12:00').toLocaleDateString('it-IT')}
+          {dataIt(seduta.data)}
         </span>
         <span style={{ flex: 1 }} />
         <button className="mini" onClick={() => setScala((s) => Math.max(0.7, s - 0.15))} aria-label="Più piccolo"><Minus size={14} /></button>

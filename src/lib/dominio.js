@@ -185,8 +185,12 @@ export function metriDaNotazione(testo) {
 export function normalizzaRecupero(testo) {
   let t = String(testo || "").trim();
   if (!t) return "";
+  // "3'" da solo sono tre MINUTI: l'apice è il segno dei minuti.
+  t = t.replace(/^@?\s*(\d{1,2})\s*'\s*$/, "@$1:00");
   // Convenzione unica: @1:30. L'apice e il punto diventano due punti.
   t = t.replace(/(\d{1,2})\s*['.]\s*(\d{2})\s*"?/, "$1:$2");
+  // "@3'" senza secondi vuol dire tre minuti, non tre secondi.
+  t = t.replace(/^@?(\d{1,2})'\s*$/, "@$1:00");
   return t.startsWith("@") ? t : "@" + t;
 }
 
@@ -563,4 +567,68 @@ export function ripartenzaDaBase(testo, notazione, suMetriPredefiniti = 100) {
     recupero: `@${inTempo(base * (distanza / suMetri))}`,
     base: `${inTempo(base)}/${suMetri}`,
   };
+}
+
+
+// ---------------------------------------------------------------------
+// DATE — sempre gg.mm.aaaa
+// ---------------------------------------------------------------------
+export function dataIt(iso) {
+  if (!iso) return "";
+  const [a, m, g] = String(iso).slice(0, 10).split("-");
+  return g && m && a ? `${g}.${m}.${a}` : String(iso);
+}
+
+export function dataItLunga(iso) {
+  if (!iso) return "";
+  return new Date(iso + "T12:00").toLocaleDateString("it-IT", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+}
+
+// ---------------------------------------------------------------------
+// DURATA STIMATA
+// Si somma solo quello che ha una ripartenza: ripetizioni × tempo. Le
+// serie senza partenza non si contano, e l'app lo dice invece di
+// inventare un'andatura.
+// ---------------------------------------------------------------------
+const secondiDaRipartenza = (testo) => {
+  const t = String(testo || "").replace("@", "").trim();
+  let m = t.match(/^(\d{1,2})[:.'](\d{2})/);
+  if (m) return +m[1] * 60 + +m[2];
+  m = t.match(/^(\d{1,2})'\s*$/);              // "3'" = tre minuti
+  if (m) return +m[1] * 60;
+  m = t.match(/^(\d{1,3})"?\s*$/);             // "45" = quarantacinque secondi
+  return m ? +m[1] : null;
+};
+
+export function ripetizioniDa(notazione) {
+  const t = String(notazione || "").replace(/[×*]/g, "x");
+  const m = t.match(/^\s*(\d{1,3})\s*x\s*\d/);
+  return m ? +m[1] : 1;
+}
+
+export function durataStimata(sezioni) {
+  let secondi = 0;
+  let conRipartenza = 0;
+  let senza = 0;
+
+  for (const sez of sezioni || []) {
+    for (const s of sez.serie || []) {
+      if (!s.metri && !s.senzaMetri) continue;
+      const base = secondiDaRipartenza(s.recupero);
+      if (base) {
+        secondi += base * ripetizioniDa(s.notazione);
+        conRipartenza += 1;
+      } else if (s.metri) {
+        senza += 1;
+      }
+    }
+  }
+  return { secondi, conPartenza: conRipartenza, senzaPartenza: senza };
+}
+
+export function inOreMinuti(secondi) {
+  const m = Math.round(secondi / 60);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}'` : `${m}'`;
 }
