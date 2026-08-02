@@ -1,11 +1,45 @@
 // =====================================================================
-// Versione dell'app. UNICO posto dove si scrive: la mostra l'intestazione,
-// la usa il service worker per la cache, e finisce nel nome dello zip.
-// Ad ogni consegna: alza VERSIONE e aggiungi la voce in CAMBIAMENTI.
+// Registro delle novità. Il NUMERO di versione non si scrive più qui:
+// la fonte unica è "version" in package.json, da cui vite lo inietta
+// (vedi src/lib/versione.js) e da cui sincronizza_versione.mjs riscrive
+// la cache del service worker prima di ogni build.
+// Ad ogni consegna: alza "version" in package.json e aggiungi qui la voce
+// corrispondente in CAMBIAMENTI — senza, la build si ferma.
 // =====================================================================
-export const VERSIONE = '0.19.2';
+export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
+  {
+    versione: '0.21.0',
+    data: '2026-08-02',
+    voci: [
+      'Nuova categoria Master, una sola: si assegna a mano, perché Master \u00e8 un tesseramento e non un\u2019et\u00e0',
+      'Atleti: caselle di selezione e azioni di massa \u2014 categoria, specializzazione, archivia, cancella',
+      '"Seleziona tutti" prende quelli che stai vedendo, quindi funziona anche con la ricerca attiva',
+      'Cancellazione vera solo per chi non ha ancora presenze o benessere: gli altri vanno archiviati, cos\u00ec lo storico regge',
+      'L\u2019import non ricrea pi\u00f9 i doppioni: alla fine dice quanti erano e chi, archiviati compresi',
+      'Riconosce come stessa persona anche chi \u00e8 scritto con accenti, apostrofi o spazi diversi',
+    ],
+  },
+  {
+    versione: '0.20.1',
+    data: '2026-08-01',
+    voci: [
+      'CORRETTO: la cache del telefono era ferma alla 0.5.0 — le versioni vecchie non venivano mai buttate via, e l\u2019app installata restava indietro',
+      'Il numero di versione ora si scrive in un posto solo (package.json): gli altri due si allineano da soli prima della build',
+      'La consegna si ferma se il registro delle novità non ha la voce della versione che stai costruendo',
+    ],
+  },
+  {
+    versione: '0.20.0',
+    data: '2026-08-01',
+    voci: [
+      'Testata rifatta: marchio e tasti sulla prima riga, squadra e stagione sulla seconda',
+      'Sul telefono la testata non finisce più sotto la tacca e occupa la metà dello spazio',
+      'Il numero di versione compariva due volte: ora è uno solo, e il tooltip mostra la build',
+      'Stagioni limitate: dalla 2025/26 in poi, tre alla volta',
+    ],
+  },
   {
     versione: '0.19.2',
     data: '2026-07-31',

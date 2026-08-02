@@ -72,8 +72,53 @@ export async function archiviaAtleta(id) {
   return ok(await sb.from('atleti').update({ attivo: false }).eq('id', id).select().single());
 }
 
+// Tutti gli atleti della società, archiviati compresi: serve all'import
+// per riconoscere chi c'è già. Chi è stato archiviato non compare negli
+// elenchi ma occupa lo stesso la chiave, quindi va guardato anche lui.
+export async function leggiAtletiTutti(societaId) {
+  return ok(
+    await sb
+      .from('atleti')
+      .select('id, nome, cognome, anno_nascita, attivo')
+      .eq('societa_id', societaId)
+  );
+}
+
 export async function importaAtleti(righe) {
+  if (!righe.length) return [];
   return ok(await sb.from('atleti').insert(righe).select());
+}
+
+// ------------------------------------------- atleti: azioni di massa
+export async function aggiornaAtleti(ids, campi) {
+  if (!ids.length) return [];
+  return ok(await sb.from('atleti').update(campi).in('id', ids).select());
+}
+
+export async function archiviaAtleti(ids) {
+  return aggiornaAtleti(ids, { attivo: false });
+}
+
+// Chi ha già lasciato una traccia non si cancella: sparirebbero anche le
+// presenze, e le percentuali di frequenza delle stagioni passate
+// cambierebbero da sole. Torna l'elenco di chi è stato risparmiato.
+export async function eliminaAtleti(ids) {
+  if (!ids.length) return { eliminati: [], trattenuti: [] };
+
+  const conPresenze = ok(
+    await sb.from('presenze').select('atleta_id').in('atleta_id', ids)
+  ).map((r) => r.atleta_id);
+  const conBenessere = ok(
+    await sb.from('benessere').select('atleta_id').in('atleta_id', ids)
+  ).map((r) => r.atleta_id);
+
+  const trattenuti = [...new Set([...conPresenze, ...conBenessere])];
+  const eliminabili = ids.filter((id) => !trattenuti.includes(id));
+
+  if (eliminabili.length) {
+    ok(await sb.from('atleti').delete().in('id', eliminabili).select());
+  }
+  return { eliminati: eliminabili, trattenuti };
 }
 
 // ------------------------------------------------------------- sedute

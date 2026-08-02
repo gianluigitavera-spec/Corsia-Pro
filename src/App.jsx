@@ -4,7 +4,7 @@ import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
-import { ETICHETTA, BUILD } from './lib/versione';
+import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
 import Atleti from './componenti/Atleti';
 import EditorSeduta from './componenti/EditorSeduta';
@@ -123,31 +123,40 @@ export default function App() {
   return (
     <div className="guscio">
       <header className="testata">
-        <div className="marchio">
-          <img src="/marchio.svg" alt="" className="segno" />
-          Corsia<span>Pro</span>
+        <div className="riga-testata">
+          <div className="marchio">
+            <img src="/marchio.svg" alt="" className="segno" />
+            Corsia<span>Pro</span>
+          </div>
+          <button
+            className="versione"
+            onClick={() => setRegistro(true)}
+            title={`Cosa è cambiato · build ${BUILD}`}
+          >
+            v{VERSIONE}
+          </button>
+          <div className="spazio" />
+          <Feedback scheda={scheda} societa={societa} />
+          <button className="mini" onClick={() => setTutorial(true)} title="Rivedi il tutorial" aria-label="Tutorial">
+            <HelpCircle size={15} />
+          </button>
+          <button className="mini" onClick={() => api.esci()} title="Esci" aria-label="Esci">
+            <LogOut size={14} />
+          </button>
         </div>
-        <button className="versione" onClick={() => setRegistro(true)} title="Cosa è cambiato">
-          v{VERSIONE}
-        </button>
-        {societa && <div className="societa">{societa.nome}</div>}
-        <div className="spazio" />
-        <select
-          value={stagione}
-          onChange={(e) => setStagione(e.target.value)}
-          aria-label="Stagione"
-          style={{ minHeight: 36, padding: '5px 9px', fontSize: 13 }}
-        >
-          {stagioni.map((x) => <option key={x} value={x}>Stagione {x}</option>)}
-        </select>
-        <Feedback scheda={scheda} societa={societa} />
-        <button className="mini" onClick={() => setTutorial(true)} title="Rivedi il tutorial" aria-label="Tutorial">
-          <HelpCircle size={15} />
-        </button>
-        <button className="mini" onClick={() => api.esci()}>
-          <LogOut size={14} style={{ verticalAlign: -2 }} /> Esci
-        </button>
-        <span className="versione mono" title={`build ${BUILD}`}>{ETICHETTA}</span>
+
+        <div className="riga-testata secondaria">
+          {societa && <div className="societa">{societa.nome}</div>}
+          <div className="spazio" />
+          <select
+            value={stagione}
+            onChange={(e) => setStagione(e.target.value)}
+            aria-label="Stagione"
+            className="scelta-stagione"
+          >
+            {stagioni.map((x) => <option key={x} value={x}>Stagione {x}</option>)}
+          </select>
+        </div>
       </header>
 
       <nav className="nav">

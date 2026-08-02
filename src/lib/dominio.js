@@ -47,6 +47,11 @@ export const CATEGORIE = [
   { codice: "SEN_1", nome: "Senior 1", ordine: 170 },
   { codice: "SEN_2", nome: "Senior 2", ordine: 180 },
   { codice: "ASS", nome: "Assoluti", ordine: 190 },
+  // Master: unica categoria, non le fasce quinquennali FIN. Non ha fasce
+  // d'età in categorie_stagione ed è di proposito: Master è un tipo di
+  // tesseramento, non un'età. Si assegna a mano con categoria_override,
+  // altrimenti ci finirebbe dentro ogni agonista adulto.
+  { codice: "MAS", nome: "Master", ordine: 200 },
 ];
 
 // ---------------------------------------------------------------------
@@ -265,6 +270,25 @@ export function categoriaDi(annoNascita, sesso, fasce) {
   return match ? match.categoria : null;
 }
 
+// ---------------------------------------------------------------------
+// CHIAVE ANTI-DOPPIONE
+// Stessa persona scritta in due modi dev'essere la stessa chiave:
+// "D'Amico Luca 2012" e "d' amico  luca 2012" → damicoluca2012.
+// Deve restare allineata a squadra.chiave_atleta() in SQL (migrazione 021):
+// se cambi qui, cambia anche là, o il vincolo del database e l'anteprima
+// dell'import smettono di dire la stessa cosa.
+// ---------------------------------------------------------------------
+const ACCENTI = { à:'a', á:'a', â:'a', ä:'a', ã:'a', è:'e', é:'e', ê:'e', ë:'e',
+  ì:'i', í:'i', î:'i', ï:'i', ò:'o', ó:'o', ô:'o', ö:'o', õ:'o',
+  ù:'u', ú:'u', û:'u', ü:'u', ç:'c', ñ:'n' };
+
+export function chiaveAtleta({ cognome, nome, anno_nascita } = {}) {
+  return `${cognome || ''}${nome || ''}${anno_nascita ?? ''}`
+    .toLowerCase()
+    .replace(/[àáâäãèéêëìíîïòóôöõùúûüçñ]/g, (c) => ACCENTI[c])
+    .replace(/[^a-z0-9]/g, '');
+}
+
 export function categoriaAtleta(atleta, fasce) {
   if (atleta?.categoria_override) return atleta.categoria_override;
   return categoriaDi(atleta?.anno_nascita, atleta?.sesso, fasce);
@@ -355,6 +379,7 @@ export const RAGGRUPPAMENTI = [
   { nome: "Cadetti",      codici: ["CAD_1", "CAD_2"] },
   { nome: "Senior",       codici: ["SEN_1", "SEN_2"] },
   { nome: "Assoluti",     codici: ["ASS"] },
+  { nome: "Master",       codici: ["MAS"] },
 ];
 
 // Filtri del calendario: come guardi la settimana quando pianifichi.
@@ -366,6 +391,7 @@ export const MACRO_CALENDARIO = [
   { id: "eso_a",      nome: "Esordienti A", codici: ["ESO_A1", "ESO_A2"] },
   { id: "ragazzi",    nome: "Ragazzi",      codici: ["RAG_1", "RAG_2", "RAG_3M"] },
   { id: "jcs",        nome: "J/C/S e Assoluti", codici: ["JUN_1", "JUN_2", "CAD_1", "CAD_2", "SEN_1", "SEN_2", "ASS"] },
+  { id: "master",     nome: "Master",       codici: ["MAS"] },
 ];
 
 // Un elemento (seduta o gara) rientra nel filtro se una delle sue
@@ -389,12 +415,22 @@ export function annoInizialeDi(stagione) {
   return isNaN(n) ? null : n;
 }
 
-// Elenco per il selettore: quelle presenti nel database più le due
-// adiacenti a quella corrente, senza doppioni.
-export function stagioniProposte(daDatabase = [], corrente = stagioneCorrente()) {
-  const a = annoInizialeDi(corrente);
-  const insieme = new Set([...daDatabase, corrente]);
-  if (a) { insieme.add(stagioneDa(a - 1)); insieme.add(stagioneDa(a + 1)); }
+// La prima stagione gestita: prima non c'erano dati.
+export const STAGIONE_MINIMA = "2025/26";
+
+// Elenco per il selettore: tre stagioni, dalla corrente in avanti, mai
+// prima della minima. Le stagioni già presenti nel database entrano
+// comunque, purché non siano più vecchie della minima.
+export function stagioniProposte(daDatabase = [], corrente = stagioneCorrente(), quante = 3) {
+  const minimo = annoInizialeDi(STAGIONE_MINIMA);
+  const partenza = Math.max(minimo, annoInizialeDi(corrente) || minimo);
+
+  const insieme = new Set();
+  for (let i = 0; i < quante; i++) insieme.add(stagioneDa(partenza + i));
+  for (const s of daDatabase) {
+    const a = annoInizialeDi(s);
+    if (a && a >= minimo) insieme.add(stagioneDa(a));
+  }
   return [...insieme].sort().reverse();
 }
 

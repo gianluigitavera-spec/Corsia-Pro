@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
-import { Search, Plus, Upload, Download, Pencil, Check, X, Archive, Users } from 'lucide-react';
+import { Search, Plus, Upload, Download, Pencil, Check, X, Archive, Users, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI, categoriaAtleta } from '../lib/dominio';
+import { SPECIALIZZAZIONI, CATEGORIE, categoriaAtleta, chiaveAtleta } from '../lib/dominio';
 
 const VUOTO = { nome: '', cognome: '', sesso: 'M', anno_nascita: '', specializzazione: 'Generale' };
 
@@ -12,6 +12,13 @@ const combacia = (a, q) => {
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((p) => testo.includes(p));
 };
 
+// Elenca i nomi per esteso fino a dieci, poi conta gli altri: serve a
+// vedere chi, non solo quanti, senza riempire lo schermo.
+const elenco = (nomi, quanti = 10) =>
+  nomi.length <= quanti
+    ? nomi.join(', ')
+    : `${nomi.slice(0, quanti).join(', ')} e altri ${nomi.length - quanti}`;
+
 export default function Atleti({ societa, fasce, stagione, proiezione, puoScrivere }) {
   const [atleti, setAtleti] = useState([]);
   const [cerca, setCerca] = useState('');
@@ -19,13 +26,17 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
   const [mostraNuovo, setMostraNuovo] = useState(false);
   const [inModifica, setInModifica] = useState(null); // {id, ...campi}
   const [messaggio, setMessaggio] = useState(null);
+  const [selezione, setSelezione] = useState(() => new Set());
+  const [inCorso, setInCorso] = useState(false);
   const fileRef = useRef(null);
 
   useEffect(() => { ricarica(); }, [societa.id]);
 
   async function ricarica() {
-    try { setAtleti(await api.leggiAtleti(societa.id)); }
-    catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
+    try {
+      setAtleti(await api.leggiAtleti(societa.id));
+      setSelezione(new Set());
+    } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
   }
 
   const visibili = useMemo(
@@ -65,6 +76,76 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
     } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
   }
 
+  // ----------------------------------------------------------- selezione
+  const selezionati = useMemo(() => visibili.filter((a) => selezione.has(a.id)), [visibili, selezione]);
+  const tuttiScelti = visibili.length > 0 && selezionati.length === visibili.length;
+
+  function commuta(id) {
+    setSelezione((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }
+
+  // Prende o lascia solo quelli che stai vedendo: con la ricerca attiva
+  // "tutti" vuol dire tutti i trovati, non tutta la squadra.
+  function commutaTuttiVisibili() {
+    setSelezione(tuttiScelti ? new Set() : new Set(visibili.map((a) => a.id)));
+  }
+
+  async function inMassa(campi, descrizione) {
+    const ids = selezionati.map((a) => a.id);
+    if (!ids.length) return;
+    setInCorso(true);
+    try {
+      await api.aggiornaAtleti(ids, campi);
+      setMessaggio({ tipo: 'ok', testo: `${ids.length} atleti: ${descrizione}.` });
+      await ricarica();
+    } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
+    finally { setInCorso(false); }
+  }
+
+  async function archiviaInMassa() {
+    const ids = selezionati.map((a) => a.id);
+    if (!ids.length) return;
+    if (!confirm(`Archiviare ${ids.length} atleti? Spariscono dagli elenchi ma lo storico resta.`)) return;
+    setInCorso(true);
+    try {
+      await api.archiviaAtleti(ids);
+      setMessaggio({ tipo: 'ok', testo: `${ids.length} atleti archiviati.` });
+      await ricarica();
+    } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
+    finally { setInCorso(false); }
+  }
+
+  // Cancellazione vera, per i doppioni entrati con un import sbagliato.
+  // Chi ha presenze o benessere alle spalle non si tocca: lo dice dopo.
+  async function eliminaInMassa() {
+    const ids = selezionati.map((a) => a.id);
+    if (!ids.length) return;
+    if (!confirm(
+      `Cancellare per sempre ${ids.length} atleti?\n\n`
+      + 'Serve per i doppioni di un import sbagliato. Chi ha già presenze o '
+      + 'questionari benessere non verrà cancellato: per quelli usa Archivia.'
+    )) return;
+    setInCorso(true);
+    try {
+      const { eliminati, trattenuti } = await api.eliminaAtleti(ids);
+      const nomi = atleti.filter((a) => trattenuti.includes(a.id))
+        .map((a) => `${a.cognome} ${a.nome}`);
+      setMessaggio({
+        tipo: trattenuti.length ? 'errore' : 'ok',
+        testo: `${eliminati.length} atleti cancellati.`
+          + (trattenuti.length
+            ? ` ${trattenuti.length} lasciati dov'erano perché hanno già uno storico: ${elenco(nomi)}. Per quelli usa Archivia.`
+            : ''),
+      });
+      await ricarica();
+    } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
+    finally { setInCorso(false); }
+  }
+
   function importaCsv(file) {
     Papa.parse(file, {
       header: true,
@@ -98,11 +179,46 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
           });
           return;
         }
+
         try {
-          await api.importaAtleti(righe);
+          // Chi c'è già, archiviati compresi: la chiave la calcola dominio.js,
+          // la stessa che difende il database. Chi combacia non entra.
+          const esistenti = await api.leggiAtletiTutti(societa.id);
+          const gia = new Map(esistenti.map((a) => [chiaveAtleta(a), a]));
+
+          const nuovi = [];
+          const doppiNelFoglio = [];
+          const doppiInSquadra = [];
+          const visteQui = new Set();
+
+          righe.forEach((r) => {
+            const k = chiaveAtleta(r);
+            const nome = `${r.cognome} ${r.nome} ${r.anno_nascita}`;
+            if (visteQui.has(k)) { doppiNelFoglio.push(nome); return; }
+            visteQui.add(k);
+            const vecchio = gia.get(k);
+            if (vecchio) {
+              doppiInSquadra.push(nome + (vecchio.attivo ? '' : ' (in archivio)'));
+              return;
+            }
+            nuovi.push(r);
+          });
+
+          await api.importaAtleti(nuovi);
+
+          const parti = [`Importati ${nuovi.length} atleti.`];
+          if (doppiInSquadra.length) {
+            parti.push(`${doppiInSquadra.length} erano già in squadra e non sono stati reinseriti: ${elenco(doppiInSquadra)}.`);
+          }
+          if (doppiNelFoglio.length) {
+            parti.push(`${doppiNelFoglio.length} comparivano due volte nel foglio: ${elenco(doppiNelFoglio)}.`);
+          }
+          if (scarti.length) {
+            parti.push(`Saltate ${scarti.length} righe incomplete: ${elenco(scarti, 5)}.`);
+          }
           setMessaggio({
-            tipo: 'ok',
-            testo: `Importati ${righe.length} atleti${scarti.length ? `. Saltate ${scarti.length} righe incomplete: ${scarti.slice(0, 5).join(', ')}` : '.'}`,
+            tipo: nuovi.length ? 'ok' : 'errore',
+            testo: parti.join(' '),
           });
           ricarica();
         } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
@@ -207,6 +323,48 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
         </div>
       )}
 
+      {puoScrivere && selezionati.length > 0 && (
+        <div className="scheda" style={{ marginBottom: 12, borderColor: 'var(--ciano)' }}>
+          <div className="corpo" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <b className="mono" style={{ color: 'var(--ciano)' }}>{selezionati.length} selezionati</b>
+
+            <select disabled={inCorso} value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) return;
+                inMassa(
+                  { categoria_override: v === 'auto' ? null : v },
+                  v === 'auto' ? 'categoria di nuovo calcolata dall\'età' : `categoria fissata a ${v}`
+                );
+              }}>
+              <option value="">Categoria…</option>
+              <option value="auto">Torna al calcolo per età</option>
+              {CATEGORIE.map((c) => <option key={c.codice} value={c.codice}>{c.nome}</option>)}
+            </select>
+
+            <select disabled={inCorso} value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v) inMassa({ specializzazione: v }, `specializzazione ${v}`);
+              }}>
+              <option value="">Specializzazione…</option>
+              {SPECIALIZZAZIONI.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            <button className="azione fantasma" disabled={inCorso} onClick={archiviaInMassa}>
+              <Archive size={15} style={{ verticalAlign: -3 }} /> Archivia
+            </button>
+            <button className="mini" disabled={inCorso} onClick={eliminaInMassa}
+              title="Solo per i doppioni: chi ha uno storico non viene cancellato">
+              <Trash2 size={14} style={{ verticalAlign: -2 }} /> Cancella
+            </button>
+
+            <div style={{ flex: 1 }} />
+            <button className="mini" onClick={() => setSelezione(new Set())}>Deseleziona</button>
+          </div>
+        </div>
+      )}
+
       <div className="scheda">
         {visibili.length === 0 ? (
           <div className="vuoto">
@@ -227,6 +385,12 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
           <table>
             <thead>
               <tr>
+                {puoScrivere && (
+                  <th style={{ width: 34 }}>
+                    <input type="checkbox" checked={tuttiScelti} onChange={commutaTuttiVisibili}
+                      aria-label="Seleziona tutti quelli che vedi" />
+                  </th>
+                )}
                 <th>Atleta</th><th>Sesso</th><th>Anno</th><th>Categoria</th>
                 <th>Specializzazione</th>{puoScrivere && <th />}
               </tr>
@@ -237,6 +401,7 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                 if (m) {
                   return (
                     <tr key={a.id}>
+                      {puoScrivere && <td />}
                       <td style={{ display: 'flex', gap: 6 }}>
                         <input style={{ width: '48%' }} value={m.cognome} placeholder="Cognome"
                           onChange={(e) => setInModifica({ ...m, cognome: e.target.value })} />
@@ -270,7 +435,14 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                   );
                 }
                 return (
-                  <tr key={a.id}>
+                  <tr key={a.id} className={selezione.has(a.id) ? 'scelta' : undefined}>
+                    {puoScrivere && (
+                      <td>
+                        <input type="checkbox" checked={selezione.has(a.id)}
+                          onChange={() => commuta(a.id)}
+                          aria-label={`Seleziona ${a.cognome} ${a.nome}`} />
+                      </td>
+                    )}
                     <td><b>{a.cognome}</b> {a.nome}</td>
                     <td style={{ color: 'var(--testo-3)' }}>{a.sesso}</td>
                     <td className="mono">{a.anno_nascita}</td>
