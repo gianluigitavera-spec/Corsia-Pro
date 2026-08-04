@@ -10,6 +10,25 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.26.0',
+    data: '2026-08-04',
+    voci: [
+      'La registrazione chiede nome e cognome: finora l\u2019app conosceva solo l\u2019email',
+      'Il nome viaggia nei metadati dell\u2019utente, quindi nessuna tabella nuova e nessuna migrazione',
+      'Query degli iscritti aggiornata: mostra il nome, e per i vecchi iscritti lo indovina dall\u2019email dichiarandolo',
+    ],
+  },
+  {
+    versione: '0.25.0',
+    data: '2026-08-04',
+    voci: [
+      'La stagione cambia a luglio, non a settembre: l\u2019app apre gi\u00e0 sulla 2026/27',
+      'La 2025/26 resta nel selettore e le sedute vecchie non si spostano',
+      'Le fasce d\u2019et\u00e0 della 2026/27 si proiettano da sole: tutta la squadra sale di categoria',
+      'Prove automatiche sul cambio stagione e sulla proiezione delle fasce',
+    ],
+  },
+  {
     versione: '0.24.0',
     data: '2026-08-04',
     voci: [

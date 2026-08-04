@@ -5,6 +5,7 @@ import { ETICHETTA, BUILD } from '../lib/versione';
 
 export default function Accesso() {
   const [modo, setModo] = useState('entra');   // entra | registra
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [messaggio, setMessaggio] = useState(null);
@@ -17,7 +18,7 @@ export default function Accesso() {
     setAttesa(true);
     try {
       if (registrazione) {
-        const r = await api.registrati(email.trim(), password);
+        const r = await api.registrati(email.trim(), password, nome);
         if (r?.session) return;              // accesso immediato: ci pensa App
         setMessaggio({
           testo: 'Account creato. Controlla la posta e conferma l\u2019indirizzo, poi entra.',
@@ -54,6 +55,15 @@ export default function Accesso() {
           </button>
         </div>
 
+        {registrazione && (
+          <div className="campo">
+            <label htmlFor="nome">Nome e cognome</label>
+            <input id="nome" type="text" autoComplete="name" value={nome}
+              placeholder="come ti chiamano a bordo vasca"
+              onChange={(e) => setNome(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && invia()} />
+          </div>
+        )}
         <div className="campo">
           <label htmlFor="email">Email</label>
           <input id="email" type="email" autoComplete="email" value={email}
@@ -76,7 +86,7 @@ export default function Accesso() {
           </div>
         )}
 
-        <button className="azione" onClick={invia} disabled={attesa || !email || !password}>
+        <button className="azione" onClick={invia} disabled={attesa || !email || !password || (registrazione && !nome.trim())}>
           {attesa ? 'Un attimo…' : registrazione ? 'Crea account' : 'Entra'}
         </button>
 

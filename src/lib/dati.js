@@ -329,8 +329,15 @@ export async function eliminaGara(id) {
 
 
 // ------------------------------------------------------------ account
-export async function registrati(email, password) {
-  const { data, error } = await sb.auth.signUp({ email, password });
+// Il nome finisce nei metadati dell'utente: nessuna tabella nuova,
+// nessuna migrazione. Da lì lo legge la query degli iscritti, e serve a
+// sapere chi è chi senza doverlo indovinare dall'indirizzo email.
+export async function registrati(email, password, nome) {
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password,
+    options: nome ? { data: { nome_completo: nome.trim() } } : undefined,
+  });
   if (error) throw new Error(error.message);
   return data;
 }

@@ -1,11 +1,11 @@
 {
   "name": "corsiapro",
   "private": true,
-  "version": "0.24.0",
+  "version": "0.26.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node sincronizza_versione.mjs && node controlla_import.mjs && node prova_analizzatore.mjs && vite build",
+    "build": "node sincronizza_versione.mjs && node controlla_import.mjs && node prova_analizzatore.mjs && node prova_stagioni.mjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

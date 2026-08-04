@@ -1,0 +1,47 @@
+// Prove sulle stagioni e sulla proiezione delle fasce d'età.
+// Girano prima di ogni build. Sono la rete sotto la regola più silenziosa
+// dell'app: se le fasce si proiettano male, tutta la squadra cambia
+// categoria di nascosto e i volumi finiscono nel posto sbagliato.
+import { stagioneCorrente, stagioniProposte, fasceRisolte, categoriaDi } from './src/lib/dominio.js';
+
+let male = 0;
+const dice = (cosa, avuto, atteso) => {
+  const ok = JSON.stringify(avuto) === JSON.stringify(atteso);
+  if (!ok) { male++; console.error(`✗ ${cosa}\n  atteso ${JSON.stringify(atteso)}, avuto ${JSON.stringify(avuto)}`); }
+};
+
+// --- il cambio di stagione è a luglio ---
+dice('30 giugno 2026 è ancora la stagione vecchia', stagioneCorrente(new Date('2026-06-30')), '2025/26');
+dice('1 luglio 2026 apre la stagione nuova', stagioneCorrente(new Date('2026-07-01')), '2026/27');
+dice('agosto 2026 è 2026/27', stagioneCorrente(new Date('2026-08-04')), '2026/27');
+dice('gennaio 2027 è ancora 2026/27', stagioneCorrente(new Date('2027-01-10')), '2026/27');
+
+// La stagione appena chiusa resta scegliibile: le sedute vecchie stanno lì.
+const proposte = stagioniProposte(['2025/26'], stagioneCorrente(new Date('2026-08-04')));
+if (!proposte.includes('2025/26')) { male++; console.error('✗ la stagione 2025/26 è sparita dal selettore'); }
+if (!proposte.includes('2026/27')) { male++; console.error('✗ la stagione 2026/27 non è nel selettore'); }
+
+// --- le fasce si proiettano di un anno esatto ---
+// Una sola stagione compilata (la 2025/26), come nel database vero.
+const fasce2526 = [
+  { stagione: '2025/26', categoria: 'ESO_A1', sesso: 'M', anno_nascita_da: 2013, anno_nascita_a: 2013 },
+  { stagione: '2025/26', categoria: 'ESO_A2', sesso: 'M', anno_nascita_da: 2012, anno_nascita_a: 2012 },
+];
+
+const proiettata = fasceRisolte(fasce2526, '2026/27');
+if (!proiettata.proiettata) { male++; console.error('✗ la 2026/27 doveva risultare proiettata, non compilata'); }
+dice('lo scarto fra 2025/26 e 2026/27 è di un anno', proiettata.scarto, 1);
+
+// Chi era Esordiente A1 nel 2013 lascia il posto a chi è nato nel 2014.
+const eso = proiettata.fasce.find((f) => f.categoria === 'ESO_A1');
+dice('la fascia ESO_A1 scala di un anno', [eso?.anno_nascita_da, eso?.anno_nascita_a], [2014, 2014]);
+
+// E la categoria calcolata segue: stesso atleta, un anno dopo, sale.
+dice('un 2013 nel 2025/26 è ESO_A1', categoriaDi(2013, 'M', fasce2526), 'ESO_A1');
+dice('lo stesso 2013 nel 2026/27 è salito', categoriaDi(2013, 'M', proiettata.fasce), 'ESO_A2');
+
+if (male) {
+  console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
+  process.exit(1);
+}
+console.log('✓ stagioni e fasce: tutte le prove passate');

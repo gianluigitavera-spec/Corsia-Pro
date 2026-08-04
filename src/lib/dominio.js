@@ -294,10 +294,18 @@ export function categoriaAtleta(atleta, fasce) {
   return categoriaDi(atleta?.anno_nascita, atleta?.sesso, fasce);
 }
 
-// Stagione FIN corrente: parte a settembre.
+// Stagione FIN corrente. Il cambio è a LUGLIO, non a settembre: quando
+// finiscono i regionali e gli italiani estivi la stagione è chiusa, e
+// il lavoro di luglio e agosto è già preparazione per quella nuova.
+// Con settembre, per due mesi l'app metteva le sedute nella stagione
+// appena finita.
+// È solo il valore proposto all'apertura: la stagione resta scegliibile
+// dal selettore in testata, e le sedute vecchie non si spostano.
+const MESE_CAMBIO_STAGIONE = 6;   // 0 = gennaio, quindi 6 = luglio
+
 export function stagioneCorrente(oggi = new Date()) {
   const anno = oggi.getFullYear();
-  const inizio = oggi.getMonth() >= 8 ? anno : anno - 1;
+  const inizio = oggi.getMonth() >= MESE_CAMBIO_STAGIONE ? anno : anno - 1;
   return `${inizio}/${String(inizio + 1).slice(2)}`;
 }
 
