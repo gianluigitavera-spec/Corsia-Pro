@@ -104,6 +104,19 @@ const NON_METRI = /^\s*\d*\s*(partenz\w+|virat\w+|arriv\w+|tuffi?|esercizi\w*\s+
 // --------------------------------------------------------- utilità
 const pulisci = (r) => r.replace(/\s+/g, ' ').trim();
 
+// "Centrale A2", "Lavoro Centrale 1 C2", "Pale e Pinne C3": l'andatura
+// scritta una volta sul titolo vale per tutto quello che c'è sotto,
+// finché non cambia. Serve a non ripeterla riga per riga quando il
+// blocco è tutto uguale.
+function zonaDelTitolo(riga) {
+  const m = riga.match(ZONA_ESPLICITA);
+  if (!m) return { titolo: riga, zona: '' };
+  return {
+    titolo: pulisci(riga.replace(m[0], '')) || riga,
+    zona: m[1].toUpperCase().replace('+', ''),
+  };
+}
+
 // Riga fatta di sola zona: "C3", "B1", "A2 " → vale per quello che segue,
 // non è il titolo di una sezione.
 const SOLA_ZONA = /^\s*(A1|A2|B1|B2\+?|C1|C2|C3|D)\s*:?\s*$/i;
@@ -158,19 +171,71 @@ function trovaZona(riga) {
   return { zona: '', sicura: false };
 }
 
-// Ripetizioni e distanza: "12x75", "6x100", "4x", "300", "2x50"
+// Dentro le parentesi: "4x25 + 1x100" = 200, "200+2x100+4x50" = 600.
+// Ogni pezzo dev'essere SOLO un numero o SOLO NxD, niente altro: così
+// "(50 resp 5-3 7-3)" e "(1GB max sub 1Dx 1Sx 1c)" restano quello che
+// sono — una nota — e non diventano metri.
+function sommaGruppo(dentro) {
+  let somma = 0;
+  for (const pezzo of dentro.split('+')) {
+    const p = pezzo.trim();
+    let m = p.match(/^(\d{1,3})\s*x\s*(\d{2,4})$/);
+    if (m) { somma += +m[1] * +m[2]; continue; }
+    m = p.match(/^(\d{2,4})$/);
+    if (m) somma += +m[1];
+  }
+  return somma;
+}
+
+// I tempi non sono distanze: "1'40", '45"', "@1:30" vanno tolti prima di
+// cercare le misure, o un recupero passa per una vasca.
+const senzaTempi = (t) => t
+  .replace(/@+\s*\d{1,2}\s*[:.']\s*\d{2}/g, ' ')
+  .replace(/@+\s*\d{1,3}\s*["']?/g, ' ')
+  .replace(/\d{1,2}\s*'\s*\d{2}/g, ' ')
+  .replace(/\d{1,3}\s*"/g, ' ');
+
+// Ripetizioni e distanza: "12x75", "6x100", "4x", "300", "2x50",
+// "2x(4x25 + 1x100)", e anche "PS 12x25 progr 1-4" — cioè la misura
+// scritta DOPO il lavoro, che è come scrive il coach nel foglio.
 function trovaMisure(riga) {
   const t = riga.replace(/[×*]/g, 'x');
+
+  // 1. La misura in testa alla riga: il caso sicuro.
   let m = t.match(/^\s*(\d{1,3})\s*x\s*(\d{2,4})\b/);
   if (m) return { ripetizioni: +m[1], distanza: +m[2] };
 
-  // "4x", "6x (gio 4 volte)", "4 volte:", e anche "4x A2" — la zona
+  // 2. "4x", "6x (gio 4 volte)", "4 volte:", e anche "4x A2" — la zona
   // scritta sull'apertura vale per tutto il blocco.
   m = t.match(/^\s*(\d{1,3})\s*x\s*(?:volte?\s*)?(?:\(.*\))?\s*(A1|A2|B1|B2\+?|C1|C2|C3|D)?\s*:?\s*$/i);
-  if (m) return { moltiplicatore: +m[1], zonaBlocco: m[2] ? m[2].toUpperCase().replace('+', '') : null };
+  if (m && !/\(\s*\d/.test(t)) {
+    return { moltiplicatore: +m[1], zonaBlocco: m[2] ? m[2].toUpperCase().replace('+', '') : null };
+  }
+
+  // 3. Un gruppo fra parentesi, con o senza il moltiplicatore davanti:
+  // "2x(4x25 + 1x100)" = 400, "(2x50+4x25)" da solo = 200 (il 3x della
+  // riga sopra ci si moltiplica dopo).
+  m = t.match(/(?:(\d{1,3})\s*x\s*)?\(([^)]+)\)/);
+  if (m) {
+    const somma = sommaGruppo(m[2]);
+    if (somma > 0) {
+      return { ripetizioni: m[1] ? +m[1] : 1, distanza: somma, gruppo: true, dedotta: !m[1] ? false : false };
+    }
+  }
 
   m = t.match(/^\s*(\d{2,4})\b/);                  // "300 stile"
   if (m) return { ripetizioni: 1, distanza: +m[1] };
+
+  // 4. Ultima spiaggia: NxD in mezzo alla riga. È il modo in cui scrivi
+  // tu — prima il lavoro, poi la misura — quindi va letto, ma resta
+  // giallo in revisione perché qui è più facile prendere un abbaglio.
+  // Se ce n'è più d'uno si prende l'ULTIMO: nel foglio la descrizione sta
+  // a sinistra e il set a destra, quindi la misura vera è quella in fondo.
+  const trovati = [...senzaTempi(t).matchAll(/(?<![\d,.])(\d{1,3})\s*x\s*(\d{2,4})(?![\d])/g)];
+  if (trovati.length) {
+    const ultimo = trovati[trovati.length - 1];
+    return { ripetizioni: +ultimo[1], distanza: +ultimo[2], dedotta: true };
+  }
 
   return null;
 }
@@ -240,13 +305,21 @@ export function analizzaTesto(testo) {
     if (/^(sciolto|defaticamento|cool ?down)\b/i.test(riga) && !/\d/.test(riga)) {
       chiudiGruppo(); nuovaSezione('Sciolto'); continue;
     }
-    if (/^(lc|lavoro centrale|parte centrale|pregara)\b/i.test(riga)) {
-      chiudiGruppo(); nuovaSezione(riga.replace(':', '')); continue;
+    if (/^(lc|lavoro centrale|parte centrale|centrale|pregara)\b/i.test(riga)) {
+      chiudiGruppo();
+      moltiplicatoreAttivo = 1;
+      const { titolo, zona } = zonaDelTitolo(riga.replace(':', ''));
+      const s = nuovaSezione(titolo);
+      if (zona) { zonaCorrente = zona; s.zonaEreditata = zona; }
+      continue;
     }
     // "Garetto:", "Edo/teo", "Salvamento:" → destinatari particolari
     if (/^[A-ZÀ-Ù][\wÀ-ù/ ]{1,24}:?$/.test(riga) && !trovaMisure(riga) && !SOLA_ZONA.test(riga)) {
       chiudiGruppo();
-      const s = nuovaSezione(riga.replace(':', ''));
+      moltiplicatoreAttivo = 1;
+      const { titolo, zona } = zonaDelTitolo(riga.replace(':', ''));
+      const s = nuovaSezione(titolo);
+      if (zona) { zonaCorrente = zona; s.zonaEreditata = zona; }
       s.particolare = true;
       continue;
     }
@@ -297,7 +370,7 @@ export function analizzaTesto(testo) {
     }
 
     // Somma di tutti i tratti scritti sulla riga: "25 x 25 y 25 z 25 w" = 100.
-    const tratti = [...riga.matchAll(/\b(\d{2,4})/g)]   // "25gb" conta come 25
+    const tratti = [...riga.replace(/\([^)]*\)/g, ' ').matchAll(/\b(\d{2,4})/g)]   // "25gb" conta come 25
       .map((x) => +x[1])
       .filter((n) => n >= 25 && n <= 1500 && n % 25 === 0);
     const sommaTratti = tratti.reduce((a, b) => a + b, 0);
@@ -318,6 +391,13 @@ export function analizzaTesto(testo) {
       perStile: PER_STILE.test(riga) ? 4 : null,
       fiducia: zona ? (sicura ? 'verde' : 'gialla') : 'gialla',
     };
+    if (misure.gruppo) {
+      serie.note = [serie.note, `gruppo fra parentesi: ${misure.distanza} m a giro`].filter(Boolean).join(' · ');
+    }
+    if (misure.dedotta) {
+      serie.fiducia = 'gialla';
+      serie.note = [serie.note, 'misura letta in mezzo alla riga: controlla'].filter(Boolean).join(' · ');
+    }
     if (serie.perStile) {
       serie.fiducia = 'gialla';
       serie.note = [serie.note, 'una serie per stile: metri × 4, controlla quanti stili'].filter(Boolean).join(' · ');

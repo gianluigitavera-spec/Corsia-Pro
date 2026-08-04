@@ -10,6 +10,38 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.24.0',
+    data: '2026-08-04',
+    voci: [
+      'Legge i gruppi fra parentesi: 3x(2x50+4x25) fa 600 m, non zero',
+      'Legge la misura anche quando la scrivi DOPO il lavoro: "PS 12x25 progr 1-4"',
+      'Le parentesi di sola descrizione restano note e non diventano metri',
+      'Le ripartenze non vengono pi\u00f9 scambiate per vasche',
+      'L\u2019andatura scritta sul titolo scende su tutta la sezione: "Centrale A2" e non la ripeti pi\u00f9 riga per riga',
+      '21 prove sull\u2019analizzatore, prese dagli allenamenti veri, girano prima di ogni consegna',
+    ],
+  },
+  {
+    versione: '0.23.0',
+    data: '2026-08-04',
+    voci: [
+      'Quando il wifi della piscina molla, l\u2019app continua a funzionare: seduta, lavagna, atleti e appello restano leggibili',
+      'Ogni chiamata ha un tempo massimo di 6 secondi: la linea che c\u2019\u00e8 ma non risponde vale come linea assente',
+      'Quello che segni senza linea resta sul telefono e parte da solo appena torna',
+      'Spia in testata con il conto di quello che deve ancora partire \u2014 toccala per riprovare subito',
+      'Se rimarchi lo stesso atleta pi\u00f9 volte, in coda resta solo l\u2019ultimo stato',
+    ],
+  },
+  {
+    versione: '0.22.0',
+    data: '2026-08-04',
+    voci: [
+      'Librerie e nostro codice in file separati: un aggiornamento scarica 46 kB invece di 161',
+      'React e Supabase restano in cache fra una versione e l\u2019altra, non si riscaricano ogni volta',
+      'A bordo vasca con poca linea l\u2019app riparte molto pi\u00f9 in fretta dopo una release',
+    ],
+  },
+  {
     versione: '0.21.0',
     data: '2026-08-02',
     voci: [

@@ -3,6 +3,7 @@
 // direttamente con Supabase: così quando cambia lo schema si tocca qui.
 // =====================================================================
 import { sb } from './supabase';
+import * as locale from './locale';
 
 function ok({ data, error }) {
   if (error) throw new Error(error.message);
@@ -32,32 +33,36 @@ export async function mieSocieta() {
 
 // --------------------------------------------------- tabelle di appoggio
 export async function leggiZone() {
-  return ok(await sb.from('zone').select('*').order('ordine'));
+  return locale.conRete('zone', async () =>
+    ok(await sb.from('zone').select('*').order('ordine')));
 }
 
 export async function leggiCategorie() {
-  return ok(await sb.from('categorie').select('*').order('ordine'));
+  return locale.conRete('categorie', async () =>
+    ok(await sb.from('categorie').select('*').order('ordine')));
 }
 
 export async function leggiFasce(stagione) {
   // Senza argomento restituisce tutte le stagioni: le mancanti si
   // proiettano lato client con fasceRisolte().
-  let q = sb.from('categorie_stagione').select('*');
-  if (stagione) q = q.eq('stagione', stagione);
-  return ok(await q);
+  return locale.conRete(`fasce:${stagione || 'tutte'}`, async () => {
+    let q = sb.from('categorie_stagione').select('*');
+    if (stagione) q = q.eq('stagione', stagione);
+    return ok(await q);
+  });
 }
 
 
 // ------------------------------------------------------------- atleti
 export async function leggiAtleti(societaId) {
-  return ok(
+  return locale.conRete(`atleti:${societaId}`, async () => ok(
     await sb
       .from('atleti')
       .select('*')
       .eq('societa_id', societaId)
       .eq('attivo', true)
       .order('cognome')
-  );
+  ));
 }
 
 export async function salvaAtleta(atleta) {
@@ -123,15 +128,17 @@ export async function eliminaAtleti(ids) {
 
 // ------------------------------------------------------------- sedute
 export async function leggiSedute(societaId, { da, a } = {}) {
-  let q = sb
-    .from('sedute')
-    .select('id, data, titolo, origine, categorie, sezioni')
-    .eq('societa_id', societaId)
-    .order('data', { ascending: false })
-    .limit(60);
-  if (da) q = q.gte('data', da);
-  if (a) q = q.lte('data', a);
-  return ok(await q);
+  return locale.conRete(`sedute:${societaId}:${da || ''}:${a || ''}`, async () => {
+    let q = sb
+      .from('sedute')
+      .select('id, data, titolo, origine, categorie, sezioni')
+      .eq('societa_id', societaId)
+      .order('data', { ascending: false })
+      .limit(60);
+    if (da) q = q.gte('data', da);
+    if (a) q = q.lte('data', a);
+    return ok(await q);
+  });
 }
 
 export async function leggiSeduta(id) {
@@ -152,10 +159,25 @@ export async function eliminaSeduta(id) {
 
 // ----------------------------------------------------------- presenze
 export async function leggiPresenze(sedutaId) {
-  return ok(await sb.from('presenze').select('*').eq('seduta_id', sedutaId));
+  // Alla copia dal magazzino si sovrappone quello che hai segnato e non
+  // è ancora partito, se no l'appello sembrerebbe tornare indietro.
+  const salvate = await locale.conRete(`presenze:${sedutaId}`, async () =>
+    ok(await sb.from('presenze').select('*').eq('seduta_id', sedutaId)));
+
+  const inCoda = locale.coda().filter((v) => v.tipo === 'presenza' && v.sedutaId === sedutaId);
+  if (!inCoda.length) return salvate;
+
+  const per = new Map(salvate.map((p) => [p.atleta_id, p]));
+  inCoda.forEach((v) => {
+    if (v.stato) per.set(v.atletaId, { seduta_id: v.sedutaId, atleta_id: v.atletaId, stato: v.stato });
+    else per.delete(v.atletaId);
+  });
+  return [...per.values()];
 }
 
-export async function segnaPresenza({ sedutaId, atletaId, societaId, stato }) {
+// L'invio vero, senza rete di protezione: lo usa sia il tocco a bordo
+// vasca sia lo svuotamento della coda.
+async function inviaPresenza({ sedutaId, atletaId, societaId, stato }) {
   if (!stato) {
     // Nessuno stato = appello non fatto: la riga si toglie, non si "azzera".
     return ok(
@@ -171,6 +193,27 @@ export async function segnaPresenza({ sedutaId, atletaId, societaId, stato }) {
       )
       .select()
   );
+}
+
+// A bordo vasca non si aspetta: si prova a mandare, e se la linea non
+// risponde entro poco la riga va in coda e l'appello va avanti. Non
+// torna mai un errore per colpa della rete — sarebbe l'unico modo di
+// far smettere di usare l'app.
+export async function segnaPresenza({ sedutaId, atletaId, societaId, stato }) {
+  const chiave = `presenza:${sedutaId}:${atletaId}`;
+  try {
+    const esito = await Promise.race([
+      inviaPresenza({ sedutaId, atletaId, societaId, stato }),
+      new Promise((_, no) => setTimeout(() => no(new Error('tempo scaduto')), 4000)),
+    ]);
+    locale.togli(chiave);
+    locale.segnalaLinea(true);
+    return esito;
+  } catch {
+    locale.accoda(chiave, { tipo: 'presenza', sedutaId, atletaId, societaId, stato });
+    locale.segnalaLinea(false);
+    return null;
+  }
 }
 
 // ------------------------------------------------------------- volumi
@@ -497,3 +540,33 @@ export async function inviaFeedback({ tipo, testo, versione, contesto, societa }
   });
   if (error) throw new Error(error.message);
 }
+
+
+// ---------------------------------------------------- svuotare la coda
+// Si prova una voce alla volta e in ordine. Al primo fallimento ci si
+// ferma: se la linea non c'è, insistere sulle altre serve solo a
+// consumare batteria. Niente viene mai buttato via per un errore —
+// resta in coda, con il numero dei tentativi, finché non passa.
+export async function sincronizza() {
+  const voci = locale.coda();
+  if (!voci.length) return { inviate: 0, rimaste: 0 };
+
+  let inviate = 0;
+  for (const v of voci) {
+    try {
+      if (v.tipo === 'presenza') await inviaPresenza(v);
+      else if (v.tipo === 'benessere') await salvaBenessere(v.riga);
+      else { locale.togli(v.chiave); continue; }
+      locale.togli(v.chiave);
+      inviate++;
+    } catch {
+      locale.segnaTentativo(v.chiave);
+      locale.segnalaLinea(false);
+      break;
+    }
+  }
+  if (inviate) locale.segnalaLinea(true);
+  return { inviate, rimaste: locale.coda().length };
+}
+
+export { osservaLinea, coda } from './locale';

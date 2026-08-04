@@ -1,7 +1,15 @@
 // Service worker minimo: rende l'app installabile e serve il guscio
 // anche senza rete. I dati restano online (Supabase), non finti.
-const CACHE = 'corsiapro-0.21.0';
+const CACHE = 'corsiapro-0.24.0';
 const GUSCIO = ['/', '/index.html', '/manifest.webmanifest', '/icona-192.png', '/icona-512.png'];
+
+// I file in /assets/ hanno l'impronta del contenuto nel nome: se il nome è
+// quello, il contenuto è quello, per sempre. Quindi stanno in una cache SENZA
+// numero di versione, che non si svuota a ogni release. È la metà che serve
+// perché la divisione in pezzi paghi davvero: dopo un aggiornamento React e
+// Supabase sono già lì, si scarica solo il nostro.
+const FILE = 'corsiapro-file';
+const TETTO = 60;   // oltre, si buttano i più vecchi
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(GUSCIO)).then(() => self.skipWaiting()));
@@ -10,7 +18,9 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((chiavi) => Promise.all(chiavi.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((chiavi) => Promise.all(
+        chiavi.filter((k) => k !== CACHE && k !== FILE).map((k) => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -26,7 +36,22 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Asset: cache, e in parallelo aggiorna.
+  // File con l'impronta nel nome: se ce l'ho, è già quello giusto. Nessun
+  // controllo in rete, nessuna scadenza.
+  if (url.pathname.startsWith('/assets/')) {
+    e.respondWith(
+      caches.open(FILE).then(async (c) => {
+        const trovato = await c.match(e.request);
+        if (trovato) return trovato;
+        const r = await fetch(e.request);
+        if (r.ok) { await c.put(e.request, r.clone()); potaFile(c); }
+        return r;
+      })
+    );
+    return;
+  }
+
+  // Tutto il resto: cache, e in parallelo aggiorna.
   e.respondWith(
     caches.match(e.request).then((trovato) => {
       const rete = fetch(e.request)
@@ -39,3 +64,11 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+
+// I file vecchi non danno fastidio, ma non si accumulano per sempre:
+// oltre il tetto si buttano i primi entrati.
+async function potaFile(cache) {
+  const chiavi = await cache.keys();
+  if (chiavi.length <= TETTO) return;
+  await Promise.all(chiavi.slice(0, chiavi.length - TETTO).map((k) => cache.delete(k)));
+}

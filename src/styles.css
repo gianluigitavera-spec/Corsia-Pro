@@ -843,3 +843,7 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 /* Riga scelta per un'azione di massa: si vede subito quante ne hai prese. */
 tbody tr.scelta { background: color-mix(in srgb, var(--ciano) 10%, transparent); }
 tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
+
+/* La spia della linea mentre riprova. */
+@keyframes gira-tondo { to { transform: rotate(360deg); } }
+.gira { animation: gira-tondo 1s linear infinite; display: inline-block; }

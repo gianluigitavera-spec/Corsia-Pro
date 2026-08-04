@@ -6,6 +6,7 @@ import { stagioneCorrente, stagioniProposte, fasceRisolte } from './lib/dominio'
 import { VERSIONE, CAMBIAMENTI } from './versione';
 import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
+import StatoLinea from './componenti/StatoLinea';
 import Atleti from './componenti/Atleti';
 import EditorSeduta from './componenti/EditorSeduta';
 import Appello from './componenti/Appello';
@@ -136,6 +137,7 @@ export default function App() {
             v{VERSIONE}
           </button>
           <div className="spazio" />
+          <StatoLinea />
           <Feedback scheda={scheda} societa={societa} />
           <button className="mini" onClick={() => setTutorial(true)} title="Rivedi il tutorial" aria-label="Tutorial">
             <HelpCircle size={15} />
