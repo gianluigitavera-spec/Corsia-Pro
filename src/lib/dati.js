@@ -4,6 +4,7 @@
 // =====================================================================
 import { sb } from './supabase';
 import * as locale from './locale';
+import { metriPerSpecializzazione, zonePerSpecializzazione } from './dominio';
 
 function ok({ data, error }) {
   if (error) throw new Error(error.message);
@@ -94,6 +95,32 @@ export async function importaAtleti(righe) {
   return ok(await sb.from('atleti').insert(righe).select());
 }
 
+// Quello che il gruppo ha davvero nuotato. Si salvano SOLO gli
+// scostamenti: null vuol dire "andata come programmata", e il programma
+// (sezioni) non viene mai riscritto.
+// Va in coda come l'appello: si registra a bordo vasca, dove la linea è
+// quella che è.
+async function inviaSvolto({ sedutaId, svolto }) {
+  return ok(await sb.from('sedute').update({ svolto }).eq('id', sedutaId).select());
+}
+
+export async function salvaSvolto(sedutaId, svolto) {
+  const chiave = `svolto:${sedutaId}`;
+  try {
+    const esito = await Promise.race([
+      inviaSvolto({ sedutaId, svolto }),
+      new Promise((_, no) => setTimeout(() => no(new Error('tempo scaduto')), 4000)),
+    ]);
+    locale.togli(chiave);
+    locale.segnalaLinea(true);
+    return esito;
+  } catch {
+    locale.accoda(chiave, { tipo: 'svolto', sedutaId, svolto });
+    locale.segnalaLinea(false);
+    return null;
+  }
+}
+
 // ------------------------------------------- atleti: azioni di massa
 export async function aggiornaAtleti(ids, campi) {
   if (!ids.length) return [];
@@ -131,7 +158,7 @@ export async function leggiSedute(societaId, { da, a } = {}) {
   return locale.conRete(`sedute:${societaId}:${da || ''}:${a || ''}`, async () => {
     let q = sb
       .from('sedute')
-      .select('id, data, titolo, origine, categorie, sezioni')
+      .select('id, data, titolo, origine, categorie, sezioni, svolto')
       .eq('societa_id', societaId)
       .order('data', { ascending: false })
       .limit(60);
@@ -217,6 +244,63 @@ export async function segnaPresenza({ sedutaId, atletaId, societaId, stato }) {
 }
 
 // ------------------------------------------------------------- volumi
+
+// IL CARICO, CONTATO SUI METRI VERI
+//
+// Le viste v_carico_atleta e v_carico_zona leggono le sedute e basta:
+// non sanno niente della colonna svolto, quindi danno il programma. Il
+// conto lo rifacciamo qui, dove svolto lo abbiamo: stesse regole di
+// prima (i metri sono quelli della propria specializzazione; il ritardo
+// conta perché in acqua c'era, il giustificato no), ma sui metri
+// davvero nuotati.
+//
+// Torna le righe nella stessa forma della vista, così le schede che le
+// leggono non cambiano di una virgola.
+export async function caricoReale(societaId, { da, a }) {
+  const sedute = await leggiSedute(societaId, { da, a });
+  if (!sedute.length) return { righe: [], zone: [] };
+
+  const [atleti, presenze] = await Promise.all([
+    leggiAtleti(societaId),
+    leggiPresenzeSedute(sedute.map((s) => s.id)),
+  ]);
+
+  const perAtleta = new Map(atleti.map((x) => [x.id, x]));
+  const perSeduta = new Map(sedute.map((s) => [s.id, s]));
+
+  const righe = [];
+  for (const p of presenze) {
+    const seduta = perSeduta.get(p.seduta_id);
+    const atleta = perAtleta.get(p.atleta_id);
+    if (!seduta || !atleta) continue;
+    const spec = atleta.specializzazione || 'Generale';
+    const inAcqua = p.stato === 'P' || p.stato === 'R';
+    righe.push({
+      atleta_id: atleta.id,
+      cognome: atleta.cognome,
+      nome: atleta.nome,
+      specializzazione: spec,
+      stato: p.stato,
+      data: seduta.data,
+      metri_previsti: metriPerSpecializzazione(seduta.sezioni, spec),
+      metri_nuotati: inAcqua ? metriPerSpecializzazione(seduta.sezioni, spec, seduta.svolto) : 0,
+    });
+  }
+
+  // Ripartizione per zona del percorso comune, seduta per seduta.
+  const zone = sedute.flatMap((s) =>
+    zonePerSpecializzazione(s.sezioni, 'Generale', s.svolto)
+      .map((z) => ({ ...z, data: s.data, specializzazione: 'Generale' }))
+  );
+
+  return { righe, zone };
+}
+
+export async function leggiPresenzeSedute(sedutaIds) {
+  if (!sedutaIds.length) return [];
+  return locale.conRete(`presenze-periodo:${sedutaIds.length}:${sedutaIds[0]}`, async () =>
+    ok(await sb.from('presenze').select('seduta_id, atleta_id, stato').in('seduta_id', sedutaIds)));
+}
 export async function volumiSeduta(sedutaId) {
   return ok(await sb.from('v_volume_seduta').select('*').eq('seduta_id', sedutaId));
 }
@@ -562,6 +646,7 @@ export async function sincronizza() {
   for (const v of voci) {
     try {
       if (v.tipo === 'presenza') await inviaPresenza(v);
+      else if (v.tipo === 'svolto') await inviaSvolto(v);
       else if (v.tipo === 'benessere') await salvaBenessere(v.riga);
       else { locale.togli(v.chiave); continue; }
       locale.togli(v.chiave);

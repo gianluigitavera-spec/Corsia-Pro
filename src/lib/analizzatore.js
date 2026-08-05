@@ -75,9 +75,10 @@ const ZONE_PAROLE = [
 
 const ZONA_ESPLICITA = /\b(A1|A2|B1|B2\+?|C1|C2|C3|D)\b/;
 
-// "1 serie x stile", "MX 1x", "1 serie x": la serie si ripete per ogni
-// stile. Quattro di norma, ma se gli stili sono tre il conto cambia:
-// resta gialla, la confermi in revisione.
+// "1 serie x stile", "MX 1x", "1 serie x": è un DESCRITTORE, dice come
+// sono distribuiti gli stili dentro la ripetuta — non moltiplica niente.
+// Prima faceva ×4 e da 1000 metri ne usciva 4000. Deciso dal coach:
+// i metri sono quelli scritti, punto.
 export const PER_STILE = /\b(?:1\s*)?serie\s*x\s*stil\w*|\bmx\s*1x\b|\b1\s*serie\s*x\b/i;
 
 // Intestazioni che indicano A CHI è rivolto il lavoro. "Centrale" vale
@@ -97,6 +98,14 @@ export function destinatariDaTitolo(riga) {
 
 // Lavoro a terra: sta nella seduta ma non fa metri.
 export const A_SECCO = /\b(secco|palestra|plank|salti|elastic\w+|core|addominali|circuito a terra)\b/i;
+
+// LA REGOLA DELLA VASCA
+// Partenze, virate, scivolamenti: si scrivono con la distanza a cui si
+// arriva ("2x10", "partendo dai 10m"), ma l'atleta la vasca la finisce
+// comunque. Quindi qualsiasi tratto sotto i 25 vale 25: "2x10" fa 50,
+// non 20. Deciso dal coach, agosto 2026.
+const VASCA = 25;
+const almenoUnaVasca = (d) => (d > 0 && d < VASCA ? VASCA : d);
 
 // Righe che non sono metri: partenze, virate, esercizi a secco
 const NON_METRI = /^\s*\d*\s*(partenz\w+|virat\w+|arriv\w+|tuffi?|esercizi\w*\s+(a vuoto|con elastic\w+|virate)|pausa|rec\b)/i;
@@ -179,12 +188,108 @@ function sommaGruppo(dentro) {
   let somma = 0;
   for (const pezzo of dentro.split('+')) {
     const p = pezzo.trim();
-    let m = p.match(/^(\d{1,3})\s*x\s*(\d{2,4})$/);
-    if (m) { somma += +m[1] * +m[2]; continue; }
+    let m = p.match(/^(\d{1,3})\s*x\s*(\d{2,4})$/i);
+    if (m) { somma += +m[1] * almenoUnaVasca(+m[2]); continue; }
     m = p.match(/^(\d{2,4})$/);
     if (m) somma += +m[1];
   }
   return somma;
+}
+
+// Divide su "+" di primo livello: quello dentro le parentesi resta
+// dov'è. "4x(150 + 4x25) 150SL" è UN pezzo, non due.
+function pezziDiPrimoLivello(t) {
+  const pezzi = [];
+  let dentro = 0;
+  let corrente = '';
+  for (const c of t) {
+    if (c === '(') dentro++;
+    else if (c === ')') dentro = Math.max(0, dentro - 1);
+    if (c === '+' && dentro === 0) { pezzi.push(corrente); corrente = ''; continue; }
+    corrente += c;
+  }
+  pezzi.push(corrente);
+  return pezzi;
+}
+
+// Legge la misura in TESTA a un pezzo e dice cosa resta dopo. Quello che
+// resta è descrizione: "1x75 Remate DO" sono 75 metri di remate, non 75
+// più qualcos'altro.
+function misuraInTesta(pezzo) {
+  const p = pezzo.trim();
+  let m = p.match(/^(\d{1,3})\s*x\s*\(([^)]+)\)/i);
+  if (m) {
+    const s = sommaGruppo(m[2]);
+    if (s) return { metri: +m[1] * s, resto: p.slice(m[0].length).trim(), gruppo: true };
+  }
+  m = p.match(/^\(([^)]+)\)/);
+  if (m) {
+    const s = sommaGruppo(m[1]);
+    if (s) return { metri: s, resto: p.slice(m[0].length).trim(), gruppo: true };
+  }
+  m = p.match(/^(\d{1,3})\s*x\s*(\d{2,4})\b(?!\s*[x×])/i);
+  if (m) return { metri: +m[1] * almenoUnaVasca(+m[2]), resto: p.slice(m[0].length).trim() };
+  m = p.match(/^(\d{2,4})\b/);
+  if (m) return { metri: +m[1], resto: p.slice(m[0].length).trim(), secco: true };
+  return null;
+}
+
+// Somma i pezzi finché sono misure: "(3x25) + (1x75) Remate SL" = 150.
+// Si ferma al primo pezzo che misura non è, perché da lì in poi la riga
+// racconta com'è fatta la ripetuta e non aggiunge vasche.
+function sommaInTesta(riga) {
+  let totale = 0;
+  let quanti = 0;
+  let gruppo = false;
+  for (const pezzo of pezziDiPrimoLivello(riga)) {
+    const m = misuraInTesta(pezzo);
+    if (!m) break;
+    // Un numero secco con del testo dietro è quasi sempre descrizione
+    // ("+ 25 remate"), non un tratto in più.
+    if (m.secco && m.resto) break;
+    totale += m.metri;
+    quanti++;
+    if (m.gruppo) gruppo = true;
+    if (m.resto) break;
+  }
+  return { totale, quanti, gruppo };
+}
+
+// Nel foglio del coach il set sta in fondo alla riga: la descrizione a
+// sinistra, la misura vera a destra. Quindi si cerca anche una somma che
+// arrivi FINO IN FONDO, e si prende quella che comincia più a sinistra:
+// in "100GB 50 (25 mono 25compl) 4x(100 + 2x50)" la misura è 4x(...),
+// non il 100 iniziale che descrive.
+function sommaInCoda(riga) {
+  const partenze = [...riga.matchAll(/(?:\d{1,3}\s*x\s*)?\(|\d{1,3}\s*x\s*\d{2,4}|\d{2,4}/gi)]
+    .map((m) => m.index);
+
+  for (const da of partenze) {
+    const coda = riga.slice(da);
+    const pezzi = pezziDiPrimoLivello(coda);
+    let totale = 0;
+    let quanti = 0;
+    let gruppo = false;
+    let arrivaInFondo = false;
+
+    for (let i = 0; i < pezzi.length; i++) {
+      const m = misuraInTesta(pezzi[i]);
+      if (!m) break;
+      if (m.secco && m.resto) break;
+      totale += m.metri;
+      quanti++;
+      if (m.gruppo) gruppo = true;
+      // Vale solo se l'ultimo pezzo finisce con la misura e non con
+      // altro testo: se dopo c'è ancora roba, quella non era la coda.
+      if (i === pezzi.length - 1 && !m.resto) arrivaInFondo = true;
+      if (m.resto) break;
+    }
+
+    if (arrivaInFondo && totale > 0 && (gruppo || quanti > 1)) {
+      return { totale, quanti, gruppo };
+    }
+  }
+  return { totale: 0, quanti: 0, gruppo: false };
 }
 
 // I tempi non sono distanze: "1'40", '45"', "@1:30" vanno tolti prima di
@@ -201,8 +306,24 @@ const senzaTempi = (t) => t
 function trovaMisure(riga) {
   const t = riga.replace(/[×*]/g, 'x');
 
-  // 1. La misura in testa alla riga: il caso sicuro.
-  let m = t.match(/^\s*(\d{1,3})\s*x\s*(\d{2,4})\b/);
+  // 1. Somme e gruppi in testa alla riga: "3x25 + 1x75 Remate DO",
+  // "(3x25) + (1x75)", "4x(150 + 4x25) 150SL". Vale solo se i pezzi sono
+  // più d'uno o se ci sono parentesi — se no ci pensano le regole sotto,
+  // che tengono ripetizioni e distanza separate.
+  const somma = sommaInTesta(t);
+  if (somma.totale > 0 && (somma.quanti > 1 || somma.gruppo)) {
+    return { ripetizioni: 1, distanza: somma.totale, gruppo: somma.gruppo, somma: somma.quanti > 1 };
+  }
+
+  // 1b. La stessa somma, ma cercata a partire da destra: è dove il coach
+  // mette il set quando a sinistra ha scritto com'è fatto il lavoro.
+  const coda = sommaInCoda(t);
+  if (coda.totale > 0) {
+    return { ripetizioni: 1, distanza: coda.totale, gruppo: coda.gruppo, somma: coda.quanti > 1 };
+  }
+
+  // 2. La misura in testa alla riga: il caso sicuro.
+  let m = t.match(/^\s*(\d{1,3})\s*x\s*(\d{2,4})\b/i);
   if (m) return { ripetizioni: +m[1], distanza: +m[2] };
 
   // 2. "4x", "6x (gio 4 volte)", "4 volte:", e anche "4x A2" — la zona
@@ -215,14 +336,6 @@ function trovaMisure(riga) {
   // 3. Un gruppo fra parentesi, con o senza il moltiplicatore davanti:
   // "2x(4x25 + 1x100)" = 400, "(2x50+4x25)" da solo = 200 (il 3x della
   // riga sopra ci si moltiplica dopo).
-  m = t.match(/(?:(\d{1,3})\s*x\s*)?\(([^)]+)\)/);
-  if (m) {
-    const somma = sommaGruppo(m[2]);
-    if (somma > 0) {
-      return { ripetizioni: m[1] ? +m[1] : 1, distanza: somma, gruppo: true, dedotta: !m[1] ? false : false };
-    }
-  }
-
   m = t.match(/^\s*(\d{2,4})\b/);                  // "300 stile"
   if (m) return { ripetizioni: 1, distanza: +m[1] };
 
@@ -231,7 +344,9 @@ function trovaMisure(riga) {
   // giallo in revisione perché qui è più facile prendere un abbaglio.
   // Se ce n'è più d'uno si prende l'ULTIMO: nel foglio la descrizione sta
   // a sinistra e il set a destra, quindi la misura vera è quella in fondo.
-  const trovati = [...senzaTempi(t).matchAll(/(?<![\d,.])(\d{1,3})\s*x\s*(\d{2,4})(?![\d])/g)];
+  // "(?!\s*x)" evita di leggere "1x 10" dentro "1x 10x100": la misura
+  // vera è quella in fondo, non la prima metà di un numero spezzato.
+  const trovati = [...senzaTempi(t).matchAll(/(?<![\d,.])(\d{1,3})\s*x\s*(\d{2,4})(?![\d])(?!\s*[x×])/gi)];
   if (trovati.length) {
     const ultimo = trovati[trovati.length - 1];
     return { ripetizioni: +ultimo[1], distanza: +ultimo[2], dedotta: true };
@@ -273,7 +388,7 @@ export function analizzaTesto(testo) {
   };
 
   for (const grezza of righe) {
-    const riga = pulisci(grezza);
+    let riga = pulisci(grezza);
 
     if (!riga) { chiudiGruppo(); moltiplicatoreAttivo = 1; continue; }
 
@@ -301,7 +416,15 @@ export function analizzaTesto(testo) {
 
     // Intestazioni di sezione o di gruppo
     if (/^\[main\]$/i.test(riga)) { chiudiGruppo(); nuovaSezione('Parte centrale'); continue; }
-    if (/^(riscaldamento|warm ?up|wu)\b/i.test(riga)) { chiudiGruppo(); nuovaSezione('Riscaldamento'); continue; }
+    // "Riscaldamento 1x400" è due cose insieme: apre la sezione E vale
+    // 400 metri. Prima il titolo si mangiava il set e restava zero.
+    if (/^(riscaldamento|warm ?up|wu)\b/i.test(riga)) {
+      chiudiGruppo();
+      nuovaSezione('Riscaldamento');
+      const resto = riga.replace(/^(riscaldamento|warm ?up|wu)\b[\s:\-]*/i, '').trim();
+      if (!resto || !trovaMisure(resto)) continue;
+      riga = resto;
+    } else
     if (/^(sciolto|defaticamento|cool ?down)\b/i.test(riga) && !/\d/.test(riga)) {
       chiudiGruppo(); nuovaSezione('Sciolto'); continue;
     }
@@ -333,7 +456,10 @@ export function analizzaTesto(testo) {
     if (!sezione) nuovaSezione('Riscaldamento');
 
     // Righe senza metri: partenze, virate, esercizi a secco
-    if (NON_METRI.test(riga) || A_SECCO.test(riga)) {
+    // Il lavoro a secco resta a zero sempre. Partenze e virate no: se
+    // c'è una misura scritta l'atleta in acqua ci va, e con la regola
+    // della vasca "Virate partendo dai 10m 8x25" fa 200, non zero.
+    if (A_SECCO.test(riga) || (NON_METRI.test(riga) && !trovaMisure(riga))) {
       sezione.serie.push({
         notazione: riga, metri: 0, zona: '', recupero: trovaRecupero(riga),
         senzaMetri: true, fiducia: 'gialla',
@@ -376,7 +502,7 @@ export function analizzaTesto(testo) {
     const sommaTratti = tratti.reduce((a, b) => a + b, 0);
 
     const { ripetizioni, distanza } = misure;
-    const metriRiga = ripetizioni * distanza;
+    const metriRiga = ripetizioni * almenoUnaVasca(distanza);
     let { zona, sicura } = trovaZona(riga);
     if (!zona && zonaCorrente) { zona = zonaCorrente; sicura = true; }
     const serie = {
@@ -388,21 +514,20 @@ export function analizzaTesto(testo) {
       stile: trovaStile(riga),
       attrezzi: trovaAttrezzi(riga),
       modalita: trovaModalita(riga),
-      perStile: PER_STILE.test(riga) ? 4 : null,
+      perStile: PER_STILE.test(riga) || undefined,
       fiducia: zona ? (sicura ? 'verde' : 'gialla') : 'gialla',
     };
-    if (misure.gruppo) {
-      serie.note = [serie.note, `gruppo fra parentesi: ${misure.distanza} m a giro`].filter(Boolean).join(' · ');
+    if (misure.gruppo || misure.somma) {
+      serie.note = [serie.note, `somma letta: ${misure.distanza} m a giro`].filter(Boolean).join(' · ');
     }
     if (misure.dedotta) {
       serie.fiducia = 'gialla';
       serie.note = [serie.note, 'misura letta in mezzo alla riga: controlla'].filter(Boolean).join(' · ');
     }
     if (serie.perStile) {
-      serie.fiducia = 'gialla';
-      serie.note = [serie.note, 'una serie per stile: metri × 4, controlla quanti stili'].filter(Boolean).join(' · ');
+      serie.note = [serie.note, 'una serie per stile'].filter(Boolean).join(' · ');
     }
-    serie.metri = metriRiga * moltiplicatoreAttivo * (serie.perStile || 1);
+    serie.metri = metriRiga * moltiplicatoreAttivo;
     if (moltiplicatoreAttivo > 1) serie.moltiplicato = moltiplicatoreAttivo;
     sezione.serie.push(serie);
 

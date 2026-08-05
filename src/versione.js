@@ -10,6 +10,78 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.32.0',
+    data: '2026-08-05',
+    voci: [
+      'Carico atleti conta i metri DAVVERO nuotati, non pi\u00f9 quelli programmati',
+      'Anche la ripartizione per zona del grafico settimanale segue le correzioni di "Com\u2019\u00e8 andata"',
+      'Il conto non passa pi\u00f9 dalle viste SQL: lo fa l\u2019app, quindi funziona anche senza linea',
+      'La regola dello split regge: se il gruppo mezzofondo chiude prima, il velocista non ne risente',
+    ],
+  },
+  {
+    versione: '0.31.0',
+    data: '2026-08-05',
+    voci: [
+      'Nuovo riquadro "Com\u2019\u00e8 andata" sotto l\u2019appello: correggi riga per riga quello che il gruppo ha davvero nuotato',
+      'Si toccano solo le righe andate diversamente; il programma scritto non viene mai riscritto',
+      'Dice anche in quale zona \u00e8 caduto lo scarto, non solo quanti metri mancano',
+      'Funziona senza linea come l\u2019appello: finisce in coda e parte da solo',
+    ],
+  },
+  {
+    versione: '0.31.0',
+    data: '2026-08-04',
+    voci: [
+      'Nuovo pannello "Com\u2019\u00e8 andata" in fondo all\u2019Appello: correggi riga per riga i metri davvero nuotati',
+      'Vale per tutto il gruppo, non per il singolo atleta',
+      'Dice dove cade la differenza per famiglia di zona: se tagli il finale, quasi sempre perdi la parte tosta',
+      'Si salvano solo gli scostamenti: una seduta andata come previsto non occupa niente e il programma non si riscrive mai',
+      'Richiede la migrazione 022',
+    ],
+  },
+  {
+    versione: '0.30.0',
+    data: '2026-08-04',
+    voci: [
+      'Regola della vasca: qualsiasi tratto sotto i 25 vale 25 \u2014 "2x10" di partenze fa 50 metri, non 20',
+      'Virate e partenze con una misura scritta ora contano: "Virate partendo dai 10m 8x25" fa 200',
+      'Restano a zero solo quelle senza misura e tutto il lavoro a secco',
+      'Letture giuste sul foglio Esordienti A: dal 90% al 92%',
+    ],
+  },
+  {
+    versione: '0.29.0',
+    data: '2026-08-04',
+    voci: [
+      'Legge il set anche quando sta in fondo alla riga dopo la descrizione: "100GB 50 (...) 4x(100 + 2x50)" fa 800',
+      'Un titolo che porta con s\u00e9 il lavoro non se lo mangia pi\u00f9: "Riscaldamento 1x400" vale 400',
+      'Corretta la lettura di "1x 10x100", che valeva 10 metri',
+      'Verificato su 307 righe del foglio Esordienti A: dal 71% al 90% di letture giuste',
+    ],
+  },
+  {
+    versione: '0.28.0',
+    data: '2026-08-04',
+    voci: [
+      '"1 serie per stile" e "MX 1x" non moltiplicano pi\u00f9 i metri per quattro: sono descrittori, i metri restano quelli scritti',
+      'La riga 4x(150 + 4x25) 150SL 25 1serie X torna a valere 1000 m invece di 4000',
+      'Chi la scrive resta segnalato in revisione, ma senza il punto interrogativo giallo di prima',
+    ],
+  },
+  {
+    versione: '0.27.0',
+    data: '2026-08-04',
+    voci: [
+      'Corretta la X maiuscola: 8X25 faceva zero metri, adesso ne fa 200',
+      'Somma le misure sulla stessa riga: "3x25 + 1x75 Remate DO" fa 150, non 75',
+      'Somma anche pi\u00f9 gruppi fra parentesi: "(3x25) + (1x75)" fa 150',
+      'Sul telefono la tabella scorre dentro la sua scheda invece di trascinare tutta la pagina',
+      'Testata che va a capo e colonne pi\u00f9 strette: il marchio non finisce pi\u00f9 fuori schermo',
+      'Sotto i 560px la tabella atleti nasconde sesso e anno e sta nello schermo senza scorrere',
+    ],
+  },
+  {
     versione: '0.26.0',
     data: '2026-08-04',
     voci: [

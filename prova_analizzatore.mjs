@@ -34,6 +34,36 @@ const prove = [
   ["8x75 1'40", 600, 'la ripartenza non conta come vasca'],
   ['12x25 @0:45', 300, 'nemmeno la ripartenza con la chiocciola'],
 
+  // --- somme senza parentesi e X maiuscola (dalla seduta del 4 agosto) ---
+  ['3x25 + 1x75 Remate DO + 75 DO completo', 150,
+   'somma di due misure, poi la descrizione'],
+  ['(3x25) + (1x75)', 150, 'due gruppi sommati'],
+  ['(3x25) + (1x75) Remate SL + SL', 150, 'due gruppi, poi la descrizione'],
+  ['8X25 1\' Apnea + DO', 200, 'X maiuscola'],
+  ['2X25 12,5 Remate verticali avanti + 12,5 RA', 50, 'X maiuscola con i decimali dietro'],
+  ['4x(150 + 4x25)', 1000, 'gruppo misto numero secco e ripetute'],
+  ['4x(150 + 4x25) 150SL 25 1serie X', 1000,
+   '"1 serie per stile" descrive, non moltiplica'],
+  ['MX 1x 75mx', 75, '"MX 1x" resta un descrittore'],
+  ['DO - RA 1x200', 200, 'gli stili prima della misura'],
+
+  // --- il set scritto in fondo alla riga (dal foglio, 307 righe) ---
+  ['100GB 50 (25 mono braccio 25compl) 4x(100 + 2x50)', 800,
+   'la misura vera è il gruppo in fondo, non il 100 che descrive'],
+  ['50GB TAV 25sub 25monobraccio 8x(1x50 + 2x25)', 800, 'stessa forma, gruppo in coda'],
+  ['Esercizio DE doppia spinta + 50 SL 5+5 (6x25)+(1x200)', 350, 'due gruppi in coda sommati'],
+  ['SL 5x(1x100 + 2x50)', 1000, 'gruppo in coda dopo lo stile'],
+  ['2MX + 1x 10x100', 1000, 'non legge "1x 10" dentro "1x 10x100"'],
+  ['Riscaldamento 1x400', 400, 'il titolo si portava via il set'],
+
+  // --- la regola della vasca: sotto i 25 si conta 25 ---
+  ['CP 2x10', 50, 'partenze dai 10 metri: la vasca la finisce comunque'],
+  ['CP 2x15', 50, 'idem dai 15'],
+  ['CP 2x20', 50, 'idem dai 20'],
+  ['Virate partendo dai 10m 8x25', 200, 'le virate con una misura scritta contano'],
+  ['Partenze dal blocco', 0, 'senza misura restano zero'],
+  ['Secco: 3x10 plank', 0, 'il lavoro a terra resta zero anche con i numeri'],
+
   // --- quello che funzionava prima deve continuare a funzionare ---
   ['8x75', 600, 'la forma semplice'],
   ['1x400', 400, 'una ripetuta sola'],

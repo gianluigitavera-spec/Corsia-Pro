@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HeartPulse, Check } from 'lucide-react';
 import * as api from '../lib/dati';
+import ComeAndata from './ComeAndata';
 import { RAGGRUPPAMENTI, categoriaAtleta, dataIt } from '../lib/dominio';
 
 // Quattro stati. L'assenza non conta come presenza; ritardo e
@@ -201,6 +202,15 @@ export default function Appello({ societa, fasce, puoScrivere }) {
         La percentuale conta come presenza P, R e G: l'assenza è l'unico stato che la fa scendere.
         La colonna Rit. è il totale dei ritardi, che restano presenze ma si vedono.
       </p>
+
+      {seduta && (
+        <ComeAndata
+          seduta={seduta}
+          puoScrivere={puoScrivere}
+          suSalvato={(svolto) => setSedute((tutte) =>
+            tutte.map((s) => (s.id === seduta.id ? { ...s, svolto } : s)))}
+        />
+      )}
     </>
   );
 }

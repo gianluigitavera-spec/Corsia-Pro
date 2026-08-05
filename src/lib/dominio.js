@@ -216,11 +216,44 @@ export function sezionePer(sezione, specializzazione) {
 // Il volume di chi fa velocità è warm-up comune + sezione velocisti,
 // NON la somma di tutte le sezioni della seduta.
 // ---------------------------------------------------------------------
-export function metriPerSpecializzazione(sezioni, specializzazione) {
-  return (sezioni || [])
-    .filter((sez) => sezionePer(sez, specializzazione))
-    .flatMap((sez) => sez.serie || [])
-    .reduce((tot, s) => tot + (Number(s.metri) || 0), 0);
+export function metriPerSpecializzazione(sezioni, specializzazione, svolto) {
+  const righe = svolto?.righe || {};
+  let totale = 0;
+  (sezioni || []).forEach((sez, i) => {
+    if (!sezionePer(sez, specializzazione)) return;
+    (sez.serie || []).forEach((s, j) => {
+      const c = righe[chiaveRiga(i, j)];
+      totale += c !== undefined && c !== null && c !== '' && Number.isFinite(+c)
+        ? +c
+        : (Number(s.metri) || 0);
+    });
+  });
+  return totale;
+}
+
+// Gli stessi metri, spaccati per zona. Serve al grafico settimanale e al
+// confronto con gli obiettivi di fase: se il finale duro salta, non
+// cambia solo il totale, cambia la ripartizione.
+export function zonePerSpecializzazione(sezioni, specializzazione, svolto) {
+  const righe = svolto?.righe || {};
+  const per = new Map();
+  (sezioni || []).forEach((sez, i) => {
+    if (!sezionePer(sez, specializzazione)) return;
+    (sez.serie || []).forEach((s, j) => {
+      const c = righe[chiaveRiga(i, j)];
+      const metri = c !== undefined && c !== null && c !== '' && Number.isFinite(+c)
+        ? +c
+        : (Number(s.metri) || 0);
+      if (!metri) return;
+      const zona = s.zona || '';
+      const famiglia = ZONE.find((z) => z.codice === zona)?.famiglia || 'nonclass';
+      const k = zona || 'nonclass';
+      const gia = per.get(k) || { zona, famiglia, metri: 0 };
+      gia.metri += metri;
+      per.set(k, gia);
+    });
+  });
+  return [...per.values()];
 }
 
 export function caricoPerZona(sezioni, specializzazione) {
@@ -287,6 +320,48 @@ export function chiaveAtleta({ cognome, nome, anno_nascita } = {}) {
     .toLowerCase()
     .replace(/[àáâäãèéêëìíîïòóôöõùúûüçñ]/g, (c) => ACCENTI[c])
     .replace(/[^a-z0-9]/g, '');
+}
+
+// ---------------------------------------------------------------------
+// PROGRAMMA CONTRO VASCA
+// Il programma è quello scritto nelle sezioni. "svolto" tiene solo le
+// righe andate diversamente: il gruppo che si pianta all'ottavo cento,
+// la serie chiusa prima. Chi non è nella mappa è andato come previsto.
+// Gemella di squadra.metri_svolti() in SQL (migrazione 022).
+// ---------------------------------------------------------------------
+export const chiaveRiga = (iSezione, iSerie) => `${iSezione}-${iSerie}`;
+
+export function metriSvolti(sezioni, svolto) {
+  const righe = svolto?.righe || {};
+  let totale = 0;
+  (sezioni || []).forEach((sezione, i) => {
+    (sezione?.serie || []).forEach((serie, j) => {
+      const corretto = righe[chiaveRiga(i, j)];
+      totale += Number.isFinite(+corretto) && corretto !== null && corretto !== ''
+        ? +corretto
+        : (+serie?.metri || 0);
+    });
+  });
+  return totale;
+}
+
+// Quanto manca all'appello, zona per zona: quando tagli il finale tagli
+// quasi sempre la parte tosta, e la ripartizione si sposta senza che si
+// veda dal totale.
+export function scartoPerZona(sezioni, svolto) {
+  const righe = svolto?.righe || {};
+  const per = {};
+  (sezioni || []).forEach((sezione, i) => {
+    (sezione?.serie || []).forEach((serie, j) => {
+      const previsti = +serie?.metri || 0;
+      const c = righe[chiaveRiga(i, j)];
+      const fatti = Number.isFinite(+c) && c !== null && c !== '' ? +c : previsti;
+      if (fatti === previsti) return;
+      const zona = serie?.zona || '—';
+      per[zona] = (per[zona] || 0) + (fatti - previsti);
+    });
+  });
+  return per;
 }
 
 export function categoriaAtleta(atleta, fasce) {

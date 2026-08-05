@@ -2,7 +2,9 @@
 // Girano prima di ogni build. Sono la rete sotto la regola più silenziosa
 // dell'app: se le fasce si proiettano male, tutta la squadra cambia
 // categoria di nascosto e i volumi finiscono nel posto sbagliato.
-import { stagioneCorrente, stagioniProposte, fasceRisolte, categoriaDi } from './src/lib/dominio.js';
+import { stagioneCorrente, stagioniProposte, fasceRisolte, categoriaDi,
+         metriSvolti, scartoPerZona, metriPerSpecializzazione,
+         zonePerSpecializzazione } from './src/lib/dominio.js';
 
 let male = 0;
 const dice = (cosa, avuto, atteso) => {
@@ -39,6 +41,51 @@ dice('la fascia ESO_A1 scala di un anno', [eso?.anno_nascita_da, eso?.anno_nasci
 // E la categoria calcolata segue: stesso atleta, un anno dopo, sale.
 dice('un 2013 nel 2025/26 è ESO_A1', categoriaDi(2013, 'M', fasce2526), 'ESO_A1');
 dice('lo stesso 2013 nel 2026/27 è salito', categoriaDi(2013, 'M', proiettata.fasce), 'ESO_A2');
+
+// --- programma contro vasca ---
+const sezioni = [
+  { titolo: 'Riscaldamento', serie: [{ notazione: '1x400', metri: 400, zona: 'A1' }] },
+  { titolo: 'Centrale', serie: [
+    { notazione: '2x 8x100', metri: 1600, zona: 'A2' },
+    { notazione: '8x25', metri: 200, zona: 'C3' },
+  ] },
+];
+
+dice('senza correzioni valgono i metri del programma', metriSvolti(sezioni, null), 2200);
+dice('una seduta andata come scritta non cambia', metriSvolti(sezioni, { righe: {} }), 2200);
+
+// Il caso vero: il gruppo chiude il 2x8x100 a 1400 invece di 1600.
+const chiusaPrima = { righe: { '1-0': 1400 } };
+dice('la riga corretta entra nel totale', metriSvolti(sezioni, chiusaPrima), 2000);
+dice('lo scarto cade nella zona giusta', scartoPerZona(sezioni, chiusaPrima), { A2: -200 });
+
+// Zero è un valore, non un "non toccato": la serie saltata del tutto.
+dice('una serie saltata vale zero, non il programmato',
+  metriSvolti(sezioni, { righe: { '1-1': 0 } }), 2000);
+
+// --- il carico dell'atleta segue i metri veri, non il programma ---
+const conSplit = [
+  { titolo: 'Warm Up', destinatari: ['*'], serie: [{ notazione: '1x400', metri: 400, zona: 'A1' }] },
+  { titolo: 'Centrale velocisti', destinatari: ['Velocità'], serie: [
+    { notazione: '16x25', metri: 400, zona: 'C3' },
+  ] },
+  { titolo: 'Centrale mezzofondo', destinatari: ['Mezzofondo'], serie: [
+    { notazione: '2x 8x100', metri: 1600, zona: 'A2' },
+  ] },
+];
+
+// La regola dello split regge: il velocista non nuota la parte del mezzofondista.
+dice('velocista, programma', metriPerSpecializzazione(conSplit, 'Velocità'), 800);
+dice('mezzofondista, programma', metriPerSpecializzazione(conSplit, 'Mezzofondo'), 2000);
+
+// Il gruppo mezzofondo chiude a 1400: cala solo il suo conto.
+const chiusa = { righe: { '2-0': 1400 } };
+dice('mezzofondista, metri veri', metriPerSpecializzazione(conSplit, 'Mezzofondo', chiusa), 1800);
+dice('il velocista non c\'entra niente', metriPerSpecializzazione(conSplit, 'Velocità', chiusa), 800);
+
+// E la ripartizione per zona segue.
+const zoneMezzo = zonePerSpecializzazione(conSplit, 'Mezzofondo', chiusa);
+dice('la zona A2 perde i 200 metri', zoneMezzo.find((z) => z.zona === 'A2')?.metri, 1400);
 
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);

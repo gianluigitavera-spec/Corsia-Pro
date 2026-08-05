@@ -382,7 +382,7 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
             )}
           </div>
         ) : (
-          <table>
+          <table className="tabella-atleti">
             <thead>
               <tr>
                 {puoScrivere && (
@@ -391,7 +391,8 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                       aria-label="Seleziona tutti quelli che vedi" />
                   </th>
                 )}
-                <th>Atleta</th><th>Sesso</th><th>Anno</th><th>Categoria</th>
+                <th>Atleta</th><th className="col-stretta">Sesso</th>
+                <th className="col-stretta">Anno</th><th>Categoria</th>
                 <th>Specializzazione</th>{puoScrivere && <th />}
               </tr>
             </thead>
@@ -444,8 +445,8 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                       </td>
                     )}
                     <td><b>{a.cognome}</b> {a.nome}</td>
-                    <td style={{ color: 'var(--testo-3)' }}>{a.sesso}</td>
-                    <td className="mono">{a.anno_nascita}</td>
+                    <td className="col-stretta" style={{ color: 'var(--testo-3)' }}>{a.sesso}</td>
+                    <td className="mono col-stretta">{a.anno_nascita}</td>
                     <td className="mono" style={{ color: 'var(--ciano)' }}>{categoriaAtleta(a, fasce) || '—'}</td>
                     <td>{a.specializzazione}</td>
                     {puoScrivere && (

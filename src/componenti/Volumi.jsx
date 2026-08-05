@@ -51,18 +51,14 @@ export default function Volumi({ societa, stagione }) {
 
   useEffect(() => {
     setErrore(null);
+    // Non più le viste SQL: quelle contano il programma. Il carico si
+    // calcola qui, sui metri davvero nuotati (vedi caricoReale).
     Promise.all([
-      sb.from('v_carico_atleta').select('*').eq('societa_id', societa.id)
-        .gte('data', periodo.dal).lte('data', periodo.al),
+      api.caricoReale(societa.id, { da: periodo.dal, a: periodo.al }),
       api.leggiSedute(societa.id, { da: periodo.dal, a: periodo.al }),
-      sb.from('v_carico_zona').select('data, zona, famiglia, metri, specializzazione')
-        .eq('societa_id', societa.id).eq('specializzazione', 'Generale')
-        .gte('data', periodo.dal).lte('data', periodo.al),
     ])
-      .then(([c, s, z]) => {
-        if (c.error) throw new Error(c.error.message);
-        if (z.error) throw new Error(z.error.message);
-        setRighe(c.data || []); setSedute(s || []); setZone(z.data || []);
+      .then(([carico, s]) => {
+        setRighe(carico.righe); setSedute(s || []); setZone(carico.zone);
       })
       .catch((e) => setErrore(e.message));
   }, [societa.id, periodo.dal, periodo.al]);
@@ -70,7 +66,9 @@ export default function Volumi({ societa, stagione }) {
   // ------------------------------------------------ km delle sedute
   // Il volume del programma, non moltiplicato per gli atleti: per ogni
   // seduta il percorso comune (riscaldamento + parti per tutti).
-  const kmSedute = sedute.reduce((t, s) => t + metriPerSpecializzazione(s.sezioni, 'Generale'), 0);
+  const kmSedute = sedute.reduce((t, s) => t + metriPerSpecializzazione(s.sezioni, 'Generale', s.svolto), 0);
+  const kmProgrammati = sedute.reduce((t, s) => t + metriPerSpecializzazione(s.sezioni, 'Generale'), 0);
+  const kmScarto = kmSedute - kmProgrammati;
 
   // ------------------------------------------------ righe per atleta
   const perAtleta = useMemo(() => Object.values(
