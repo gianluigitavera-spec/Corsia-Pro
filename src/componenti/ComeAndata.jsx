@@ -13,7 +13,7 @@
 // fine allenamento, con la seduta e i nomi davanti.
 // =====================================================================
 import { useEffect, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Check } from 'lucide-react';
 import * as api from '../lib/dati';
 import { chiaveRiga, metriSvolti, scartoPerZona } from '../lib/dominio';
 
@@ -58,8 +58,13 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
     if (valore === '') delete nuove[chiave];
     else nuove[chiave] = Math.max(0, +valore);
     setRighe(nuove);
-    salva(nuove, nota);
+    setSalvato(false);
   }
+
+  // Rete di sicurezza: se cambi seduta o esci con qualcosa in sospeso,
+  // parte lo stesso. Il tasto resta il padrone, questo è solo per non
+  // perdere il lavoro di chi si distrae.
+  useEffect(() => () => { if (!salvato) salva(righe, nota); }, [salvato, righe, nota]);
 
   return (
     <div className="scheda" style={{ marginTop: 14 }}>
@@ -130,12 +135,23 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
           value={nota}
           disabled={!puoScrivere}
           onChange={(e) => { setNota(e.target.value); setSalvato(false); }}
-          onBlur={() => salva(righe, nota)}
           style={{ width: '100%' }}
         />
-        {!salvato && (
-          <div style={{ color: 'var(--testo-3)', fontSize: 12, marginTop: 6 }}>
-            non ancora salvato
+
+        {puoScrivere && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+            <button
+              className={salvato ? 'azione fantasma' : 'azione'}
+              disabled={salvato}
+              onClick={() => salva(righe, nota)}
+            >
+              {salvato ? <><Check size={15} style={{ verticalAlign: -3 }} /> Salvato</> : 'Salva'}
+            </button>
+            {!salvato && (
+              <span style={{ color: 'var(--ambra)', fontSize: 13 }}>
+                ci sono modifiche non salvate
+              </span>
+            )}
           </div>
         )}
       </div>

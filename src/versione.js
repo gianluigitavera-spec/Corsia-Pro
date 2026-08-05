@@ -10,6 +10,15 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.33.0',
+    data: '2026-08-05',
+    voci: [
+      'Tasto Salva in "Com\u2019\u00e8 andata": prima salvava di nascosto e non si capiva se era andato',
+      'Finch\u00e9 c\u2019\u00e8 qualcosa in sospeso il tasto resta acceso e lo dice; a cose fatte diventa "Salvato"',
+      'Se cambi seduta con delle modifiche aperte, quelle partono lo stesso',
+    ],
+  },
+  {
     versione: '0.32.0',
     data: '2026-08-05',
     voci: [
