@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Wand2, Save, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as api from '../lib/dati';
 import {
-  FASI, faseDi, proponiFasi, giorniFra, settimaneFra, spostaConfine,
+  FASI, faseDi, proponiFasi, giorniFra, settimaneFra, spostaConfine, giorno,
   inizioStagionePredefinito,
 } from '../lib/dominio';
 import { TIPI_GARA } from './Calendario';
@@ -17,6 +17,7 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
   const [garaScelta, setGaraScelta] = useState('');
   const [messaggio, setMessaggio] = useState(null);
   const [salvo, setSalvo] = useState(false);
+  const [selezionato, setSelezionato] = useState(null);
   const [inizioStagione, setInizioStagione] = useState(inizioStagionePredefinito(stagione));
   const barra = useRef(null);
   const trascino = useRef(null);
@@ -42,19 +43,61 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
   // Le gare future di questa categoria, come possibili obiettivi.
   const oggi = iso(new Date());
   const obiettivi = (gare || [])
-    .filter((g) => g.data >= oggi || blocchi.length === 0)
+    .filter((g) => g.data >= oggi || blocchi.some((b) => b.gara_id === g.id))
     .sort((a, b) => a.data.localeCompare(b.data));
 
+  // I macrocicli già in piedi, uno per gara obiettivo, in ordine di data.
+  const macrocicli = (() => {
+    const per = new Map();
+    for (const b of blocchi) {
+      const k = b.gara_id || 'senza-gara';
+      const g = per.get(k) || { gara_id: b.gara_id, dal: b.dal, al: b.al, quante: 0 };
+      if (b.dal < g.dal) g.dal = b.dal;
+      if (b.al > g.al) g.al = b.al;
+      g.quante += 1;
+      per.set(k, g);
+    }
+    return [...per.values()]
+      .map((m) => ({ ...m, gara: (gare || []).find((x) => x.id === m.gara_id) || null }))
+      .sort((a, b) => a.dal.localeCompare(b.dal));
+  })();
+
+  // Aggiunge un macrociclo invece di sostituire quello che c'è: la
+  // doppia e la tripla periodizzazione sono la norma, invernali più
+  // primaverili. Il primo parte dall'inizio stagione, i successivi dal
+  // giorno dopo la gara obiettivo precedente.
   async function proponi() {
     const g = obiettivi.find((x) => x.id === garaScelta);
     if (!g) return;
     try { await api.salvaInizioStagione(societa.id, stagione, inizioStagione); } catch { /* non blocca */ }
-    setBlocchi(proponiFasi(g.data, { inizioStagione }).map((b) => ({ ...b, gara_id: g.id })));
+
+    // Tutto quello che sta già prima di questa gara e non è suo.
+    const prima = blocchi.filter((b) => b.gara_id !== g.id && b.al < g.data);
+    const finePrecedente = prima.reduce((m, b) => (b.al > m ? b.al : m), '');
+    const paletto = finePrecedente ? giorno(finePrecedente, 1) : inizioStagione;
+
+    const nuovi = proponiFasi(g.data, { inizioStagione: paletto })
+      .map((b) => ({ ...b, gara_id: g.id }));
+
+    // Restano solo i blocchi che finiscono prima del nuovo macrociclo:
+    // via il vecchio di questa gara e via qualsiasi sovrapposizione.
+    const tenuti = blocchi.filter((b) => b.gara_id !== g.id && b.al < nuovi[0].dal);
+    setBlocchi([...tenuti, ...nuovi]);
+    setSelezionato(g.id);
+
     setMessaggio({
-      testo: inizioStagione < g.data
-        ? 'Proposta pronta: la generale parte dall\u2019inizio stagione. Trascina i confini e salva.'
-        : 'Proposta pronta: trascina i confini e poi salva.',
+      testo: finePrecedente
+        ? `Secondo macrociclo aggiunto: la generale parte dal giorno dopo l\u2019obiettivo precedente. Trascina i confini e salva.`
+        : 'Proposta pronta: la generale parte dall\u2019inizio stagione. Trascina i confini e salva.',
     });
+  }
+
+  // Toglie un macrociclo solo, lasciando gli altri dove sono.
+  function togliMacrociclo(garaId) {
+    const m = macrocicli.find((x) => x.gara_id === garaId);
+    if (!confirm(`Togliere il macrociclo${m?.gara ? ` di ${m.gara.titolo || m.gara.nome || 'questa gara'}` : ''}? Poi salva per confermare.`)) return;
+    setBlocchi((b) => b.filter((x) => x.gara_id !== garaId));
+    setMessaggio({ testo: 'Macrociclo tolto dalla bozza: salva per confermare.' });
   }
 
   async function salva() {
@@ -146,7 +189,8 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
               ))}
             </select>
             <button className="mini" onClick={proponi} disabled={!garaScelta}>
-              <Wand2 size={13} style={{ verticalAlign: -2 }} /> Proponi
+              <Wand2 size={13} style={{ verticalAlign: -2 }} />
+              {macrocicli.length ? ' Aggiungi obiettivo' : ' Proponi'}
             </button>
             {blocchi.length > 0 && (
               <>
@@ -168,6 +212,22 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
         </p>
       ) : (
         <>
+          {macrocicli.length > 1 && (
+            <div className="elenco-macrocicli">
+              {macrocicli.map((m, i) => (
+                <span key={m.gara_id || i} className="macrociclo">
+                  <b>{i + 1}\u00ba</b>
+                  <span>{m.gara ? m.gara.nome : 'senza gara obiettivo'}</span>
+                  <span className="mono">{dataIt(m.dal)} \u2192 {dataIt(m.al)}</span>
+                  {puoScrivere && m.gara_id && (
+                    <button className="mini" onClick={() => togliMacrociclo(m.gara_id)}
+                      aria-label="Togli questo macrociclo"><Trash2 size={12} /></button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="nastro-fasi" ref={barra}>
             {blocchi.map((b, i) => {
               const f = faseDi(b.fase);

@@ -10,6 +10,47 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.37.0',
+    data: '2026-08-06',
+    voci: [
+      'Il modello CSV ha una colonna categoria: serve per Teen, Master e Propaganda, che dall\u2019et\u00e0 non si ricavano',
+      'Si pu\u00f2 scrivere il codice (MAS, TEEN_2) o il nome per esteso (Master, Teen 2)',
+      'Se la colonna \u00e8 vuota e l\u2019atleta ha pi\u00f9 di 25 anni finisce in Master, e l\u2019import te lo elenca da controllare',
+      'Fasce d\u2019et\u00e0 dei Propaganda, ricavate a ritroso dagli Esordienti B (migrazione 024)',
+    ],
+  },
+  {
+    versione: '0.36.0',
+    data: '2026-08-06',
+    voci: [
+      'Duplica seduta: dall\u2019elenco, con l\u2019icona accanto ad Apri, la stessa seduta su un\u2019altra data',
+      'Copia settimana: tutte le sedute di una settimana spostate su un\u2019altra, mantenendo il giorno \u2014 il marted\u00ec resta marted\u00ec',
+      'Anteprima delle date prima di copiare, e avviso se sulla destinazione c\u2019\u00e8 gi\u00e0 una seduta',
+      'Si copia solo il programma: presenze e "com\u2019\u00e8 andata" restano sulla seduta di partenza',
+    ],
+  },
+  {
+    versione: '0.35.0',
+    data: '2026-08-05',
+    voci: [
+      'Doppia e tripla periodizzazione: "Aggiungi obiettivo" costruisce un macrociclo nuovo senza cancellare i precedenti',
+      'Il primo parte dall\u2019inizio stagione, il secondo e il terzo dal giorno dopo la gara obiettivo precedente',
+      'Se lo spazio \u00e8 meno di 21 settimane, le quattro fasi si comprimono in proporzione invece di schiacciare solo la generale',
+      'Elenco dei macrocicli sopra il nastro, con la possibilit\u00e0 di toglierne uno solo',
+      'Tasto Proponi negli obiettivi di fase: riempie le quattro fasi con una ripartizione di partenza per la categoria',
+      'Le percentuali proposte crescono con l\u2019et\u00e0: gli Esordienti B non fanno lattacido, gli Assoluti s\u00ec',
+    ],
+  },
+  {
+    versione: '0.34.0',
+    data: '2026-08-05',
+    voci: [
+      'La programmazione nella Dashboard si chiude a una riga sola: il calendario torna in alto',
+      'A riquadro chiuso la riga dice comunque la fase di oggi e quando finisce',
+      'Aperta o chiusa resta come l\u2019hai lasciata, anche cambiando categoria',
+    ],
+  },
+  {
     versione: '0.33.0',
     data: '2026-08-05',
     voci: [

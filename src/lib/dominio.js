@@ -364,6 +364,179 @@ export function scartoPerZona(sezioni, svolto) {
   return per;
 }
 
+
+// ---------------------------------------------------------------------
+// RIPARTIZIONE PROPOSTA — da dove vengono questi numeri
+//
+// Una tabella federale pubblica per categoria non esiste. Questi valori
+// sono costruiti su tre appoggi, e restano una PROPOSTA da correggere:
+//
+// 1. Il dato osservato sugli élite (coorte di 127 nuotatori su 20
+//    stagioni, Frontiers in Physiology 2019): 86-90% del volume sotto
+//    le 4 mmol/l, di cui ~43% sotto le 2; 6-9,5% fra 4 e 6; 3,5-4,5%
+//    sopra le 6. È un modello piramidale, non polarizzato.
+// 2. Sui giovani la letteratura è concorde: la base aerobica non si
+//    tocca, il lavoro lattacido si usa con parsimonia e in serie più
+//    corte che nei senior, e diventa specifico solo a crescita
+//    completata. La capacità di resistenza matura verso i 15 anni,
+//    quella anaerobica verso i 19.
+// 3. La velocità pura (C3) è un'altra cosa: è lavoro neuromuscolare,
+//    non produce lattato, e va fatta a tutte le età. Per questo anche
+//    gli Esordienti hanno una fetta di alattacido, mentre il lattacido
+//    resta a zero.
+//
+// Le famiglie sono quelle dell'app: aerobico = A1+A2+B1, vo2 = B2,
+// lattacido = C1+C2, alattacido = C3. Attenzione: B1 sta dentro
+// "aerobico", quindi la fetta aerobica è larga per costruzione.
+// ---------------------------------------------------------------------
+export const FONTE_RIPARTIZIONE =
+  'Proposta costruita sui dati osservati negli élite (Frontiers in Physiology, 2019) '
+  + 'e sulle indicazioni per le categorie giovanili. Non è una tabella federale: '
+  + 'correggila con quello che sai del tuo gruppo.';
+
+// Per ogni gruppo di categorie, la ripartizione nelle quattro fasi.
+// Ogni riga somma 100.
+const RIPARTIZIONI = {
+  eso_b: {
+    generale:  { aerobico: 90, vo2: 3, lattacido: 0, alattacido: 7 },
+    speciale:  { aerobico: 88, vo2: 4, lattacido: 0, alattacido: 8 },
+    specifica: { aerobico: 85, vo2: 6, lattacido: 1, alattacido: 8 },
+    tapering:  { aerobico: 85, vo2: 4, lattacido: 1, alattacido: 10 },
+  },
+  eso_a: {
+    generale:  { aerobico: 89, vo2: 4, lattacido: 0, alattacido: 7 },
+    speciale:  { aerobico: 86, vo2: 5, lattacido: 1, alattacido: 8 },
+    specifica: { aerobico: 82, vo2: 7, lattacido: 3, alattacido: 8 },
+    tapering:  { aerobico: 83, vo2: 5, lattacido: 2, alattacido: 10 },
+  },
+  ragazzi: {
+    generale:  { aerobico: 87, vo2: 5, lattacido: 1, alattacido: 7 },
+    speciale:  { aerobico: 83, vo2: 7, lattacido: 3, alattacido: 7 },
+    specifica: { aerobico: 78, vo2: 8, lattacido: 6, alattacido: 8 },
+    tapering:  { aerobico: 80, vo2: 6, lattacido: 4, alattacido: 10 },
+  },
+  juniores: {
+    generale:  { aerobico: 86, vo2: 6, lattacido: 1, alattacido: 7 },
+    speciale:  { aerobico: 81, vo2: 8, lattacido: 4, alattacido: 7 },
+    specifica: { aerobico: 75, vo2: 9, lattacido: 8, alattacido: 8 },
+    tapering:  { aerobico: 78, vo2: 6, lattacido: 6, alattacido: 10 },
+  },
+  senior: {
+    generale:  { aerobico: 85, vo2: 6, lattacido: 2, alattacido: 7 },
+    speciale:  { aerobico: 79, vo2: 8, lattacido: 6, alattacido: 7 },
+    specifica: { aerobico: 73, vo2: 9, lattacido: 10, alattacido: 8 },
+    tapering:  { aerobico: 76, vo2: 6, lattacido: 8, alattacido: 10 },
+  },
+  master: {
+    generale:  { aerobico: 90, vo2: 4, lattacido: 0, alattacido: 6 },
+    speciale:  { aerobico: 86, vo2: 6, lattacido: 2, alattacido: 6 },
+    specifica: { aerobico: 82, vo2: 7, lattacido: 4, alattacido: 7 },
+    tapering:  { aerobico: 84, vo2: 5, lattacido: 3, alattacido: 8 },
+  },
+};
+
+// Dal codice categoria al gruppo della tabella. Si guarda la categoria
+// più ALTA fra quelle selezionate: se alleni A1 e A2 insieme, comanda
+// la più grande.
+const GRUPPO_DI = [
+  { gruppo: 'master',   codici: ['MAS'] },
+  { gruppo: 'senior',   codici: ['CAD_1', 'CAD_2', 'SEN_1', 'SEN_2', 'ASS'] },
+  { gruppo: 'juniores', codici: ['JUN_1', 'JUN_2'] },
+  { gruppo: 'ragazzi',  codici: ['RAG_1', 'RAG_2', 'RAG_3'] },
+  { gruppo: 'eso_a',    codici: ['ESO_A1', 'ESO_A2'] },
+  { gruppo: 'eso_b',    codici: ['ESO_B1', 'ESO_B2'] },
+];
+
+export function gruppoRipartizione(codici) {
+  const scelti = codici || [];
+  // Ordine: dal più maturo al meno. Il primo che combacia vince.
+  for (const g of GRUPPO_DI) {
+    if (scelti.some((c) => g.codici.includes(c))) return g.gruppo;
+  }
+  return null;   // Propaganda, Teen: qui non si propone niente
+}
+
+// La proposta per una fase. Torna null dove non abbiamo niente da dire.
+export function proponiRipartizione(codici, fase) {
+  const g = gruppoRipartizione(codici);
+  if (!g) return null;
+  const r = RIPARTIZIONI[g]?.[fase];
+  return r ? { ...r } : null;
+}
+
+// Tutte e quattro le fasi in un colpo, per il tasto "Proponi".
+export function proponiTutteLeFasi(codici) {
+  const g = gruppoRipartizione(codici);
+  if (!g) return null;
+  return Object.fromEntries(
+    Object.entries(RIPARTIZIONI[g]).map(([fase, r]) => [fase, { ...r }])
+  );
+}
+
+
+// ---------------------------------------------------------------------
+// DUPLICARE
+// Le sedute si somigliano: una settimana è quasi la precedente con due
+// righe cambiate. Qui si copia il PROGRAMMA e basta — mai le presenze,
+// mai "com'è andata": quelle appartengono al giorno in cui è successo.
+// ---------------------------------------------------------------------
+export const lunediDi = (isoData) => {
+  const d = new Date(isoData + 'T12:00');
+  const scarto = (d.getDay() + 6) % 7;          // lunedì = 0
+  d.setDate(d.getDate() - scarto);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export function copiaSeduta(seduta, nuovaData) {
+  return {
+    societa_id: seduta.societa_id,
+    data: nuovaData,
+    titolo: seduta.titolo || '',
+    categorie: [...(seduta.categorie || [])],
+    origine: seduta.origine || 'manuale',
+    // Copia profonda: se restasse un riferimento, correggere una riga
+    // nella copia cambierebbe anche l'originale.
+    sezioni: JSON.parse(JSON.stringify(seduta.sezioni || [])),
+    // svolto NON si copia: sono i metri di quel giorno, non di questo.
+  };
+}
+
+// Le sedute raggruppate per settimana, dalla più recente.
+export function perSettimana(sedute) {
+  const per = new Map();
+  for (const s of sedute || []) {
+    const k = lunediDi(s.data);
+    const g = per.get(k) || { lunedi: k, sedute: [] };
+    g.sedute.push(s);
+    per.set(k, g);
+  }
+  return [...per.values()]
+    .map((g) => ({ ...g, sedute: g.sedute.sort((a, b) => a.data.localeCompare(b.data)) }))
+    .sort((a, b) => b.lunedi.localeCompare(a.lunedi));
+}
+
+// La colonna "categoria" del CSV. Teen, Master e Propaganda non sono
+// età ma percorsi, quindi dall'anno di nascita non si ricavano: o li
+// scrivi nel foglio, o l'app non può saperlo.
+// L'unica scorciatoia è il Master sopra i 25 anni, ed è una PROPOSTA:
+// tira dentro anche i Senior e gli Assoluti adulti, che Master non sono.
+// Per questo l'import li elenca a parte, da controllare.
+export function categoriaDaCsv(scritta, annoNascita, oggi = new Date()) {
+  const pulita = String(scritta || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (pulita) {
+    const trovata = CATEGORIE.find((c) => c.codice === pulita);
+    if (trovata) return { codice: trovata.codice, indovinata: false };
+    // Scritta per esteso: "Master", "Teen 2", "Propaganda 2"
+    const perNome = CATEGORIE.find(
+      (c) => c.nome.toUpperCase().replace(/[\s-]+/g, '_') === pulita
+    );
+    if (perNome) return { codice: perNome.codice, indovinata: false };
+  }
+  const eta = oggi.getFullYear() - Number(annoNascita || 0);
+  if (annoNascita && eta >= 25) return { codice: 'MAS', indovinata: true };
+  return { codice: null, indovinata: false };   // null = si calcola dall'età
+}
+
 export function categoriaAtleta(atleta, fasce) {
   if (atleta?.categoria_override) return atleta.categoria_override;
   return categoriaDi(atleta?.anno_nascita, atleta?.sesso, fasce);
@@ -572,7 +745,7 @@ export const FASI = [
 
 export const faseDi = (codice) => FASI.find((f) => f.codice === codice);
 
-const giorno = (iso, delta) => {
+export const giorno = (iso, delta) => {
   const d = new Date(iso + 'T12:00');
   d.setDate(d.getDate() + delta);
   return d.toISOString().slice(0, 10);
@@ -585,6 +758,10 @@ const giorno = (iso, delta) => {
 // passi inizioStagione, la fase generale parte da lì e si allunga fino
 // all'attacco del macrociclo. Con un obiettivo ad aprile e la stagione
 // aperta a settembre, la generale copre da settembre a fine novembre.
+// "inizioStagione" è il limite a sinistra: per il primo macrociclo è
+// l'inizio della stagione, per il secondo e il terzo è il giorno dopo la
+// gara obiettivo precedente. La generale si allunga fino a lì se c'è
+// spazio, e si accorcia se ce n'è poco — mai sotto la settimana.
 export function proponiFasi(dataGara, { durate = null, inizioStagione = null } = {}) {
   const settimane = durate || Object.fromEntries(FASI.map((f) => [f.codice, f.settimane]));
   const blocchi = [];
@@ -598,13 +775,30 @@ export function proponiFasi(dataGara, { durate = null, inizioStagione = null } =
   }
 
   if (inizioStagione) {
-    const primo = blocchi[0];
-    if (inizioStagione < primo.dal) {
-      primo.dal = inizioStagione;                       // generale allungata
-    } else {
-      // Stagione aperta tardi: la generale si accorcia, mai sotto la settimana.
-      const minimo = giorno(primo.al, -6);
-      primo.dal = inizioStagione > minimo ? minimo : inizioStagione;
+    if (inizioStagione < blocchi[0].dal) {
+      // C'è spazio davanti: la generale si allunga fino al paletto.
+      blocchi[0].dal = inizioStagione;
+    } else if (inizioStagione > blocchi[0].dal) {
+      // Spazio meno del previsto — stagione aperta tardi, o è il secondo
+      // macrociclo che parte dopo la gara precedente. Si comprime TUTTO
+      // in proporzione, non solo la generale: schiacciare solo la prima
+      // fase la faceva finire prima del paletto, e il secondo macrociclo
+      // si mangiava la coda del primo.
+      const ultimo = blocchi[blocchi.length - 1].al;
+      const disponibili = giorniFra(inizioStagione, ultimo) + 1;
+      const previsti = blocchi.reduce((t, b) => t + giorniFra(b.dal, b.al) + 1, 0);
+      const minimo = disponibili >= blocchi.length * 7 ? 7 : 1;
+
+      let cursore = inizioStagione;
+      blocchi.forEach((b, i) => {
+        const quota = (giorniFra(b.dal, b.al) + 1) / previsti;
+        const durata = i === blocchi.length - 1
+          ? Math.max(1, giorniFra(cursore, ultimo) + 1)
+          : Math.max(minimo, Math.round(disponibili * quota));
+        b.dal = cursore;
+        b.al = i === blocchi.length - 1 ? ultimo : giorno(cursore, durata - 1);
+        cursore = giorno(b.al, 1);
+      });
     }
   }
 

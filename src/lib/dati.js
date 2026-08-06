@@ -180,6 +180,14 @@ export async function salvaSeduta(seduta) {
   return ok(await sb.from('sedute').insert(seduta).select().single());
 }
 
+// Copia una o più sedute su date nuove. Un insert solo, così o entrano
+// tutte o non entra niente: una settimana copiata a metà sarebbe peggio
+// di una non copiata.
+export async function duplicaSedute(copie) {
+  if (!copie.length) return [];
+  return ok(await sb.from('sedute').insert(copie).select());
+}
+
 export async function eliminaSeduta(id) {
   return ok(await sb.from('sedute').delete().eq('id', id).select());
 }

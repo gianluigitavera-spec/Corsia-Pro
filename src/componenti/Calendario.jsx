@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2 } from 'lucide-react';
+import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2, ChevronRight } from 'lucide-react';
 import * as api from '../lib/dati';
 import { MACRO_CALENDARIO, rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga } from '../lib/dominio';
 import Periodizzazione from './Periodizzazione';
@@ -34,6 +34,33 @@ export default function Calendario({
   const [giorno, setGiorno] = useState(null);
   const [fasi, setFasi] = useState([]);
   const [nuovaGara, setNuovaGara] = useState(null);
+
+  // La programmazione sta prima del calendario e lo spinge in basso.
+  // Chiusa di default: diventa una riga sola che dice la fase di oggi, e
+  // si apre quando la vuoi toccare. La scelta resta fra una visita e
+  // l'altra, così non la richiudi ogni volta.
+  const [progAperta, setProgAperta] = useState(() => {
+    try { return localStorage.getItem('corsiapro:programmazione-aperta') === '1'; }
+    catch { return false; }
+  });
+
+  // Quello che si legge a riquadro chiuso: se la riga non dicesse niente,
+  // tanto varrebbe non averla.
+  const faseOggi = faseDelGiorno(fasi, iso(oggi));
+  const riassuntoFase = !codiciMacro
+    ? ''
+    : faseOggi
+      ? `oggi ${faseDi(faseOggi.fase)?.nome || faseOggi.fase} · fino al ${dataItLunga(faseOggi.al)}`
+      : fasi.length
+        ? 'oggi fuori dalle fasi impostate'
+        : 'nessuna fase impostata';
+
+  function commutaProg() {
+    setProgAperta((v) => {
+      try { localStorage.setItem('corsiapro:programmazione-aperta', v ? '0' : '1'); } catch { /* niente */ }
+      return !v;
+    });
+  }
   const [errore, setErrore] = useState(null);
 
   const primo = new Date(mese.getFullYear(), mese.getMonth(), 1);
@@ -125,7 +152,18 @@ export default function Calendario({
       {errore && <div className="corpo"><div className="avviso errore">{errore}</div></div>}
 
       {codiciMacro && (
-        <div className="corpo" style={{ paddingBottom: 0 }}>
+        <div className="corpo" style={{ paddingBottom: progAperta ? 0 : 14 }}>
+          <button className="riga-apribile" onClick={commutaProg}
+            aria-expanded={progAperta}>
+            <ChevronRight size={15} className={progAperta ? 'freccia giu' : 'freccia'} />
+            <b>Programmazione</b>
+            <span className="riassunto-fase">{riassuntoFase}</span>
+          </button>
+        </div>
+      )}
+
+      {codiciMacro && progAperta && (
+        <div className="corpo" style={{ paddingTop: 0, paddingBottom: 0 }}>
           <Periodizzazione
             societa={societa}
             codici={codiciMacro}

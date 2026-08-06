@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import { Search, Plus, Upload, Download, Pencil, Check, X, Archive, Users, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI, CATEGORIE, categoriaAtleta, chiaveAtleta } from '../lib/dominio';
+import { SPECIALIZZAZIONI, CATEGORIE, categoriaAtleta, chiaveAtleta, categoriaDaCsv } from '../lib/dominio';
 
 const VUOTO = { nome: '', cognome: '', sesso: 'M', anno_nascita: '', specializzazione: 'Generale' };
 
@@ -153,6 +153,7 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
       complete: async ({ data }) => {
         const righe = [];
         const scarti = [];
+        const indovinati = [];
         data.forEach((r, i) => {
           const anno = Number(r.anno_nascita ?? r.anno);
           const sesso = String(r.sesso || '').trim().toUpperCase();
@@ -161,6 +162,11 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
             return;
           }
           const spec = String(r.specializzazione || 'Generale').trim();
+          // La colonna categoria comanda: Teen, Master e Propaganda non
+          // si ricavano dall'età, sono percorsi. Se è vuota, si prova a
+          // indovinare dall'anno (over 25 → Master) e per tutti gli
+          // altri decide il calcolo per età, come sempre.
+          const override = categoriaDaCsv(r.categoria, anno);
           righe.push({
             societa_id: societa.id,
             nome: String(r.nome).trim(),
@@ -168,7 +174,9 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
             sesso,
             anno_nascita: anno,
             specializzazione: SPECIALIZZAZIONI.includes(spec) ? spec : 'Generale',
+            categoria_override: override.codice,
           });
+          if (override.indovinata) indovinati.push(`${r.cognome} ${r.nome}`);
         });
 
         if (righe.length === 0) {
@@ -216,6 +224,9 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
           if (scarti.length) {
             parti.push(`Saltate ${scarti.length} righe incomplete: ${elenco(scarti, 5)}.`);
           }
+          if (indovinati.length) {
+            parti.push(`${indovinati.length} messi in Master perché sopra i 25 anni e senza colonna categoria: ${elenco(indovinati)}. Controllali, gli agonisti adulti non sono Master.`);
+          }
           setMessaggio({
             tipo: nuovi.length ? 'ok' : 'errore',
             testo: parti.join(' '),
@@ -232,9 +243,11 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
   // esempio: si cancellano, servono solo a far vedere come si scrive.
   function scaricaModello() {
     const righe = [
-      'nome,cognome,sesso,anno_nascita,specializzazione',
-      'Mario,Rossi,M,2013,Velocità',
-      'Giulia,Bianchi,F,2014,Generale',
+      'nome,cognome,sesso,anno_nascita,specializzazione,categoria',
+      'Mario,Rossi,M,2013,Velocità,',
+      'Giulia,Bianchi,F,2014,Generale,',
+      'Anna,Verdi,F,1988,Generale,MAS',
+      'Luca,Neri,M,2009,Generale,TEEN_2',
     ];
     // Il BOM serve a Excel per leggere le lettere accentate.
     const testo = '\ufeff' + righe.join('\r\n') + '\r\n';

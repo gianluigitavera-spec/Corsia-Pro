@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Target, Save, RotateCcw } from 'lucide-react';
+import { Target, Save, RotateCcw, Wand2 } from 'lucide-react';
 import * as api from '../lib/dati';
-import { FASI, faseDi } from '../lib/dominio';
+import { FASI, faseDi, proponiTutteLeFasi, FONTE_RIPARTIZIONE } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 
 // Le famiglie su cui si ragiona. Nessun valore di partenza: la
@@ -49,6 +49,22 @@ export default function ObiettiviFase({ societa, codici, nomeMacro, puoScrivere 
       },
     }));
 
+  // Riempie le quattro fasi con la proposta per questa categoria. Non
+  // salva niente: mette solo i numeri nei campi, poi decidi tu.
+  const proposta = proponiTutteLeFasi(codici);
+
+  function proponi() {
+    if (!proposta) return;
+    setBozza((b) => {
+      const nuova = { ...b };
+      for (const [fase, ripartizione] of Object.entries(proposta)) {
+        nuova[fase] = { ...(b[fase] || {}), ripartizione: { ...ripartizione } };
+      }
+      return nuova;
+    });
+    setMessaggio({ testo: 'Proposta messa nei campi: correggila e salva fase per fase.' });
+  }
+
   async function salva(fase) {
     setSalvo(fase);
     try {
@@ -73,6 +89,12 @@ export default function ObiettiviFase({ societa, codici, nomeMacro, puoScrivere 
       <div className="intestazione">
         <Target size={16} style={{ color: 'var(--ambra)' }} />
         <h3>Obiettivi di fase · {nomeMacro}</h3>
+        <div style={{ flex: 1 }} />
+        {puoScrivere && proposta && (
+          <button className="mini" onClick={proponi} title={FONTE_RIPARTIZIONE}>
+            <Wand2 size={13} style={{ verticalAlign: -2 }} /> Proponi
+          </button>
+        )}
       </div>
       <div className="corpo">
         <p style={{ fontSize: 13, color: 'var(--testo-3)', marginTop: 0 }}>
@@ -80,6 +102,16 @@ export default function ObiettiviFase({ societa, codici, nomeMacro, puoScrivere 
           per <b>questa</b> categoria: servono a confrontare quello che avevi in testa con quello che
           è stato davvero nuotato. Lascia vuoto ciò su cui non vuoi porre un obiettivo.
         </p>
+
+        {puoScrivere && (
+          <p style={{ fontSize: 12, color: 'var(--testo-3)', marginTop: -6 }}>
+            {proposta
+              ? <>Il tasto <b>Proponi</b> riempie le quattro fasi con una ripartizione di partenza
+                  per questa categoria. {FONTE_RIPARTIZIONE}</>
+              : <>Per questo gruppo non c'è una proposta: le indicazioni disponibili partono
+                  dagli Esordienti B. Qui i numeri li metti tu.</>}
+          </p>
+        )}
 
         {FASI.map((f) => {
           const somma = totale(f.codice);

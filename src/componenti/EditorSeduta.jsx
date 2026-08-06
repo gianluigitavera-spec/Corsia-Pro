@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Save, ArrowLeft, Waves, X, AlertTriangle, Check,
-  Printer, Share2, Presentation, PenLine,
-} from 'lucide-react';
+  Printer, Share2, Presentation, PenLine, Copy, CalendarRange } from 'lucide-react';
 import * as api from '../lib/dati';
+import CopiaSedute from './CopiaSedute';
 import {
   TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
@@ -36,6 +36,7 @@ const muovi = (arr, da, a) => {
 
 export default function EditorSeduta({ societa, zone, puoScrivere, categorie, apertura, consumaApertura }) {
   const [elenco, setElenco] = useState([]);
+  const [copia, setCopia] = useState(null);   // { seduta } oppure {} per la settimana
   const [seduta, setSeduta] = useState(null);
   const [messaggio, setMessaggio] = useState(null);
   const [salvataggio, setSalvataggio] = useState(false);
@@ -189,6 +190,11 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
           <div style={{ flex: 1 }} />
           {puoScrivere && (
             <>
+              {elenco.length > 0 && (
+                <button className="azione fantasma" onClick={() => setCopia({})}>
+                  <CalendarRange size={15} style={{ verticalAlign: -3 }} /> Copia settimana
+                </button>
+              )}
               <button className="azione fantasma" onClick={() => setDaTesto(true)}>
                 <PenLine size={15} style={{ verticalAlign: -3 }} /> Scrivi o incolla
               </button>
@@ -200,6 +206,20 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
         </div>
 
         {messaggio && <div className={`avviso ${messaggio.tipo === 'errore' ? 'errore' : ''}`}>{messaggio.testo}</div>}
+
+        {copia && puoScrivere && (
+          <CopiaSedute
+            societa={societa}
+            elenco={elenco}
+            seduta={copia.seduta}
+            chiudi={() => setCopia(null)}
+            fatto={(quante) => {
+              setCopia(null);
+              setMessaggio({ tipo: 'ok', testo: quante === 1 ? 'Seduta duplicata.' : `${quante} sedute copiate.` });
+              ricarica?.();
+            }}
+          />
+        )}
 
         {elenco.length === 0 ? (
           <div className="scheda">
@@ -229,6 +249,12 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
                     <td style={{ color: 'var(--testo-3)', fontSize: 13 }}>{(s.categorie || []).join(' · ') || '—'}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{(s.sezioni || []).length}</td>
                     <td style={{ textAlign: 'right' }}>
+                      {puoScrivere && (
+                        <button className="mini" title="Duplica su un'altra data"
+                          onClick={() => api.leggiSeduta(s.id).then((piena) => setCopia({ seduta: piena }))}>
+                          <Copy size={13} />
+                        </button>
+                      )}
                       <button className="mini" onClick={() => api.leggiSeduta(s.id).then(setSeduta)}>Apri</button>
                     </td>
                   </tr>

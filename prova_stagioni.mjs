@@ -3,6 +3,8 @@
 // dell'app: se le fasce si proiettano male, tutta la squadra cambia
 // categoria di nascosto e i volumi finiscono nel posto sbagliato.
 import { stagioneCorrente, stagioniProposte, fasceRisolte, categoriaDi,
+         proponiFasi, proponiTutteLeFasi, gruppoRipartizione, giorno,
+         copiaSeduta, perSettimana, lunediDi,
          metriSvolti, scartoPerZona, metriPerSpecializzazione,
          zonePerSpecializzazione } from './src/lib/dominio.js';
 
@@ -86,6 +88,77 @@ dice('il velocista non c\'entra niente', metriPerSpecializzazione(conSplit, 'Vel
 // E la ripartizione per zona segue.
 const zoneMezzo = zonePerSpecializzazione(conSplit, 'Mezzofondo', chiusa);
 dice('la zona A2 perde i 200 metri', zoneMezzo.find((z) => z.zona === 'A2')?.metri, 1400);
+
+// --- doppia e tripla periodizzazione ---
+// Primo macrociclo: obiettivo a dicembre, generale allungata a settembre.
+const primo = proponiFasi('2026-12-13', { inizioStagione: '2026-09-01' });
+dice('il primo parte dall\'inizio stagione', primo[0].dal, '2026-09-01');
+dice('e finisce il giorno prima della gara', primo[3].al, '2026-12-12');
+
+// Secondo: obiettivo a marzo, paletto il giorno dopo la gara di dicembre.
+const paletto = giorno('2026-12-13', 1);
+dice('il paletto è il giorno dopo l\'obiettivo precedente', paletto, '2026-12-14');
+const secondo = proponiFasi('2027-03-28', { inizioStagione: paletto });
+dice('il secondo non invade il primo', secondo[0].dal >= paletto, true);
+dice('il secondo chiude prima della sua gara', secondo[3].al, '2027-03-27');
+
+// Terzo: obiettivo a luglio. Le quattro fasi ci sono sempre tutte.
+const terzo = proponiFasi('2027-07-25', { inizioStagione: giorno('2027-03-28', 1) });
+dice('anche il terzo ha quattro fasi', terzo.length, 4);
+dice('e non si sovrappone al secondo', terzo[0].dal > secondo[3].al, true);
+
+// --- la ripartizione proposta ---
+dice('gli Esordienti B non fanno lattacido in generale',
+  proponiTutteLeFasi(['ESO_B1']).generale.lattacido, 0);
+dice('comanda la categoria più alta fra quelle scelte',
+  gruppoRipartizione(['ESO_A2', 'RAG_1']), 'ragazzi');
+dice('Propaganda non ha proposta', proponiTutteLeFasi(['PROP_01']), null);
+
+for (const cat of ['ESO_B1', 'ESO_A1', 'RAG_2', 'JUN_1', 'ASS', 'MAS']) {
+  const tutte = proponiTutteLeFasi([cat]);
+  for (const [fase, r] of Object.entries(tutte)) {
+    const somma = Object.values(r).reduce((a, b) => a + b, 0);
+    if (somma !== 100) { male++; console.error(`\u2717 ${cat}/${fase} somma ${somma}, non 100`); }
+  }
+  // Il lattacido non deve mai calare salendo di fase fino alla specifica.
+  if (tutte.specifica.lattacido < tutte.generale.lattacido) {
+    male++; console.error(`\u2717 ${cat}: la specifica ha meno lattacido della generale`);
+  }
+}
+
+// E deve crescere con l'età: un Assoluto fa più lattacido di un Esordiente.
+dice('il lattacido cresce con la categoria',
+  proponiTutteLeFasi(['ASS']).specifica.lattacido > proponiTutteLeFasi(['ESO_A1']).specifica.lattacido,
+  true);
+
+// --- copiare le sedute ---
+dice('il lunedì di un mercoledì', lunediDi('2026-08-05'), '2026-08-03');
+dice('il lunedì di una domenica', lunediDi('2026-08-09'), '2026-08-03');
+dice('il lunedì di un lunedì è sé stesso', lunediDi('2026-08-03'), '2026-08-03');
+
+const originale = {
+  id: 'abc', societa_id: 'soc', data: '2026-08-03', titolo: 'Centrale A2',
+  categorie: ['ESO_A1'], origine: 'manuale',
+  sezioni: [{ titolo: 'WU', serie: [{ notazione: '1x400', metri: 400 }] }],
+  svolto: { righe: { '0-0': 300 } },
+};
+const copiata = copiaSeduta(originale, '2026-08-10');
+
+dice('la copia va sulla data nuova', copiata.data, '2026-08-10');
+dice('la copia non porta l\'id dell\'originale', copiata.id, undefined);
+dice('e nemmeno "com\'è andata"', copiata.svolto, undefined);
+dice('il programma però c\'è tutto', copiata.sezioni[0].serie[0].metri, 400);
+
+// La copia dev'essere profonda: toccare la copia non deve toccare l'originale.
+copiata.sezioni[0].serie[0].metri = 999;
+dice('toccare la copia non tocca l\'originale', originale.sezioni[0].serie[0].metri, 400);
+
+const settimane = perSettimana([
+  { data: '2026-08-03' }, { data: '2026-08-05' }, { data: '2026-08-11' },
+]);
+dice('due settimane distinte', settimane.length, 2);
+dice('la più recente per prima', settimane[0].lunedi, '2026-08-10');
+dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
 
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
