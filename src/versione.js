@@ -10,6 +10,24 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.38.0',
+    data: '2026-08-06',
+    voci: [
+      'CORRETTO lo schermo rotto con "Cannot access \u2018h\u2019 before initialization": i pezzi del pacchetto si aspettavano a vicenda',
+      'Le librerie tornano in un file solo invece di tre \u2014 restano in cache come prima, senza il rischio',
+      'La consegna adesso si ferma da sola se i pezzi tornano a incrociarsi',
+    ],
+  },
+  {
+    versione: '0.38.0',
+    data: '2026-08-06',
+    voci: [
+      'CORRETTO: la Dashboard si spaccava con "Cannot access \u2018h\u2019 before initialization" \u2014 colpa mia, dalla 0.34',
+      'Il riassunto della fase leggeva una variabile prima della riga che la dichiara',
+      'Aggiunto un controllo che blocca la consegna quando succede: sei altri casi trovati e sistemati',
+    ],
+  },
+  {
     versione: '0.37.0',
     data: '2026-08-06',
     voci: [

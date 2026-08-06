@@ -329,7 +329,7 @@ export function chiaveAtleta({ cognome, nome, anno_nascita } = {}) {
 // la serie chiusa prima. Chi non è nella mappa è andato come previsto.
 // Gemella di squadra.metri_svolti() in SQL (migrazione 022).
 // ---------------------------------------------------------------------
-export const chiaveRiga = (iSezione, iSerie) => `${iSezione}-${iSerie}`;
+export function chiaveRiga(iSezione, iSerie) { return `${iSezione}-${iSerie}`; }
 
 export function metriSvolti(sezioni, svolto) {
   const righe = svolto?.righe || {};
@@ -811,8 +811,9 @@ export function inizioStagionePredefinito(stagione) {
   return anno ? `${anno}-09-01` : null;
 }
 
-export const giorniFra = (dal, al) =>
-  Math.round((new Date(al + 'T12:00') - new Date(dal + 'T12:00')) / 86400000) + 1;
+export function giorniFra(dal, al) {
+  return Math.round((new Date(al + 'T12:00') - new Date(dal + 'T12:00')) / 86400000) + 1;
+}
 
 export const settimaneFra = (dal, al) => (giorniFra(dal, al) / 7).toFixed(1).replace('.0', '');
 

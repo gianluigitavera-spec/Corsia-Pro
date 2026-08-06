@@ -44,17 +44,6 @@ export default function Calendario({
     catch { return false; }
   });
 
-  // Quello che si legge a riquadro chiuso: se la riga non dicesse niente,
-  // tanto varrebbe non averla.
-  const faseOggi = faseDelGiorno(fasi, iso(oggi));
-  const riassuntoFase = !codiciMacro
-    ? ''
-    : faseOggi
-      ? `oggi ${faseDi(faseOggi.fase)?.nome || faseOggi.fase} · fino al ${dataItLunga(faseOggi.al)}`
-      : fasi.length
-        ? 'oggi fuori dalle fasi impostate'
-        : 'nessuna fase impostata';
-
   function commutaProg() {
     setProgAperta((v) => {
       try { localStorage.setItem('corsiapro:programmazione-aperta', v ? '0' : '1'); } catch { /* niente */ }
@@ -101,6 +90,21 @@ export default function Calendario({
   }, [mese.getTime()]);
 
   const codiciMacro = codiciMacroSel;
+
+  // Quello che si legge a riquadro chiuso: se la riga non dicesse niente,
+  // tanto varrebbe non averla.
+  // NB: deve stare DOPO codiciMacro. Stava sopra, e leggere una const
+  // prima della sua riga non è un warning ma un errore che spacca la
+  // schermata — "Cannot access 'h' before initialization".
+  const faseOggi = faseDelGiorno(fasi, iso(oggi));
+  const riassuntoFase = !codiciMacro
+    ? ''
+    : faseOggi
+      ? `oggi ${faseDi(faseOggi.fase)?.nome || faseOggi.fase} · fino al ${dataItLunga(faseOggi.al)}`
+      : fasi.length
+        ? 'oggi fuori dalle fasi impostate'
+        : 'nessuna fase impostata';
+
   const codiciNoti = new Set((categorie || []).map((c) => c.codice));
   const raggruppamentiNoti = RAGGRUPPAMENTI
     .map((r) => ({ ...r, codici: r.codici.filter((c) => codiciNoti.size === 0 || codiciNoti.has(c)) }))
