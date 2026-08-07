@@ -10,6 +10,15 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.45.0',
+    data: '2026-08-07',
+    voci: [
+      'CORRETTO lo schermo rotto con "Can\u2019t find variable: macro": tolto il filtro locale dalla Dashboard, tre righe lo nominavano ancora',
+      'Il controllo prima della consegna ora blocca anche le variabili che non esistono pi\u00f9, non solo quelle lette troppo presto',
+      'Trovato e corretto un secondo residuo dello stesso tipo nel calendario',
+    ],
+  },
+  {
     versione: '0.44.0',
     data: '2026-08-07',
     voci: [

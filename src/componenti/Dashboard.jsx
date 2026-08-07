@@ -18,7 +18,7 @@ const indietro = (g) => {
   return d.toISOString().slice(0, 10);
 };
 
-export default function Dashboard({ societa, zone, categorie, stagione, puoScrivere, apriSeduta, gruppi, codiciGruppi }) {
+export default function Dashboard({ societa, zone, categorie, stagione, puoScrivere, apriSeduta, gruppi = [], codiciGruppi }) {
   const [giorni, setGiorni] = useState(28);
   const [spec, setSpec] = useState('Mezzofondo');
   const [righe, setRighe] = useState([]);
@@ -103,12 +103,12 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
     <>
       <Calendario societa={societa} gruppi={gruppi} codiciGruppi={codiciGruppi}
         puoScrivere={puoScrivere} apriSeduta={apriSeduta}
-        stagione={stagione} categorie={categorie} macro={macro} cambiaMacro={setMacro} />
+        stagione={stagione} categorie={categorie} />
 
       <div className="barra sezione">
         <h1>Dashboard volumi</h1>
-        {macroScelto && macro !== 'tutte' && (
-          <span className="societa" style={{ borderColor: 'rgba(34,211,238,0.35)' }}>{macroScelto.nome}</span>
+        {gruppi.length > 0 && (
+          <span className="societa" style={{ borderColor: 'rgba(34,211,238,0.35)' }}>{gruppi.join(' · ')}</span>
         )}
         <div style={{ flex: 1 }} />
         <select value={spec} onChange={(e) => setSpec(e.target.value)}>
@@ -121,9 +121,9 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
 
       <p style={{ color: 'var(--testo-3)', fontSize: 13, marginTop: -6 }}>
         Carico di chi fa <b style={{ color: 'var(--testo-2)' }}>{spec}</b>: riscaldamento comune più la
-        sua parte centrale. {macro === 'tutte'
-          ? 'Tutte le categorie insieme: scegline una sopra e i numeri seguono.'
-          : <>Solo le sedute di <b style={{ color: 'var(--testo-2)' }}>{macroScelto.nome}</b>.</>}
+        sua parte centrale. {gruppi.length === 0
+          ? 'Tutte le categorie insieme: scegline una in testata e i numeri seguono.'
+          : <>Solo le sedute di <b style={{ color: 'var(--testo-2)' }}>{gruppi.join(' · ')}</b>.</>}
       </p>
 
       {errore && <div className="avviso errore">{errore}</div>}
@@ -151,9 +151,9 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
             <div className="vuoto">
               <h3>Nessun metro nel periodo</h3>
               <p>
-                {macro === 'tutte'
+                {gruppi.length === 0
                   ? 'Le zone si riempiono man mano che salvi le sedute con la zona indicata su ogni serie.'
-                  : `Nessuna seduta di ${macroScelto.nome} in questo periodo: prova con "Tutte" o allarga l'orizzonte.`}
+                  : `Nessuna seduta di ${gruppi.join(' · ')} in questo periodo: prova con "Tutte le categorie" in testata, o allarga l'orizzonte.`}
               </p>
             </div>
           ) : (
@@ -189,7 +189,7 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
           <h3>Andamento settimanale</h3>
           <div style={{ flex: 1 }} />
           <span style={{ fontSize: 12, color: 'var(--testo-3)' }}>
-            {spec}{macro !== 'tutte' ? ` · ${macroScelto.nome}` : ''}
+            {spec}{gruppi.length ? ` · ${gruppi.join(' · ')}` : ''}
           </span>
         </div>
         <div className="corpo">

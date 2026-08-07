@@ -61,7 +61,7 @@ export default function Calendario({
     api.leggiPeriodizzazione(societa.id, codiciMacroSel)
       .then(setFasi)
       .catch(() => setFasi([]));
-  }, [societa.id, macro, codiciMacroSel?.join()]);
+  }, [societa.id, codiciMacroSel?.join()]);
 
   async function ricarica() {
     try {
