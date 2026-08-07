@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2, ChevronRight } from 'lucide-react';
 import * as api from '../lib/dati';
-import { MACRO_CALENDARIO, rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga } from '../lib/dominio';
+import { rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga } from '../lib/dominio';
 import Periodizzazione from './Periodizzazione';
 
 export const TIPI_GARA = {
@@ -20,14 +20,9 @@ const GIORNI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export default function Calendario({
-  societa, puoScrivere, apriSeduta, stagione, categorie, macro: macroFuori, cambiaMacro,
+  societa, puoScrivere, apriSeduta, stagione, categorie, gruppi = [], codiciGruppi,
 }) {
   const oggi = new Date();
-  // Se la Dashboard tiene il filtro, comanda lei: così le statistiche e
-  // il calendario guardano sempre la stessa categoria.
-  const [macroDentro, setMacroDentro] = useState('tutte');
-  const macro = macroFuori ?? macroDentro;
-  const setMacro = cambiaMacro ?? setMacroDentro;
   const [mese, setMese] = useState(new Date(oggi.getFullYear(), oggi.getMonth(), 1));
   const [sedute, setSedute] = useState([]);
   const [gare, setGare] = useState([]);
@@ -59,7 +54,8 @@ export default function Calendario({
 
   // Le fasce di periodizzazione esistono solo dentro una categoria:
   // su "Tutte" il calendario resta pulito, con gare e allenamenti.
-  const codiciMacroSel = MACRO_CALENDARIO.find((m) => m.id === macro)?.codici || null;
+  // Una sola fonte: la scelta in testata.
+  const codiciMacroSel = codiciGruppi || null;
   useEffect(() => {
     if (!codiciMacroSel) { setFasi([]); return; }
     api.leggiPeriodizzazione(societa.id, codiciMacroSel)
@@ -90,6 +86,10 @@ export default function Calendario({
   }, [mese.getTime()]);
 
   const codiciMacro = codiciMacroSel;
+  // La periodizzazione esiste dentro UNA categoria: con due gruppi
+  // spuntati non ha senso, e su "tutte" nemmeno. Il calendario resta,
+  // con gare e allenamenti.
+  const unGruppoSolo = gruppi.length === 1 ? codiciMacro : null;
 
   // Quello che si legge a riquadro chiuso: se la riga non dicesse niente,
   // tanto varrebbe non averla.
@@ -143,19 +143,9 @@ export default function Calendario({
         <button className="mini" onClick={() => setMese(new Date(oggi.getFullYear(), oggi.getMonth(), 1))}>Oggi</button>
       </div>
 
-      <div className="corpo" style={{ paddingBottom: 0 }}>
-        <div className="destinatari">
-          {MACRO_CALENDARIO.map((m) => (
-            <button key={m.id} className="pastiglia" aria-pressed={macro === m.id} onClick={() => setMacro(m.id)}>
-              {m.nome}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {errore && <div className="corpo"><div className="avviso errore">{errore}</div></div>}
 
-      {codiciMacro && (
+      {unGruppoSolo && (
         <div className="corpo" style={{ paddingBottom: progAperta ? 0 : 14 }}>
           <button className="riga-apribile" onClick={commutaProg}
             aria-expanded={progAperta}>
@@ -166,12 +156,12 @@ export default function Calendario({
         </div>
       )}
 
-      {codiciMacro && progAperta && (
+      {unGruppoSolo && progAperta && (
         <div className="corpo" style={{ paddingTop: 0, paddingBottom: 0 }}>
           <Periodizzazione
             societa={societa}
             codici={codiciMacro}
-            nomeMacro={MACRO_CALENDARIO.find((m) => m.id === macro)?.nome}
+            nomeMacro={gruppi[0]}
             gare={gare.filter((g) => rientraNelMacro(g.categorie, codiciMacro))}
             stagione={stagione}
             puoScrivere={puoScrivere}

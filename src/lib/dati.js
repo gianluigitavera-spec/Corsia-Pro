@@ -4,7 +4,7 @@
 // =====================================================================
 import { sb } from './supabase';
 import * as locale from './locale';
-import { metriPerSpecializzazione, zonePerSpecializzazione } from './dominio';
+import { metriPerSpecializzazione, zonePerSpecializzazione, chiaveAtleta } from './dominio';
 
 function ok({ data, error }) {
   if (error) throw new Error(error.message);
@@ -85,7 +85,7 @@ export async function leggiAtletiTutti(societaId) {
   return ok(
     await sb
       .from('atleti')
-      .select('id, nome, cognome, anno_nascita, attivo')
+      .select('id, nome, cognome, anno_nascita, attivo, categoria_override')
       .eq('societa_id', societaId)
   );
 }
@@ -119,6 +119,36 @@ export async function salvaSvolto(sedutaId, svolto) {
     locale.segnalaLinea(false);
     return null;
   }
+}
+
+// Aggiorna la categoria manuale di chi c'è già, riconoscendolo dalla
+// chiave. Serve quando il CSV arriva dopo: reimportare non basta, il
+// vincolo anti-doppione giustamente non fa entrare nessuno due volte.
+export async function aggiornaCategorieDaCsv(societaId, coppie) {
+  if (!coppie.length) return { aggiornati: [], nonTrovati: [] };
+  const esistenti = await leggiAtletiTutti(societaId);
+  const per = new Map(esistenti.map((a) => [chiaveAtleta(a), a]));
+
+  const daFare = [];
+  const nonTrovati = [];
+  for (const { atleta, categoria } of coppie) {
+    const trovato = per.get(chiaveAtleta(atleta));
+    if (!trovato) { nonTrovati.push(`${atleta.cognome} ${atleta.nome}`); continue; }
+    if ((trovato.categoria_override || null) !== (categoria || null)) {
+      daFare.push({ id: trovato.id, categoria: categoria || null });
+    }
+  }
+
+  // Una chiamata per categoria, non una per atleta.
+  const perCategoria = new Map();
+  for (const x of daFare) {
+    const k = x.categoria || 'niente';
+    perCategoria.set(k, [...(perCategoria.get(k) || []), x.id]);
+  }
+  for (const [cat, ids] of perCategoria) {
+    await aggiornaAtleti(ids, { categoria_override: cat === 'niente' ? null : cat });
+  }
+  return { aggiornati: daFare.map((x) => x.id), nonTrovati };
 }
 
 // ------------------------------------------- atleti: azioni di massa

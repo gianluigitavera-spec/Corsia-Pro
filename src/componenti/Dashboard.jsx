@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI, MACRO_CALENDARIO } from '../lib/dominio';
+import { SPECIALIZZAZIONI } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
 import Calendario from './Calendario';
 import { BarreImpilate } from './Grafici';
@@ -18,16 +18,16 @@ const indietro = (g) => {
   return d.toISOString().slice(0, 10);
 };
 
-export default function Dashboard({ societa, zone, categorie, stagione, puoScrivere, apriSeduta }) {
+export default function Dashboard({ societa, zone, categorie, stagione, puoScrivere, apriSeduta, gruppi, codiciGruppi }) {
   const [giorni, setGiorni] = useState(28);
   const [spec, setSpec] = useState('Mezzofondo');
-  const [macro, setMacro] = useState('tutte');
   const [righe, setRighe] = useState([]);
   const [errore, setErrore] = useState(null);
   const [caricamento, setCaricamento] = useState(true);
 
-  const macroScelto = MACRO_CALENDARIO.find((m) => m.id === macro);
-  const codiciMacro = macroScelto?.codici || null;
+  // Niente più filtro qui dentro: la categoria si sceglie una volta sola
+  // in testata e vale per tutte le schede.
+  const codiciMacro = codiciGruppi;
 
   useEffect(() => {
     setCaricamento(true);
@@ -101,7 +101,8 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
 
   return (
     <>
-      <Calendario societa={societa} puoScrivere={puoScrivere} apriSeduta={apriSeduta}
+      <Calendario societa={societa} gruppi={gruppi} codiciGruppi={codiciGruppi}
+        puoScrivere={puoScrivere} apriSeduta={apriSeduta}
         stagione={stagione} categorie={categorie} macro={macro} cambiaMacro={setMacro} />
 
       <div className="barra sezione">

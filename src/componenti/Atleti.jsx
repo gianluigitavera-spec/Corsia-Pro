@@ -19,7 +19,7 @@ const elenco = (nomi, quanti = 10) =>
     ? nomi.join(', ')
     : `${nomi.slice(0, quanti).join(', ')} e altri ${nomi.length - quanti}`;
 
-export default function Atleti({ societa, fasce, stagione, proiezione, puoScrivere }) {
+export default function Atleti({ societa, fasce, stagione, proiezione, puoScrivere, codiciGruppi }) {
   const [atleti, setAtleti] = useState([]);
   const [cerca, setCerca] = useState('');
   const [nuovo, setNuovo] = useState(VUOTO);
@@ -39,10 +39,14 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
     } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
   }
 
-  const visibili = useMemo(
-    () => (cerca.trim() ? atleti.filter((a) => combacia(a, cerca.trim())) : atleti),
-    [atleti, cerca]
-  );
+  // Prima il gruppo scelto in testata, poi la ricerca. Chi allena gli
+  // Esordienti A vede solo loro, e "seleziona tutti" prende loro.
+  const visibili = useMemo(() => {
+    const delGruppo = codiciGruppi
+      ? atleti.filter((a) => codiciGruppi.includes(categoriaAtleta(a, fasce)))
+      : atleti;
+    return cerca.trim() ? delGruppo.filter((a) => combacia(a, cerca.trim())) : delGruppo;
+  }, [atleti, cerca, codiciGruppi, fasce]);
 
   async function aggiungi() {
     try {
@@ -195,6 +199,7 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
           const gia = new Map(esistenti.map((a) => [chiaveAtleta(a), a]));
 
           const nuovi = [];
+          const daCorreggere = [];
           const doppiNelFoglio = [];
           const doppiInSquadra = [];
           const visteQui = new Set();
@@ -207,6 +212,13 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
             const vecchio = gia.get(k);
             if (vecchio) {
               doppiInSquadra.push(nome + (vecchio.attivo ? '' : ' (in archivio)'));
+              // Non lo reinserisco, ma se il foglio dice una categoria e
+              // quella salvata è diversa, quella la aggiorno: se no i Teen
+              // e i Master importati da un foglio nuovo restano per sempre
+              // nel gruppo che il calcolo per età gli aveva dato.
+              if (r.categoria_override && vecchio.categoria_override !== r.categoria_override) {
+                daCorreggere.push({ id: vecchio.id, codice: r.categoria_override, nome });
+              }
               return;
             }
             nuovi.push(r);
@@ -214,9 +226,32 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
 
           await api.importaAtleti(nuovi);
 
+          // Chi c'era già non viene reinserito, ma la sua categoria manuale
+          // sì: è il caso dei Teen e dei Master importati prima che il
+          // modello avesse la colonna categoria.
+          const daSistemare = righe
+            .filter((r) => gia.has(chiaveAtleta(r)) && r.categoria_override)
+            .map((r) => ({ atleta: r, categoria: r.categoria_override }));
+          const sistemati = daSistemare.length
+            ? await api.aggiornaCategorieDaCsv(societa.id, daSistemare)
+            : { aggiornati: [] };
+
+          // Le correzioni di categoria, raggruppate per codice: una
+          // chiamata per gruppo, non una per atleta.
+          for (const codice of [...new Set(daCorreggere.map((x) => x.codice))]) {
+            const ids = daCorreggere.filter((x) => x.codice === codice).map((x) => x.id);
+            await api.aggiornaAtleti(ids, { categoria_override: codice });
+          }
+
           const parti = [`Importati ${nuovi.length} atleti.`];
           if (doppiInSquadra.length) {
             parti.push(`${doppiInSquadra.length} erano già in squadra e non sono stati reinseriti: ${elenco(doppiInSquadra)}.`);
+          }
+          if (sistemati.aggiornati.length) {
+            parti.push(`A ${sistemati.aggiornati.length} di loro è stata aggiornata la categoria dal foglio.`);
+          }
+          if (daCorreggere.length) {
+            parti.push(`${daCorreggere.length} già in squadra hanno preso la categoria del foglio: ${elenco(daCorreggere.map((x) => x.nome))}.`);
           }
           if (doppiNelFoglio.length) {
             parti.push(`${doppiNelFoglio.length} comparivano due volte nel foglio: ${elenco(doppiNelFoglio)}.`);

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Dumbbell, Settings2, LogOut, HelpCircle } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
-import { stagioneCorrente, stagioniProposte, fasceRisolte } from './lib/dominio';
+import { stagioneCorrente, stagioniProposte, fasceRisolte, RAGGRUPPAMENTI } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
 import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
 import StatoLinea from './componenti/StatoLinea';
+import ScegliGruppi from './componenti/ScegliGruppi';
 import Atleti from './componenti/Atleti';
 import EditorSeduta from './componenti/EditorSeduta';
 import Appello from './componenti/Appello';
@@ -32,6 +33,24 @@ const SCHEDE = [
 
 export default function App() {
   const [sessione, setSessione] = useState(undefined);
+
+  // La categoria scelta una volta e valida per tutte le schede. Vuoto =
+  // tutte. Resta fra una visita e l'altra: chi allena gli Esordienti A
+  // apre l'app e li ha già davanti.
+  const [gruppi, setGruppi] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('corsiapro:gruppi') || '[]'); }
+    catch { return []; }
+  });
+
+  function scegliGruppi(nuovi) {
+    setGruppi(nuovi);
+    try { localStorage.setItem('corsiapro:gruppi', JSON.stringify(nuovi)); } catch { /* niente */ }
+  }
+
+  // I codici categoria dietro la scelta. null = nessun filtro.
+  const codiciGruppi = gruppi.length
+    ? [...new Set(gruppi.flatMap((n) => RAGGRUPPAMENTI.find((r) => r.nome === n)?.codici || []))]
+    : null;
   const [societa, setSocieta] = useState(null);
   const [ruolo, setRuolo] = useState(null);
   const [scheda, setScheda] = useState('dashboard');
@@ -162,6 +181,7 @@ export default function App() {
           >
             {stagioni.map((x) => <option key={x} value={x}>Stagione {x}</option>)}
           </select>
+          <ScegliGruppi scelti={gruppi} cambia={scegliGruppi} />
         </div>
       </header>
 
@@ -207,6 +227,7 @@ export default function App() {
         <main className="sezione">
           {scheda === 'dashboard' && (
             <Dashboard societa={societa} zone={zone} categorie={categorie} stagione={stagione}
+              gruppi={gruppi} codiciGruppi={codiciGruppi}
               puoScrivere={puoScrivere} apriSeduta={apriSeduta} />
           )}
           {scheda === 'sedute' && (
@@ -215,13 +236,16 @@ export default function App() {
               apertura={apertura} consumaApertura={consumaApertura}
             />
           )}
-          {scheda === 'appello' && <Appello societa={societa} fasce={fasce} puoScrivere={puoScrivere} />}
-          {scheda === 'benessere' && <Benessere societa={societa} fasce={fasce} puoScrivere={puoScrivere} />}
+          {scheda === 'appello' && <Appello societa={societa} fasce={fasce} puoScrivere={puoScrivere}
+            gruppi={gruppi} codiciGruppi={codiciGruppi} />}
+          {scheda === 'benessere' && <Benessere societa={societa} fasce={fasce} puoScrivere={puoScrivere}
+            gruppi={gruppi} codiciGruppi={codiciGruppi} />}
           {scheda === 'atleti' && (
-            <Atleti societa={societa} fasce={fasce} stagione={stagione}
+            <Atleti societa={societa} fasce={fasce} stagione={stagione} codiciGruppi={codiciGruppi}
               proiezione={proiezione} puoScrivere={puoScrivere} />
           )}
-          {scheda === 'volumi' && <Volumi societa={societa} stagione={stagione} />}
+          {scheda === 'volumi' && <Volumi societa={societa} stagione={stagione} fasce={fasce}
+            gruppi={gruppi} codiciGruppi={codiciGruppi} />}
           {scheda === 'esercizi' && <Esercizi societa={societa} puoScrivere={puoScrivere} />}
           {scheda === 'squadra' && (
             <Squadra societa={societa} ruolo={ruolo} ricaricaSocieta={() => setRicarica((n) => n + 1)} />

@@ -639,6 +639,9 @@ export const RAGGRUPPAMENTI = [
 ];
 
 // Filtri del calendario: come guardi la settimana quando pianifichi.
+// Vecchi filtri per scheda. CorsiaPro non li usa più — la categoria si
+// sceglie una volta sola in testata (RAGGRUPPAMENTI) — ma dominio.js è
+// condiviso con SwimCoach, quindi restano dove sono.
 export const MACRO_CALENDARIO = [
   { id: "tutte",      nome: "Tutte",        codici: null },
   { id: "propaganda", nome: "Propaganda",   codici: ["PROP_01", "PROP_2"] },

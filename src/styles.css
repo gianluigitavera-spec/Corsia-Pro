@@ -945,3 +945,21 @@ tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
   /* Niente zoom involontario su iOS quando si tocca un campo. */
   input, select, textarea { font-size: 16px; }
 }
+
+/* --------------------------------- SCELTA DEL GRUPPO IN TESTATA */
+.scegli-gruppi { position: relative; }
+.bottone-gruppi { display: inline-flex; align-items: center; white-space: nowrap; cursor: pointer; }
+.tendina-gruppi {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
+  min-width: 220px; max-height: 60vh; overflow-y: auto;
+  background: var(--scheda-alta); border: var(--riga); border-radius: var(--raggio);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); padding: 6px;
+}
+.tendina-gruppi .voce-gruppo {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 9px 10px; background: none; border: 0; border-radius: var(--raggio-p);
+  color: var(--testo); text-align: left; font-size: 14px; cursor: pointer;
+}
+.tendina-gruppi .voce-gruppo:hover { background: rgba(34, 211, 238, 0.1); }
+.tendina-gruppi .segno { width: 16px; color: var(--ciano); flex: none; }
+.tendina-gruppi .separatore { height: 1px; background: var(--bordo); margin: 5px 8px; }

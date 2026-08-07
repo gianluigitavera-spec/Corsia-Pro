@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Target, TrendingUp } from 'lucide-react';
 import * as api from '../lib/dati';
-import { FASI, faseDi, dataIt, MACRO_CALENDARIO } from '../lib/dominio';
+import { FASI, faseDi, dataIt } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 
 const FAMIGLIE = [
@@ -14,12 +14,13 @@ const FAMIGLIE = [
 const oggi = () => new Date().toISOString().slice(0, 10);
 
 // Programmato contro nuotato: la parte che rende utile la periodizzazione.
-export default function Confronto({ societa, specializzazione = 'Generale' }) {
-  const [macro, setMacro] = useState(MACRO_CALENDARIO[1]?.id || 'tutte');
+export default function Confronto({ societa, specializzazione = 'Generale', gruppi = [], codiciGruppi }) {
   const [righe, setRighe] = useState([]);
   const [errore, setErrore] = useState(null);
 
-  const codici = MACRO_CALENDARIO.find((m) => m.id === macro)?.codici || null;
+  // Gli obiettivi di fase si decidono per una categoria alla volta:
+  // con più gruppi spuntati in testata non c'è un confronto da fare.
+  const codici = gruppi.length === 1 ? codiciGruppi : null;
 
   useEffect(() => {
     if (!codici) { setRighe([]); return; }
@@ -53,11 +54,9 @@ export default function Confronto({ societa, specializzazione = 'Generale' }) {
         <Target size={16} style={{ color: 'var(--ambra)' }} />
         <h3>Programmato contro nuotato</h3>
         <div style={{ flex: 1 }} />
-        <select value={macro} onChange={(e) => setMacro(e.target.value)} style={{ minHeight: 34, fontSize: 13 }}>
-          {MACRO_CALENDARIO.filter((m) => m.codici).map((m) => (
-            <option key={m.id} value={m.id}>{m.nome}</option>
-          ))}
-        </select>
+        <span className="mono" style={{ color: 'var(--testo-3)', fontSize: 12 }}>
+          {gruppi.length === 1 ? gruppi[0] : 'scegli una categoria sola in alto'}
+        </span>
       </div>
 
       <div className="corpo">

@@ -19,7 +19,7 @@ const lunedi = (isoData) => {
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
   'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 
-export default function Volumi({ societa, stagione }) {
+export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGruppi }) {
   const [modo, setModo] = useState('mese');      // settimana | mese | periodo | stagione
   const [settimana, setSettimana] = useState(lunedi(iso(new Date())));
   const [mese, setMese] = useState(iso(new Date()).slice(0, 7));
@@ -57,10 +57,23 @@ export default function Volumi({ societa, stagione }) {
       api.leggiSedute(societa.id, { da: periodo.dal, a: periodo.al }),
     ])
       .then(([carico, s]) => {
-        setRighe(carico.righe); setSedute(s || []); setZone(carico.zone);
+        // Il gruppo scelto in testata vale anche qui: le sedute per le
+        // categorie che segui, e gli atleti che ci stanno dentro.
+        const seduteViste = codiciGruppi
+          ? (s || []).filter((x) => (x.categorie || []).some((c) => codiciGruppi.includes(c)))
+          : (s || []);
+        const idViste = new Set(seduteViste.map((x) => x.id));
+        setRighe(codiciGruppi
+          ? carico.righe.filter((r) => seduteViste.some((x) => x.data === r.data))
+          : carico.righe);
+        setSedute(seduteViste);
+        setZone(codiciGruppi
+          ? carico.zone.filter((z) => (z.categorie || []).some((c) => codiciGruppi.includes(c)))
+          : carico.zone);
+        void idViste;
       })
       .catch((e) => setErrore(e.message));
-  }, [societa.id, periodo.dal, periodo.al]);
+  }, [societa.id, periodo.dal, periodo.al, codiciGruppi?.join()]);
 
   // ------------------------------------------------ km delle sedute
   // Il volume del programma, non moltiplicato per gli atleti: per ogni
@@ -228,7 +241,7 @@ export default function Volumi({ societa, stagione }) {
         </div>
       </div>
 
-      <Confronto societa={societa} />
+      <Confronto societa={societa} gruppi={gruppi} codiciGruppi={codiciGruppi} />
 
       <div className="scheda sezione">
         <div className="intestazione">

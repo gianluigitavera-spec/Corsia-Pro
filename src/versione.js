@@ -10,6 +10,36 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.44.0',
+    data: '2026-08-07',
+    voci: [
+      'Reimportando il CSV, a chi \u00e8 gi\u00e0 in squadra viene aggiornata la categoria dal foglio',
+      'Serviva per Teen e Master, entrati prima che il modello avesse la colonna categoria',
+      'Nessun atleta viene duplicato n\u00e9 ricreato: si tocca solo la categoria manuale',
+    ],
+  },
+  {
+    versione: '0.43.0',
+    data: '2026-08-07',
+    voci: [
+      'La categoria si sceglie UNA VOLTA SOLA, in testata accanto alla stagione, e vale per tutte le schede',
+      'Si possono spuntare pi\u00f9 gruppi insieme: chi segue Esordienti A e B li vede insieme',
+      'Via i filtri sparsi in Dashboard, calendario, appello, benessere, atleti e carico',
+      'La scelta resta fra una visita e l\u2019altra: apri l\u2019app e sei gi\u00e0 sul tuo gruppo',
+      'Periodizzazione e obiettivi di fase compaiono solo con una categoria sola spuntata, perch\u00e9 \u00e8 l\u00ec che hanno senso',
+    ],
+  },
+  {
+    versione: '0.43.0',
+    data: '2026-08-07',
+    voci: [
+      'La scelta del gruppo in testata vale ora anche per Calendario, Atleti e Carico atleti: prima la sentivano solo Appello e Benessere',
+      'In Atleti vedi solo il tuo gruppo, e "seleziona tutti" prende quelli',
+      'L\u2019import ora corregge la categoria di chi \u00e8 gi\u00e0 in squadra: i Teen e i Master di un foglio nuovo non restano pi\u00f9 nel gruppo sbagliato',
+      'Chi c\u2019\u00e8 gi\u00e0 non viene comunque reinserito, e l\u2019import dice quanti ne ha corretti e quali',
+    ],
+  },
+  {
     versione: '0.42.0',
     data: '2026-08-07',
     voci: [

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { HeartPulse, Check } from 'lucide-react';
 import * as api from '../lib/dati';
 import ComeAndata from './ComeAndata';
-import { RAGGRUPPAMENTI, categoriaAtleta, dataIt } from '../lib/dominio';
+import { categoriaAtleta, dataIt } from '../lib/dominio';
 
 // Quattro stati. L'assenza non conta come presenza; ritardo e
 // giustificato sì — il ritardo però viene contato a parte.
@@ -23,24 +23,13 @@ const tintaPct = (p) =>
     : p >= 60 ? 'var(--ambra)'
     : 'var(--rosso)';
 
-export default function Appello({ societa, fasce, puoScrivere }) {
+export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
   const [sedute, setSedute] = useState([]);
   const [sedutaId, setSedutaId] = useState('');
   const [atleti, setAtleti] = useState([]);
   const [stati, setStati] = useState({});
   const [prontezza, setProntezza] = useState({});
   const [frequenza, setFrequenza] = useState({});
-  // La categoria è la prima scelta della giornata e cambia raramente:
-  // se la si ricorda, all'apertura sei già dove lavori.
-  const [filtro, setFiltro] = useState(() => {
-    try { return localStorage.getItem('corsiapro:appello-categoria') || 'tutti'; }
-    catch { return 'tutti'; }
-  });
-
-  function scegliCategoria(nome) {
-    setFiltro(nome);
-    try { localStorage.setItem('corsiapro:appello-categoria', nome); } catch { /* niente */ }
-  }
   const [messaggio, setMessaggio] = useState(null);
 
   useEffect(() => {
@@ -59,11 +48,9 @@ export default function Appello({ societa, fasce, puoScrivere }) {
   // Solo le sedute della categoria scelta: se alleni gli Esordienti A non
   // devi scorrere quelle dei Ragazzi per trovare la tua.
   const seduteDelGruppo = useMemo(() => {
-    if (filtro === 'tutti') return sedute;
-    const r = RAGGRUPPAMENTI.find((x) => x.nome === filtro);
-    if (!r) return sedute;
-    return sedute.filter((s) => (s.categorie || []).some((c) => r.codici.includes(c)));
-  }, [sedute, filtro]);
+    if (!codiciGruppi) return sedute;
+    return sedute.filter((s) => (s.categorie || []).some((c) => codiciGruppi.includes(c)));
+  }, [sedute, codiciGruppi]);
 
   // Scelta da sola: quella di oggi se c'è, se no la più recente. Solo
   // quando quella corrente non appartiene più al gruppo scelto, così non
@@ -92,19 +79,14 @@ export default function Appello({ societa, fasce, puoScrivere }) {
       .catch(() => setProntezza({}));
   }, [seduta?.data, societa.id]);
 
-  // Filtri: Tutti più i raggruppamenti che hanno davvero qualcuno dentro.
+  // La categoria non si sceglie più qui: arriva dalla testata e vale per
+  // tutte le schede.
   const categoriaDi = (a) => categoriaAtleta(a, fasce);
-  const gruppiConAtleti = useMemo(() => {
-    const presenti = new Set(atleti.map(categoriaDi).filter(Boolean));
-    return RAGGRUPPAMENTI.filter((r) => r.codici.some((c) => presenti.has(c)));
-  }, [atleti, fasce]);
 
   const visibili = useMemo(() => {
-    if (filtro === 'tutti') return atleti;
-    const r = RAGGRUPPAMENTI.find((x) => x.nome === filtro);
-    if (!r) return atleti;
-    return atleti.filter((a) => r.codici.includes(categoriaDi(a)));
-  }, [atleti, filtro, fasce]);
+    if (!codiciGruppi) return atleti;
+    return atleti.filter((a) => codiciGruppi.includes(categoriaDi(a)));
+  }, [atleti, codiciGruppi, fasce]);
 
   async function segna(atletaId, codice) {
     const prossimo = stati[atletaId] === codice ? null : codice;  // ritocca = annulla
@@ -138,22 +120,11 @@ export default function Appello({ societa, fasce, puoScrivere }) {
         <h1>Appello</h1>
       </div>
 
-      <div className="destinatari" style={{ marginBottom: 10 }}>
-        <button className="pastiglia" aria-pressed={filtro === 'tutti'} onClick={() => scegliCategoria('tutti')}>
-          {filtro === 'tutti' && <Check size={13} style={{ verticalAlign: -2, marginRight: 5 }} />}Tutti
-        </button>
-        {gruppiConAtleti.map((r) => (
-          <button key={r.nome} className="pastiglia" aria-pressed={filtro === r.nome} onClick={() => scegliCategoria(r.nome)}>
-            {filtro === r.nome && <Check size={13} style={{ verticalAlign: -2, marginRight: 5 }} />}{r.nome}
-          </button>
-        ))}
-      </div>
-
       <div className="barra" style={{ marginBottom: 12 }}>
         {seduteDelGruppo.length === 0 ? (
           <span style={{ color: 'var(--testo-3)', fontSize: 13 }}>
-            Nessuna seduta per {filtro === 'tutti' ? 'la squadra' : filtro}: l'appello
-            si segna su una seduta, quindi prima creala nella scheda Sedute.
+            Nessuna seduta per la categoria scelta in testata: l'appello si segna
+            su una seduta, quindi prima creala nella scheda Sedute.
           </span>
         ) : (
           <>
