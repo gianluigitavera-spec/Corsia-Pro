@@ -130,3 +130,26 @@ export function togli(chiave) {
 export function segnaTentativo(chiave) {
   scrivi(coda().map((v) => (v.chiave === chiave ? { ...v, tentativi: (v.tentativi || 0) + 1 } : v)));
 }
+
+// ---------------------------------------------------------------- bozze
+// La coda protegge l'appello, non l'editor: una seduta lunga scritta e
+// non ancora salvata viveva solo nella memoria della pagina. Cade la
+// linea, si ricarica per sbaglio, e mezz'ora di lavoro sparisce.
+// Qui ne resta una copia sul telefono finché non è salvata davvero.
+const BOZZA = 'corsiapro:bozza:';
+
+export function salvaBozza(chiave, dati) {
+  try { localStorage.setItem(BOZZA + chiave, JSON.stringify({ quando: Date.now(), dati })); }
+  catch { /* spazio finito: pazienza, non è questo che deve bloccare */ }
+}
+
+export function leggiBozza(chiave) {
+  try {
+    const g = localStorage.getItem(BOZZA + chiave);
+    return g ? JSON.parse(g) : null;
+  } catch { return null; }
+}
+
+export function buttaBozza(chiave) {
+  try { localStorage.removeItem(BOZZA + chiave); } catch { /* niente */ }
+}

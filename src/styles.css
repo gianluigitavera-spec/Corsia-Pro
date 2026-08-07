@@ -914,3 +914,34 @@ tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
 }
 .elenco-macrocicli .macrociclo b { color: var(--ciano); }
 .elenco-macrocicli .macrociclo .mono { color: var(--testo-3); font-size: 11.5px; }
+
+/* =====================================================================
+   DITA BAGNATE
+   A bordo vasca si tocca con le mani umide, spesso con una mano sola e
+   guardando l'acqua. Su schermo tattile ogni bersaglio arriva a 44px:
+   sotto quella soglia si sbaglia riga, e sbagliare riga nell'appello
+   vuol dire segnare assente chi c'era.
+   Vale solo per il tocco: con il mouse resta compatto come prima.
+   ===================================================================== */
+@media (pointer: coarse) {
+  button, select, input, .pastiglia, .mini, .azione {
+    min-height: 44px;
+  }
+  input[type="checkbox"], input[type="radio"] {
+    min-height: 0; width: 26px; height: 26px;
+  }
+  .mini { padding: 0 14px; font-size: 14px; }
+  .pastiglia { padding: 0 16px; }
+
+  /* Gli stati dell'appello sono i tasti più premuti dell'app. */
+  .bottone-stato { min-width: 52px; min-height: 48px; font-size: 16px; }
+  .cella-stati { gap: 8px; }
+
+  /* Righe più alte: il dito prende la riga giusta senza mirare. */
+  td { padding-top: 13px; padding-bottom: 13px; }
+  .riga-andata { padding: 11px 0; }
+  .riga-andata input { min-height: 44px; }
+
+  /* Niente zoom involontario su iOS quando si tocca un campo. */
+  input, select, textarea { font-size: 16px; }
+}

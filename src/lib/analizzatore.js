@@ -180,21 +180,7 @@ function trovaZona(riga) {
   return { zona: '', sicura: false };
 }
 
-// Dentro le parentesi: "4x25 + 1x100" = 200, "200+2x100+4x50" = 600.
-// Ogni pezzo dev'essere SOLO un numero o SOLO NxD, niente altro: così
-// "(50 resp 5-3 7-3)" e "(1GB max sub 1Dx 1Sx 1c)" restano quello che
-// sono — una nota — e non diventano metri.
-function sommaGruppo(dentro) {
-  let somma = 0;
-  for (const pezzo of dentro.split('+')) {
-    const p = pezzo.trim();
-    let m = p.match(/^(\d{1,3})\s*x\s*(\d{2,4})$/i);
-    if (m) { somma += +m[1] * almenoUnaVasca(+m[2]); continue; }
-    m = p.match(/^(\d{2,4})$/);
-    if (m) somma += +m[1];
-  }
-  return somma;
-}
+
 
 // Divide su "+" di primo livello: quello dentro le parentesi resta
 // dov'è. "4x(150 + 4x25) 150SL" è UN pezzo, non due.
@@ -215,18 +201,38 @@ function pezziDiPrimoLivello(t) {
 // Legge la misura in TESTA a un pezzo e dice cosa resta dopo. Quello che
 // resta è descrizione: "1x75 Remate DO" sono 75 metri di remate, non 75
 // più qualcos'altro.
+// Trova la parentesi in testa contando le aperture, non fermandosi alla
+// prima chiusa: "3x(2x(4x25) + 100)" ha un gruppo dentro il gruppo, e con
+// la ricerca ingenua si fermava a "(2x(4x25)" leggendo cento metri.
+function gruppoInTesta(p) {
+  const m = p.match(/^(\d{1,3})?\s*x?\s*\(/i);
+  if (!m || !p.slice(m[0].length - 1).startsWith('(')) return null;
+  const inizio = m[0].length - 1;
+  let profondita = 0;
+  for (let i = inizio; i < p.length; i++) {
+    if (p[i] === '(') profondita++;
+    else if (p[i] === ')') {
+      profondita--;
+      if (profondita === 0) {
+        return {
+          moltiplicatore: m[1] ? +m[1] : 1,
+          dentro: p.slice(inizio + 1, i),
+          resto: p.slice(i + 1).trim(),
+        };
+      }
+    }
+  }
+  return null;   // parentesi mai chiusa: non è un gruppo
+}
+
 function misuraInTesta(pezzo) {
   const p = pezzo.trim();
-  let m = p.match(/^(\d{1,3})\s*x\s*\(([^)]+)\)/i);
-  if (m) {
-    const s = sommaGruppo(m[2]);
-    if (s) return { metri: +m[1] * s, resto: p.slice(m[0].length).trim(), gruppo: true };
+  const g = gruppoInTesta(p);
+  if (g) {
+    const s = sommaGruppo(g.dentro);
+    if (s) return { metri: g.moltiplicatore * s, resto: g.resto, gruppo: true };
   }
-  m = p.match(/^\(([^)]+)\)/);
-  if (m) {
-    const s = sommaGruppo(m[1]);
-    if (s) return { metri: s, resto: p.slice(m[0].length).trim(), gruppo: true };
-  }
+  let m;
   m = p.match(/^(\d{1,3})\s*x\s*(\d{2,4})\b(?!\s*[x×])/i);
   if (m) return { metri: +m[1] * almenoUnaVasca(+m[2]), resto: p.slice(m[0].length).trim() };
   m = p.match(/^(\d{2,4})\b/);
@@ -299,6 +305,48 @@ const senzaTempi = (t) => t
   .replace(/@+\s*\d{1,3}\s*["']?/g, ' ')
   .replace(/\d{1,2}\s*'\s*\d{2}/g, ' ')
   .replace(/\d{1,3}\s*"/g, ' ');
+
+// I tempi non sono distanze: "1'40", '45"', "@1:30" vanno tolti prima di
+// cercare le misure, o un recupero passa per una vasca.
+
+// Dentro le parentesi: "4x25 + 1x100" = 200, "200+2x100+4x50" = 600, e
+// anche "4x50 SL + 100 B1" = 300, perché stili e zone sono etichette.
+function sommaGruppo(dentro) {
+  let somma = 0;
+  for (const pezzo of pezziDiPrimoLivello(dentro)) {
+    somma += valoreDelPezzo(pezzo.trim());
+  }
+  return somma;
+}
+
+// Le zone e gli stili sono etichette, non numeri: "100 B1" è un cento in
+// soglia, "4x50 SL" sono duecento a stile. Dopo averle tolte non deve
+// restare nessuna cifra, se no il pezzo sta descrivendo qualcosa —
+// "(50 resp 5-3 7-3)" resta una nota, non diventa mai metri.
+const ETICHETTE = /\b(A1|A2|B1|B2\+?|C1|C2|C3|D|SL|DO|RA|DE|FA|MX|PS|BN|GB|TC|CP|SUB|TAV|PINNE|PALETTE|COMPL|FFF?|PROG\w*|REGR|MONO|REMATE|SCIVOL\w*)\b/gi;
+
+function soloEtichette(resto) {
+  return !/\d/.test(resto.replace(ETICHETTE, ' '));
+}
+
+function valoreDelPezzo(p) {
+  // Gruppo dentro il gruppo: "2x(4x25)" dentro "3x(2x(4x25) + 100)".
+  let m = p.match(/^(\d{1,3})\s*x\s*\((.+)\)\s*$/i);
+  if (m) return +m[1] * sommaGruppo(m[2]);
+  m = p.match(/^\((.+)\)\s*$/);
+  if (m) return sommaGruppo(m[1]);
+
+  // I tempi non sono distanze: 4x20" sono venti secondi, non venti metri.
+  const t = senzaTempi(p).trim();
+
+  m = t.match(/^(\d{1,3})\s*x\s*(\d{2,4})\b(?!\s*[x\u00d7])/i);
+  if (m && soloEtichette(t.slice(m[0].length))) return +m[1] * almenoUnaVasca(+m[2]);
+
+  m = t.match(/^(\d{2,4})\b/);
+  if (m && soloEtichette(t.slice(m[0].length))) return +m[1];
+
+  return 0;
+}
 
 // Ripetizioni e distanza: "12x75", "6x100", "4x", "300", "2x50",
 // "2x(4x25 + 1x100)", e anche "PS 12x25 progr 1-4" — cioè la misura

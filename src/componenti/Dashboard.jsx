@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { sb } from '../lib/supabase';
+import * as api from '../lib/dati';
 import { SPECIALIZZAZIONI, MACRO_CALENDARIO } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
 import Calendario from './Calendario';
@@ -31,17 +31,19 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
 
   useEffect(() => {
     setCaricamento(true);
-    let q = sb.from('v_carico_zona')
-      .select('zona, famiglia, metri, data, categorie')
-      .eq('societa_id', societa.id)
-      .eq('specializzazione', spec)
-      .gte('data', indietro(giorni));
-    if (codiciMacro) q = q.overlaps('categorie', codiciMacro);
-    q.then(({ data, error }) => {
-      if (error) setErrore(error.message);
-      else { setRighe(data || []); setErrore(null); }
-      setCaricamento(false);
-    });
+    // Non la vista v_carico_zona: quella conta il programma. Qui servono
+    // i metri davvero nuotati, come in Carico atleti — se no le due
+    // schede mostrano due numeri diversi per la stessa settimana.
+    api.caricoReale(societa.id, { da: indietro(giorni), specializzazione: spec })
+      .then(({ zone }) => {
+        const filtrate = codiciMacro
+          ? zone.filter((z) => (z.categorie || []).some((c) => codiciMacro.includes(c)))
+          : zone;
+        setRighe(filtrate);
+        setErrore(null);
+      })
+      .catch((e) => setErrore(e.message))
+      .finally(() => setCaricamento(false));
   }, [societa.id, spec, giorni, codiciMacro?.join()]);
 
   const perZona = righe.reduce((acc, r) => {

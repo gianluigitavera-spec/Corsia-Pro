@@ -156,12 +156,16 @@ export async function eliminaAtleti(ids) {
 // ------------------------------------------------------------- sedute
 export async function leggiSedute(societaId, { da, a } = {}) {
   return locale.conRete(`sedute:${societaId}:${da || ''}:${a || ''}`, async () => {
+    // Il tetto serve solo all'elenco senza filtri, per non tirare giù
+    // tutto. Quando c'è un periodo il tetto va tolto: con 60 una stagione
+    // intera si fermava a febbraio e il carico risultava dimezzato senza
+    // che niente lo dicesse.
     let q = sb
       .from('sedute')
       .select('id, data, titolo, origine, categorie, sezioni, svolto')
       .eq('societa_id', societaId)
       .order('data', { ascending: false })
-      .limit(60);
+      .limit(da || a ? 1000 : 60);
     if (da) q = q.gte('data', da);
     if (a) q = q.lte('data', a);
     return ok(await q);
@@ -264,7 +268,7 @@ export async function segnaPresenza({ sedutaId, atletaId, societaId, stato }) {
 //
 // Torna le righe nella stessa forma della vista, così le schede che le
 // leggono non cambiano di una virgola.
-export async function caricoReale(societaId, { da, a }) {
+export async function caricoReale(societaId, { da, a, specializzazione = 'Generale' }) {
   const sedute = await leggiSedute(societaId, { da, a });
   if (!sedute.length) return { righe: [], zone: [] };
 
@@ -295,10 +299,11 @@ export async function caricoReale(societaId, { da, a }) {
     });
   }
 
-  // Ripartizione per zona del percorso comune, seduta per seduta.
+  // Ripartizione per zona, seduta per seduta. Porta anche le categorie
+  // della seduta, così chi filtra per gruppo non deve riandare a leggerle.
   const zone = sedute.flatMap((s) =>
-    zonePerSpecializzazione(s.sezioni, 'Generale', s.svolto)
-      .map((z) => ({ ...z, data: s.data, specializzazione: 'Generale' }))
+    zonePerSpecializzazione(s.sezioni, specializzazione, s.svolto)
+      .map((z) => ({ ...z, data: s.data, categorie: s.categorie || [], specializzazione }))
   );
 
   return { righe, zone };
@@ -309,30 +314,8 @@ export async function leggiPresenzeSedute(sedutaIds) {
   return locale.conRete(`presenze-periodo:${sedutaIds.length}:${sedutaIds[0]}`, async () =>
     ok(await sb.from('presenze').select('seduta_id, atleta_id, stato').in('seduta_id', sedutaIds)));
 }
-export async function volumiSeduta(sedutaId) {
-  return ok(await sb.from('v_volume_seduta').select('*').eq('seduta_id', sedutaId));
-}
 
-export async function settimaneAtleti(societaId, dallaData) {
-  return ok(
-    await sb
-      .from('v_settimana_atleta')
-      .select('*')
-      .eq('societa_id', societaId)
-      .gte('settimana', dallaData)
-      .order('settimana', { ascending: false })
-  );
-}
 
-export async function caricoAtleti(societaId, dallaData) {
-  return ok(
-    await sb
-      .from('v_carico_atleta')
-      .select('*')
-      .eq('societa_id', societaId)
-      .gte('data', dallaData)
-  );
-}
 
 // ----------------------------------------------------------- adesioni
 export async function chiediAccesso(codice, messaggio) {
@@ -475,9 +458,6 @@ export async function salvaBenessere(riga) {
   );
 }
 
-export async function tendenzaBenessere(societaId) {
-  return ok(await sb.from('v_benessere_tendenza').select('*').eq('societa_id', societaId));
-}
 
 // ----------------------------------------------------------- frequenza
 export async function leggiFrequenza(societaId) {
@@ -669,4 +649,4 @@ export async function sincronizza() {
   return { inviate, rimaste: locale.coda().length };
 }
 
-export { osservaLinea, coda } from './locale';
+export { osservaLinea, coda, salvaBozza, leggiBozza, buttaBozza } from './locale';

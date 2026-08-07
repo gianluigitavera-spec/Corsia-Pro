@@ -10,6 +10,48 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.42.0',
+    data: '2026-08-07',
+    voci: [
+      'La seduta che stai scrivendo non si perde pi\u00f9: ne resta una bozza sul telefono finch\u00e9 non la salvi davvero',
+      'Se ricarichi o cade la linea a met\u00e0, riaprendo l\u2019editor te la ritrovi',
+      'Dita bagnate: su schermo tattile ogni tasto arriva a 44px e quelli dell\u2019appello a 48',
+      'Righe pi\u00f9 alte e campi a 16px: il dito prende la riga giusta e iOS non zooma pi\u00f9 da solo',
+      'Con il mouse resta tutto compatto come prima',
+    ],
+  },
+  {
+    versione: '0.41.0',
+    data: '2026-08-07',
+    voci: [
+      'CORRETTO: dentro le parentesi, stili e zone facevano perdere il pezzo \u2014 "2x(4x50 SL + 100 B1)" valeva 200 invece di 600',
+      'Gruppi annidati: "3x(2x(4x25) + 100)" ora fa 900, prima si fermava alla prima parentesi chiusa',
+      'Le parentesi di sola descrizione restano note come prima: "(50 resp 5-3 7-3)" non diventa mai metri',
+      '47 prove sull\u2019analizzatore, 92,5% di letture giuste sul foglio Esordienti A',
+    ],
+  },
+  {
+    versione: '0.40.0',
+    data: '2026-08-06',
+    voci: [
+      'Appello rovesciato: prima scegli la categoria, poi trovi gi\u00e0 l\u2019allenamento di quel gruppo',
+      'Nell\u2019elenco compaiono solo le sedute della categoria scelta, non quelle degli altri',
+      'La seduta di oggi viene scelta da sola, ed \u00e8 segnalata',
+      'La categoria resta quella dell\u2019ultima volta: apri l\u2019app e sei gi\u00e0 dove alleni',
+    ],
+  },
+  {
+    versione: '0.39.0',
+    data: '2026-08-06',
+    voci: [
+      'CORRETTO: con un periodo lungo il carico si fermava a 60 sedute e una stagione intera risultava dimezzata',
+      'CORRETTO: "Com\u2019\u00e8 andata" salvava a ogni tasto invece che alla pressione di Salva',
+      'Il grafico della Dashboard ora conta i metri davvero nuotati, come Carico atleti: prima le due schede dicevano numeri diversi',
+      'I km delle sedute mostrano anche quanto era a programma e di quanto si \u00e8 discostato',
+      'Tolto codice che non chiamava pi\u00f9 nessuno e messa in sicurezza l\u2019apertura in navigazione privata',
+    ],
+  },
+  {
     versione: '0.38.0',
     data: '2026-08-06',
     voci: [

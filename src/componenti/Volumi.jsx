@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarRange } from 'lucide-react';
-import { sb } from '../lib/supabase';
 import * as api from '../lib/dati';
 import { metriPerSpecializzazione } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
@@ -157,7 +156,14 @@ export default function Volumi({ societa, stagione }) {
         <div className="volume" style={{ '--tinta': 'var(--ciano)' }}>
           <div className="etichetta">Km delle sedute</div>
           <div className="cifra">{km(kmSedute)}<small>km</small></div>
-          <div className="sotto">{sedute.length} sedute programmate</div>
+          <div className="sotto">
+            {sedute.length} sedute
+            {kmScarto !== 0 && (
+              <> · {km(kmProgrammati)} km a programma
+                <b style={{ color: 'var(--ambra)' }}> ({kmScarto > 0 ? '+' : ''}{km(kmScarto)})</b>
+              </>
+            )}
+          </div>
         </div>
         <div className="volume" style={{ '--tinta': 'var(--menta)' }}>
           <div className="etichetta">Frequenza media</div>

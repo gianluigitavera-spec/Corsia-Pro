@@ -81,7 +81,11 @@ export default function App() {
   useEffect(() => {
     if (!societa) return;
     try {
-      if (localStorage.getItem('corsiapro:tutorial') !== 'visto') setTutorial(true);
+      // In navigazione privata su Safari localStorage lancia invece di
+      // tornare null: senza la rete, l'app non si apriva proprio.
+      try {
+        if (localStorage.getItem('corsiapro:tutorial') !== 'visto') setTutorial(true);
+      } catch { setTutorial(true); }
     } catch { /* navigazione privata: pazienza, non parte */ }
   }, [societa?.id]);
 

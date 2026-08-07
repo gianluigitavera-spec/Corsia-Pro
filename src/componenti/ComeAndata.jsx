@@ -12,7 +12,7 @@
 // Sta sotto l'appello di proposito — è la schermata che hai già aperto a
 // fine allenamento, con la seduta e i nomi davanti.
 // =====================================================================
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Check } from 'lucide-react';
 import * as api from '../lib/dati';
 import { chiaveRiga, metriSvolti, scartoPerZona } from '../lib/dominio';
@@ -61,10 +61,16 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
     setSalvato(false);
   }
 
-  // Rete di sicurezza: se cambi seduta o esci con qualcosa in sospeso,
-  // parte lo stesso. Il tasto resta il padrone, questo è solo per non
-  // perdere il lavoro di chi si distrae.
-  useEffect(() => () => { if (!salvato) salva(righe, nota); }, [salvato, righe, nota]);
+  // Rete di sicurezza: se esci con qualcosa in sospeso, parte lo stesso.
+  // Le dipendenze stanno in un ref e non nell'array: se ci fossero, la
+  // pulizia scatterebbe a ogni tasto e salverebbe di continuo, che è
+  // esattamente quello che il tasto Salva serviva a evitare.
+  const ultimo = useRef({ salvato: true, righe: {}, nota: '' });
+  ultimo.current = { salvato, righe, nota };
+  useEffect(() => () => {
+    const u = ultimo.current;
+    if (!u.salvato) salva(u.righe, u.nota);
+  }, []);
 
   return (
     <div className="scheda" style={{ marginTop: 14 }}>

@@ -42,6 +42,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
   const [salvataggio, setSalvataggio] = useState(false);
   const [lavagna, setLavagna] = useState(false);
   const [daTesto, setDaTesto] = useState(false);
+  const [bozzaRipresa, setBozzaRipresa] = useState(false);
 
   const codiciZona = zone.map((z) => z.codice);
 
@@ -126,6 +127,31 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
       if (sez.destinatari.length === 0) sez.destinatari = [TUTTI];
     });
 
+  // La bozza: una copia locale di quello che stai scrivendo, finché non
+  // è salvata sul server. Chiave diversa per la seduta nuova e per quelle
+  // già esistenti, così non si sovrascrivono a vicenda.
+  const chiaveBozza = seduta ? `${societa.id}:${seduta.id || 'nuova'}` : null;
+
+  useEffect(() => {
+    if (!chiaveBozza || !seduta) return;
+    const attesa = setTimeout(() => api.salvaBozza(chiaveBozza, seduta), 800);
+    return () => clearTimeout(attesa);
+  }, [seduta, chiaveBozza]);
+
+  // All'apertura di una seduta nuova, se una bozza c'è la si riprende.
+  useEffect(() => {
+    if (!seduta || seduta.id || bozzaRipresa) return;
+    const b = api.leggiBozza(`${societa.id}:nuova`);
+    const scritta = b?.dati && (b.dati.sezioni || []).some((s) => (s.serie || []).length);
+    if (!scritta) return;
+    setBozzaRipresa(true);
+    setSeduta(b.dati);
+    setMessaggio({
+      tipo: 'ok',
+      testo: `Ripresa la seduta che stavi scrivendo (${dataIt(b.dati.data)}). Se non la vuoi, ricomincia da "Nuova seduta".`,
+    });
+  }, [seduta?.id]);
+
   async function salva() {
     setSalvataggio(true);
     setMessaggio(null);
@@ -135,6 +161,8 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
         .map((c) => (categorie || []).find((x) => x.codice === c)?.nome || c)
         .join(' · ');
       const salvata = await api.salvaSeduta({ ...seduta, titolo, societa_id: societa.id });
+      api.buttaBozza(`${societa.id}:nuova`);
+      api.buttaBozza(`${societa.id}:${salvata.id}`);
       setSeduta(salvata);
       await ricarica();
       setMessaggio({ tipo: 'ok', testo: "Seduta salvata: la trovi nell'elenco e sul calendario." });

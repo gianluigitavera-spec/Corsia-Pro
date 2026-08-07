@@ -64,6 +64,13 @@ const prove = [
   ['Partenze dal blocco', 0, 'senza misura restano zero'],
   ['Secco: 3x10 plank', 0, 'il lavoro a terra resta zero anche con i numeri'],
 
+  // --- gruppi con etichette e gruppi annidati (segnalati da fuori) ---
+  ['2x (4x50 SL @45" + 100 B1) @3\'', 600, 'stili e zone dentro il gruppo'],
+  ['4x (2x50 B1 + 100 A2)', 800, 'zone su ogni pezzo del gruppo'],
+  ['3x(2x(4x25) + 100)', 900, 'gruppo dentro il gruppo'],
+  ['2x(4x50 SL + 100)', 600, 'stile su un pezzo solo'],
+  ['5x(100 pinne + 50 fff)', 750, 'attrezzi e andature dentro il gruppo'],
+
   // --- quello che funzionava prima deve continuare a funzionare ---
   ['8x75', 600, 'la forma semplice'],
   ['1x400', 400, 'una ripetuta sola'],

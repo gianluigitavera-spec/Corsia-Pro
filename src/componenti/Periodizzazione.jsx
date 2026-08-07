@@ -17,7 +17,6 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
   const [garaScelta, setGaraScelta] = useState('');
   const [messaggio, setMessaggio] = useState(null);
   const [salvo, setSalvo] = useState(false);
-  const [selezionato, setSelezionato] = useState(null);
   const [inizioStagione, setInizioStagione] = useState(inizioStagionePredefinito(stagione));
   const barra = useRef(null);
   const trascino = useRef(null);
@@ -83,7 +82,6 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
     // via il vecchio di questa gara e via qualsiasi sovrapposizione.
     const tenuti = blocchi.filter((b) => b.gara_id !== g.id && b.al < nuovi[0].dal);
     setBlocchi([...tenuti, ...nuovi]);
-    setSelezionato(g.id);
 
     setMessaggio({
       testo: finePrecedente

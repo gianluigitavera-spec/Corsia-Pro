@@ -30,7 +30,17 @@ export default function Appello({ societa, fasce, puoScrivere }) {
   const [stati, setStati] = useState({});
   const [prontezza, setProntezza] = useState({});
   const [frequenza, setFrequenza] = useState({});
-  const [filtro, setFiltro] = useState('tutti');
+  // La categoria è la prima scelta della giornata e cambia raramente:
+  // se la si ricorda, all'apertura sei già dove lavori.
+  const [filtro, setFiltro] = useState(() => {
+    try { return localStorage.getItem('corsiapro:appello-categoria') || 'tutti'; }
+    catch { return 'tutti'; }
+  });
+
+  function scegliCategoria(nome) {
+    setFiltro(nome);
+    try { localStorage.setItem('corsiapro:appello-categoria', nome); } catch { /* niente */ }
+  }
   const [messaggio, setMessaggio] = useState(null);
 
   useEffect(() => {
@@ -42,12 +52,31 @@ export default function Appello({ societa, fasce, puoScrivere }) {
         setSedute(s);
         setAtleti(a);
         setFrequenza(Object.fromEntries(f.map((x) => [x.atleta_id, x])));
-        if (s.length) setSedutaId(s[0].id);
       } catch (e) { setMessaggio(e.message); }
     })();
   }, [societa.id]);
 
+  // Solo le sedute della categoria scelta: se alleni gli Esordienti A non
+  // devi scorrere quelle dei Ragazzi per trovare la tua.
+  const seduteDelGruppo = useMemo(() => {
+    if (filtro === 'tutti') return sedute;
+    const r = RAGGRUPPAMENTI.find((x) => x.nome === filtro);
+    if (!r) return sedute;
+    return sedute.filter((s) => (s.categorie || []).some((c) => r.codici.includes(c)));
+  }, [sedute, filtro]);
+
+  // Scelta da sola: quella di oggi se c'è, se no la più recente. Solo
+  // quando quella corrente non appartiene più al gruppo scelto, così non
+  // ti scippa la seduta che stavi guardando.
+  useEffect(() => {
+    if (!seduteDelGruppo.length) { setSedutaId(''); return; }
+    if (seduteDelGruppo.some((s) => s.id === sedutaId)) return;
+    const oggi = new Date().toISOString().slice(0, 10);
+    setSedutaId((seduteDelGruppo.find((s) => s.data === oggi) || seduteDelGruppo[0]).id);
+  }, [seduteDelGruppo, sedutaId]);
+
   const seduta = sedute.find((s) => s.id === sedutaId);
+  const oggiIso = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     if (!sedutaId) return;
@@ -107,23 +136,39 @@ export default function Appello({ societa, fasce, puoScrivere }) {
     <>
       <div className="barra">
         <h1>Appello</h1>
-        <div style={{ flex: 1 }} />
-        <select value={sedutaId} onChange={(e) => setSedutaId(e.target.value)} style={{ maxWidth: 300 }}>
-          {sedute.map((s) => (
-            <option key={s.id} value={s.id}>{dataIt(s.data)} · {s.titolo || 'senza titolo'}</option>
-          ))}
-        </select>
       </div>
 
-      <div className="destinatari" style={{ marginBottom: 12 }}>
-        <button className="pastiglia" aria-pressed={filtro === 'tutti'} onClick={() => setFiltro('tutti')}>
+      <div className="destinatari" style={{ marginBottom: 10 }}>
+        <button className="pastiglia" aria-pressed={filtro === 'tutti'} onClick={() => scegliCategoria('tutti')}>
           {filtro === 'tutti' && <Check size={13} style={{ verticalAlign: -2, marginRight: 5 }} />}Tutti
         </button>
         {gruppiConAtleti.map((r) => (
-          <button key={r.nome} className="pastiglia" aria-pressed={filtro === r.nome} onClick={() => setFiltro(r.nome)}>
+          <button key={r.nome} className="pastiglia" aria-pressed={filtro === r.nome} onClick={() => scegliCategoria(r.nome)}>
             {filtro === r.nome && <Check size={13} style={{ verticalAlign: -2, marginRight: 5 }} />}{r.nome}
           </button>
         ))}
+      </div>
+
+      <div className="barra" style={{ marginBottom: 12 }}>
+        {seduteDelGruppo.length === 0 ? (
+          <span style={{ color: 'var(--testo-3)', fontSize: 13 }}>
+            Nessuna seduta per {filtro === 'tutti' ? 'la squadra' : filtro}: l'appello
+            si segna su una seduta, quindi prima creala nella scheda Sedute.
+          </span>
+        ) : (
+          <>
+            <select value={sedutaId} onChange={(e) => setSedutaId(e.target.value)} style={{ maxWidth: 320 }}>
+              {seduteDelGruppo.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {dataIt(s.data)}{s.data === oggiIso ? ' · oggi' : ''} · {s.titolo || 'senza titolo'}
+                </option>
+              ))}
+            </select>
+            {seduta?.data === oggiIso && (
+              <span className="mono" style={{ color: 'var(--menta)', fontSize: 12 }}>seduta di oggi</span>
+            )}
+          </>
+        )}
       </div>
 
       <div className="barra" style={{ color: 'var(--testo-3)', fontSize: 13 }}>
