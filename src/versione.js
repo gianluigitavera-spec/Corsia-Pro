@@ -10,6 +10,13 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.50.0',
+    data: '2026-08-14',
+    voci: [
+      'Sedute per pochi atleti: nel foglio seduta puoi scegliere "Solo per alcuni atleti" — utile per le doppie, così gli altri non risultano assenti nell\'appello',
+    ],
+  },
+  {
     versione: '0.49.1',
     data: '2026-08-14',
     voci: [

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Save, ArrowLeft, Waves, X, AlertTriangle, Check,
-  Printer, Share2, Presentation, PenLine, Copy, CalendarRange } from 'lucide-react';
+  Printer, Share2, Presentation, PenLine, Copy, CalendarRange, Users, Search } from 'lucide-react';
 import * as api from '../lib/dati';
 import CopiaSedute from './CopiaSedute';
 import {
   TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
-  ripartenzaDaBase, dataIt, durataStimata, inOreMinuti,
+  ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
@@ -34,7 +34,7 @@ const muovi = (arr, da, a) => {
   return copia;
 };
 
-export default function EditorSeduta({ societa, zone, puoScrivere, categorie, apertura, consumaApertura }) {
+export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fasce, apertura, consumaApertura }) {
   const [elenco, setElenco] = useState([]);
   const [copia, setCopia] = useState(null);   // { seduta } oppure {} per la settimana
   const [seduta, setSeduta] = useState(null);
@@ -43,6 +43,12 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
   const [lavagna, setLavagna] = useState(false);
   const [daTesto, setDaTesto] = useState(false);
   const [bozzaRipresa, setBozzaRipresa] = useState(false);
+
+  // Selezione atleti espliciti (le "doppie"): nicchia, quindi si carica
+  // solo quando l'allenatore apre il pannello, non ad ogni seduta aperta.
+  const [pannelloAtleti, setPannelloAtleti] = useState(false);
+  const [atletiSquadra, setAtletiSquadra] = useState(null);   // null = non ancora caricati
+  const [cercaAtleta, setCercaAtleta] = useState('');
 
   const codiciZona = zone.map((z) => z.codice);
 
@@ -63,6 +69,23 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
     try { setElenco(await api.leggiSedute(societa.id)); }
     catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
   }
+
+  // Il pannello si apre da solo se la seduta che stai guardando ha già
+  // una selezione — così riaprendo una doppia la vedi subito, senza
+  // doverla scoprire dall'appello. Non si richiude mai da sola.
+  useEffect(() => {
+    if (seduta?.atleti?.length) setPannelloAtleti(true);
+  }, [seduta?.id]);
+
+  // Fetch pigro: solo quando il pannello serve davvero, e una volta sola
+  // per società (stessa cache di Appello.jsx e Atleti.jsx).
+  useEffect(() => {
+    if (!pannelloAtleti || atletiSquadra) return;
+    api.leggiAtleti(societa.id).then(setAtletiSquadra)
+      .catch((e) => setMessaggio({ tipo: 'errore', testo: e.message }));
+  }, [pannelloAtleti, societa.id]);
+
+  useEffect(() => { setAtletiSquadra(null); }, [societa.id]);
 
   const problemi = useMemo(() => (seduta ? validaSeduta(seduta, codiciZona) : []), [seduta, codiciZona.join()]);
 
@@ -194,6 +217,30 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
     r.codici.forEach((c) => (pieno ? attuali.delete(c) : attuali.add(c)));
     s.categorie = [...attuali];
   });
+
+  // Selezione atleti espliciti: lista corta e pertinente quando la seduta
+  // ha già delle categorie (filtra su quelle); tutta la squadra quando non
+  // ne ha ancora nessuna, per non sembrare vuota/rotta prima di scegliere.
+  const atletiScelti = new Set(seduta?.atleti || []);
+  const atletiPerPannello = useMemo(() => {
+    if (!atletiSquadra) return [];
+    const perCategoria = (seduta?.categorie || []).length
+      ? atletiSquadra.filter((a) => seduta.categorie.includes(categoriaAtleta(a, fasce)))
+      : atletiSquadra;
+    const t = cercaAtleta.trim().toLowerCase();
+    if (!t) return perCategoria;
+    return perCategoria.filter((a) => `${a.cognome} ${a.nome}`.toLowerCase().includes(t));
+  }, [atletiSquadra, seduta?.categorie, fasce, cercaAtleta]);
+
+  const commutaAtleta = (id) => aggiorna((s) => {
+    const attuali = new Set(s.atleti || []);
+    attuali.has(id) ? attuali.delete(id) : attuali.add(id);
+    // Vuota = torna al comportamento normale: NULL, non un array vuoto,
+    // per restare coerente col default della colonna.
+    s.atleti = attuali.size ? [...attuali] : null;
+  });
+
+  const svuotaAtleti = () => aggiorna((s) => { s.atleti = null; });
 
   // Dal testo libero all'editor: stessa seduta, stessa forma.
   if (daTesto) {
@@ -373,6 +420,80 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, ap
               );
             })}
           </div>
+        </div>
+
+        <div className="corpo" style={{ paddingTop: 0 }}>
+          <button
+            type="button"
+            className="mini"
+            onClick={() => setPannelloAtleti((v) => !v)}
+            aria-expanded={pannelloAtleti}
+          >
+            <Users size={13} style={{ verticalAlign: -2 }} />{' '}
+            {atletiScelti.size > 0
+              ? `Solo per ${atletiScelti.size} atlet${atletiScelti.size === 1 ? 'a' : 'i'}`
+              : 'Solo per alcuni atleti'}
+            {pannelloAtleti
+              ? <ChevronUp size={13} style={{ verticalAlign: -2, marginLeft: 4 }} />
+              : <ChevronDown size={13} style={{ verticalAlign: -2, marginLeft: 4 }} />}
+          </button>
+
+          {pannelloAtleti && (
+            <div style={{ marginTop: 10 }}>
+              <p style={{ fontSize: 12, color: 'var(--testo-3)', margin: '0 0 8px' }}>
+                Per le sedute rivolte a pochi atleti (le "doppie"). Lascia vuoto per il
+                comportamento normale, per categoria.
+              </p>
+
+              {atletiScelti.size > 0 && (
+                <div className="avviso" style={{ marginBottom: 10 }}>
+                  <AlertTriangle size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
+                  Questa seduta sarà solo per quest{atletiScelti.size === 1 ? 'o' : 'i'} {atletiScelti.size} atlet{atletiScelti.size === 1 ? 'a' : 'i'}:
+                  gli altri della categoria non verranno convocati né conteggiati nell'appello.
+                </div>
+              )}
+
+              <div className="cerca" style={{ marginBottom: 8 }}>
+                <Search size={14} />
+                <input
+                  placeholder="Cerca atleta…"
+                  value={cercaAtleta}
+                  onChange={(e) => setCercaAtleta(e.target.value)}
+                  aria-label="Cerca atleta"
+                />
+              </div>
+
+              {!atletiSquadra ? (
+                <p style={{ fontSize: 13, color: 'var(--testo-3)' }}>Carico l'elenco…</p>
+              ) : atletiPerPannello.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--testo-3)' }}>
+                  {cercaAtleta ? 'Nessun risultato.' : 'Nessun atleta in queste categorie.'}
+                </p>
+              ) : (
+                <div style={{ maxHeight: 220, overflowY: 'auto', display: 'grid', gap: 4 }}>
+                  {atletiPerPannello.map((a) => (
+                    <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={atletiScelti.has(a.id)}
+                        onChange={() => commutaAtleta(a.id)}
+                      />
+                      <b>{a.cognome}</b> {a.nome}
+                      <span className="mono" style={{ color: 'var(--testo-3)', marginLeft: 'auto' }}>
+                        {categoriaAtleta(a, fasce) || '—'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {atletiScelti.size > 0 && (
+                <button className="mini" style={{ marginTop: 8 }} onClick={svuotaAtleti}>
+                  Svuota selezione
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {senzaDestinatario && (

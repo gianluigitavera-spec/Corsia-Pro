@@ -232,7 +232,7 @@ export default function App() {
           )}
           {scheda === 'sedute' && (
             <EditorSeduta
-              societa={societa} zone={zone} categorie={categorie} puoScrivere={puoScrivere}
+              societa={societa} zone={zone} categorie={categorie} fasce={fasce} puoScrivere={puoScrivere}
               apertura={apertura} consumaApertura={consumaApertura}
             />
           )}
