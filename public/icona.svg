@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgNavy" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#00EEFF" />
+    </linearGradient>
+    <pattern id="poolTiles" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1E293B" stroke-width="1.5" opacity="0.4"/>
+    </pattern>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#bgNavy)" />
+  <rect width="512" height="512" rx="115" fill="url(#poolTiles)" />
+  <g opacity="0.2">
+    <rect x="240" y="70" width="32" height="370" fill="#38BDF8" rx="4"/>
+    <rect x="176" y="415" width="160" height="32" fill="#38BDF8" rx="4"/>
+  </g>
+  <g transform="translate(30, 40)">
+    <rect x="0" y="0" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="45" width="16" height="20" rx="4" fill="#F8FAFC" />
+    <rect x="0" y="70" width="16" height="40" rx="4" fill="#0284C7" />
+    <rect x="0" y="115" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="160" width="16" height="20" rx="4" fill="#F8FAFC" />
+    <rect x="0" y="185" width="16" height="40" rx="4" fill="#0284C7" />
+    <rect x="0" y="230" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="275" width="16" height="20" rx="4" fill="#F8FAFC" />
+    <rect x="0" y="300" width="16" height="40" rx="4" fill="#0284C7" />
+    <rect x="0" y="345" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="390" width="16" height="20" rx="4" fill="#F8FAFC" />
+  </g>
+  <g transform="translate(466, 40)">
+    <rect x="0" y="0" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="45" width="16" height="20" rx="4" fill="#F8FAFC" />
+    <rect x="0" y="70" width="16" height="40" rx="4" fill="#0284C7" />
+    <rect x="0" y="115" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="160" width="16" height="20" rx="4" fill="#F8FAFC" />
+    <rect x="0" y="185" width="16" height="40" rx="4" fill="#0284C7" />
+    <rect x="0" y="230" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="275" width="16" height="20" rx="4" fill="#F8FAFC" />
+    <rect x="0" y="300" width="16" height="40" rx="4" fill="#0284C7" />
+    <rect x="0" y="345" width="16" height="40" rx="4" fill="#38BDF8" />
+    <rect x="0" y="390" width="16" height="20" rx="4" fill="#F8FAFC" />
+  </g>
+  <g fill="#F8FAFC" transform="translate(3, 0)">
+    <path d="M 110 135 L 140 135 L 140 153 L 115 153 L 115 197 L 140 197 L 140 215 L 110 215 L 95 200 L 95 150 Z" />
+    <path fill-rule="evenodd" d="M 167 135 L 182 135 L 197 150 L 197 200 L 182 215 L 167 215 L 152 200 L 152 150 Z M 170 153 L 179 153 L 182 156 L 182 194 L 179 197 L 170 197 L 167 194 L 167 156 Z" />
+    <path fill-rule="evenodd" d="M 209 135 L 242 135 L 254 147 L 254 167 L 242 178 L 254 215 L 234 215 L 224 180 L 224 215 L 209 215 Z M 224 150 L 235 150 L 239 154 L 239 161 L 235 165 L 224 165 Z" />
+    <path d="M 281 135 L 311 135 L 311 153 L 284 153 L 284 165 L 311 175 L 311 200 L 296 215 L 266 215 L 266 197 L 293 197 L 293 185 L 266 175 L 266 150 Z" />
+    <path d="M 323 135 L 353 135 L 353 151 L 343 158 L 343 192 L 353 199 L 353 215 L 323 215 L 323 199 L 333 192 L 333 158 L 323 151 Z" />
+    <path fill-rule="evenodd" d="M 380 135 L 395 135 L 410 150 L 410 215 L 392 215 L 392 195 L 383 195 L 383 215 L 365 215 L 365 150 Z M 383 180 L 392 180 L 392 153 L 388 149 L 385 149 L 383 153 Z" />
+  </g>
+  <g fill="url(#cyanGlow)">
+    <path fill-rule="evenodd" d="M 138 255 L 188 255 L 203 270 L 203 300 L 188 315 L 163 315 L 163 365 L 138 365 Z M 163 275 L 178 275 L 183 280 L 183 290 L 178 295 L 163 295 Z" />
+    <path fill-rule="evenodd" d="M 223 255 L 273 255 L 288 270 L 288 300 L 273 315 L 288 365 L 260 365 L 248 315 L 248 365 L 223 365 Z M 248 275 L 263 275 L 268 280 L 268 290 L 263 295 L 248 295 Z" />
+    <path fill-rule="evenodd" d="M 328 255 L 353 255 L 373 275 L 373 345 L 353 365 L 328 365 L 308 345 L 308 275 Z M 333 275 L 348 275 L 353 280 L 353 340 L 348 345 L 333 345 L 328 340 L 328 280 Z" />
+  </g>
+  <path d="M 136 450 C 206 435, 286 465, 376 450" fill="none" stroke="url(#cyanGlow)" stroke-width="8" stroke-linecap="round" />
+</svg>
