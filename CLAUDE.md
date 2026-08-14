@@ -154,12 +154,25 @@ automatico restano col punto interrogativo, non col segno di spunta.
 | potenza | C2 |
 | velocità, sprint | C3 (in codice: lookahead invece di `\b` finale — in JavaScript `\b` non chiude mai dopo una lettera accentata come la "à") |
 
-**Sedute per pochi atleti (doppie).** Oggi la seduta ha solo `categorie` e
-l'appello deduce i convocati da lì: chi fa il doppio trascina dentro tutta la
-categoria, e mettere assenti gli altri falsa le statistiche. Serve un elenco
-atleti esplicito e opzionale sulla seduta: se c'è, l'appello mostra solo quelli
-e le percentuali si calcolano solo su di loro; se non c'è, tutto resta com'è
-adesso.
+**Sedute per pochi atleti (doppie).** Oggi la seduta ha solo `categorie`, e
+in `Appello.jsx` i convocati (`visibili`) si deducono dal filtro categoria
+scelto in testata (`codiciGruppi`), non da `categorie` della seduta — quel
+campo filtra solo quali sedute compaiono nel selettore. Chi fa il doppio
+trascina dentro tutta la categoria, e mettere assenti gli altri falsa le
+statistiche.
+
+FATTO: migrazione 025, colonna `squadra.sedute.atleti` (`uuid[]`, opzionale,
+`NULL` = comportamento attuale) creata su Supabase e nel repo.
+
+DA FARE:
+- in `Appello.jsx`, nel calcolo di `visibili` (righe ~86-89): quando
+  `seduta.atleti` è valorizzato, usare quella lista al posto del filtro
+  categoria di testata;
+- nell'editor, la selezione atleti accanto alle categorie.
+
+NOTA: `v_frequenza` NON va toccata — conta dal registro presenze, non dalle
+categorie. Non segnare gli altri (invece di segnarli assenti) vuol dire che
+non entrano nel loro denominatore: le medie restano giuste.
 
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);
