@@ -10,6 +10,13 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.49.0',
+    data: '2026-08-14',
+    voci: [
+      'Zone automatiche dai titoli: scrivi Soglia, Aerobico medio, Velocità e la tendina si riempie da sola — resta col punto interrogativo finché non confermi',
+    ],
+  },
+  {
     versione: '0.47.0',
     data: '2026-08-10',
     voci: [

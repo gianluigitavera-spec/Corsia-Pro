@@ -96,6 +96,30 @@ export function destinatariDaTitolo(riga) {
   return null;
 }
 
+// Zona proposta dal titolo della sezione: riempie solo le righe che sotto
+// non hanno detto niente di loro (né zona scritta, né zona ereditata da
+// una riga "sola zona" sopra). Resta un'ipotesi, non una lettura: chi la
+// usa deve tenerla in fiducia gialla, mai verde.
+//
+// "aerobico" da solo NON c'è: è il nome della FAMIGLIA (A1+A2+B1), non di
+// una zona. Un titolo "Aerobico" e basta resta senza proposta — meglio la
+// tendina vuota che un A2 indovinato su un fondo lento.
+const ZONA_DA_TITOLO = [
+  [/\b(riscaldamento|warm ?up|riscaldo)\b/i, 'A1'],
+  [/\b(defaticamento|sciolto|ripristino)\b/i, 'A1'],
+  [/\bmedio\b/i, 'A2'],
+  [/\bsoglia\b/i, 'B1'],
+  [/\b(vo2\w*|massimo consumo)\b/i, 'B2'],
+  [/\btolleranza\b/i, 'C1'],
+  [/\bpotenza\b/i, 'C2'],
+  [/\b(velocit[aà]|sprint)\b/i, 'C3'],
+];
+
+export function zonaDaTitolo(titolo) {
+  for (const [re, zona] of ZONA_DA_TITOLO) if (re.test(titolo || '')) return zona;
+  return null;
+}
+
 // Lavoro a terra: sta nella seduta ma non fa metri.
 export const A_SECCO = /\b(secco|palestra|plank|salti|elastic\w+|core|addominali|circuito a terra)\b/i;
 
@@ -663,17 +687,23 @@ export function analizzaTesto(testo) {
       }
       for (const p of spezzata.pezzi) {
         const suoi = trovaMisure(p.testo);
+        // Stessa scala di certezza del ciclo principale: solo la zona
+        // scritta sul pezzo è "sicura". Quella ereditata o proposta dal
+        // titolo resta un'ipotesi — la riga finisce comunque gialla.
+        const sicura = !!p.zona;
+        let zona = p.zona || zonaCorrente || '';
+        if (!zona) zona = zonaDaTitolo(sezione.titolo) || '';
         sezione.serie.push({
           notazione: p.testo,
           metri: p.metri * molt,
-          zona: p.zona || zonaCorrente || '',
+          zona,
           recupero: ripartenzaDaBase(p.testo, suoi?.distanza) || trovaRecupero(p.testo),
           passoBase: /@@/.test(p.testo) || undefined,
           stile: trovaStile(p.testo),
           attrezzi: trovaAttrezzi(p.testo),
           modalita: trovaModalita(p.testo),
           moltiplicato: molt > 1 ? molt : undefined,
-          fiducia: p.zona ? 'verde' : 'gialla',
+          fiducia: sicura ? 'verde' : 'gialla',
         });
       }
       continue;
@@ -717,6 +747,10 @@ export function analizzaTesto(testo) {
     const metriRiga = ripetizioni * almenoUnaVasca(distanza);
     let { zona, sicura } = trovaZona(riga);
     if (!zona && zonaCorrente) { zona = zonaCorrente; sicura = true; }
+    // Ultima spiaggia: il titolo della sezione. Non è una lettura sicura
+    // quanto le due sopra, quindi "sicura" resta com'è — la riga finisce
+    // comunque in fiducia gialla, mai verde.
+    if (!zona) zona = zonaDaTitolo(sezione.titolo) || '';
     const serie = {
       notazione: riga,
       metri: metriRiga,

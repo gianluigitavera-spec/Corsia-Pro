@@ -147,7 +147,7 @@ automatico restano col punto interrogativo, non col segno di spunta.
 |---|---|
 | riscaldamento, warm up, riscaldo | A1 |
 | defaticamento, sciolto, ripristino | A1 |
-| aerobico, medio | A2 |
+| medio, aerobico medio (mai "aerobico" da solo: è la famiglia A1+A2+B1, non una zona) | A2 |
 | soglia | B1 |
 | vo2, vo2max, massimo consumo | B2 |
 | tolleranza | C1 |

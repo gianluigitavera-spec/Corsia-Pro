@@ -140,7 +140,42 @@ if (intera.length !== 1) {
   console.error('✗ con una zona sola la riga non si spezza');
 }
 
-const quante = prove.length + 3;
+// --- la zona proposta dal titolo della sezione ---
+const conProposta = analizzaTesto('Soglia\n8x100\n4x50').sezioni[0].serie;
+if (!conProposta.every((r) => r.zona === 'B1' && r.fiducia === 'gialla')) {
+  male++;
+  console.error('✗ "Soglia" come titolo dovrebbe proporre B1 in fiducia gialla');
+}
+
+// --- "aerobico" da solo è la famiglia, non la zona A2: niente proposta ---
+const soloAerobico = analizzaTesto('Aerobico\n8x100').sezioni[0].serie;
+if (soloAerobico.some((r) => r.zona)) {
+  male++;
+  console.error('✗ "Aerobico" da solo non deve proporre A2: è la famiglia, non la zona');
+}
+const aerobicoMedio = analizzaTesto('Aerobico medio\n8x100').sezioni[0].serie;
+if (!aerobicoMedio.every((r) => r.zona === 'A2' && r.fiducia === 'gialla')) {
+  male++;
+  console.error('✗ "Aerobico medio" (con "medio") dovrebbe proporre A2');
+}
+
+// --- la zona scritta sulla riga vince sempre sul titolo ---
+const vinceLaRiga = analizzaTesto('Soglia\n8x100 C3').sezioni[0].serie;
+if (vinceLaRiga[0]?.zona !== 'C3' || vinceLaRiga[0]?.fiducia !== 'verde') {
+  male++;
+  console.error('✗ la zona scritta sulla riga deve vincere sulla proposta del titolo');
+}
+
+// --- la proposta dal titolo arriva anche ai pezzi senza zona propria di
+// una riga con più andature, e resta gialla come nel ciclo principale ---
+const scalettaSenzaZona = analizzaTesto('Tolleranza\n4x(8x50 B1 + 4x50 C2 + 2x25)').sezioni[0].serie;
+const pezzoSenzaZona = scalettaSenzaZona.find((r) => r.notazione === '2x25');
+if (!pezzoSenzaZona || pezzoSenzaZona.zona !== 'C1' || pezzoSenzaZona.fiducia !== 'gialla') {
+  male++;
+  console.error('✗ il pezzo senza zona propria dovrebbe prendere C1 dal titolo, in fiducia gialla');
+}
+
+const quante = prove.length + 8;
 if (male) {
   console.error(`\n${male} prove fallite su ${quante}. Pacchetto non costruito.`);
   process.exit(1);
