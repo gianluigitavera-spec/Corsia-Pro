@@ -101,18 +101,22 @@ export function destinatariDaTitolo(riga) {
 // una riga "sola zona" sopra). Resta un'ipotesi, non una lettura: chi la
 // usa deve tenerla in fiducia gialla, mai verde.
 //
-// "aerobico" da solo NON c'è: è il nome della FAMIGLIA (A1+A2+B1), non di
-// una zona. Un titolo "Aerobico" e basta resta senza proposta — meglio la
-// tendina vuota che un A2 indovinato su un fondo lento.
+// "Aerobico" da solo propone A2: indica lavoro aerobico medio.
+//
+// "velocit[aà]" non chiude con \b: in JavaScript \b si appoggia a \w, che
+// non include le lettere accentate, quindi una parola che finisce sulla
+// "à" non ha mai un confine di parola dopo — /\bvelocit[aà]\b/ su
+// "Velocità" non scattava mai, in silenzio. Il lookahead sotto fa lo
+// stesso lavoro di \b senza appoggiarsi a \w.
 const ZONA_DA_TITOLO = [
   [/\b(riscaldamento|warm ?up|riscaldo)\b/i, 'A1'],
   [/\b(defaticamento|sciolto|ripristino)\b/i, 'A1'],
-  [/\bmedio\b/i, 'A2'],
+  [/\b(aerobico|medio)\b/i, 'A2'],
   [/\bsoglia\b/i, 'B1'],
   [/\b(vo2\w*|massimo consumo)\b/i, 'B2'],
   [/\btolleranza\b/i, 'C1'],
   [/\bpotenza\b/i, 'C2'],
-  [/\b(velocit[aà]|sprint)\b/i, 'C3'],
+  [/\b(velocit[aà]|sprint)(?![a-zà-öø-ÿ])/i, 'C3'],
 ];
 
 export function zonaDaTitolo(titolo) {

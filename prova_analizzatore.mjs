@@ -147,16 +147,24 @@ if (!conProposta.every((r) => r.zona === 'B1' && r.fiducia === 'gialla')) {
   console.error('✗ "Soglia" come titolo dovrebbe proporre B1 in fiducia gialla');
 }
 
-// --- "aerobico" da solo è la famiglia, non la zona A2: niente proposta ---
+// --- "aerobico" da solo indica lavoro aerobico medio: propone A2 ---
 const soloAerobico = analizzaTesto('Aerobico\n8x100').sezioni[0].serie;
-if (soloAerobico.some((r) => r.zona)) {
+if (!soloAerobico.every((r) => r.zona === 'A2' && r.fiducia === 'gialla')) {
   male++;
-  console.error('✗ "Aerobico" da solo non deve proporre A2: è la famiglia, non la zona');
+  console.error('✗ "Aerobico" da solo dovrebbe proporre A2 in fiducia gialla');
 }
 const aerobicoMedio = analizzaTesto('Aerobico medio\n8x100').sezioni[0].serie;
 if (!aerobicoMedio.every((r) => r.zona === 'A2' && r.fiducia === 'gialla')) {
   male++;
   console.error('✗ "Aerobico medio" (con "medio") dovrebbe proporre A2');
+}
+
+// --- "Velocità" da sola come titolo: il caso che in produzione falliva,
+// perché \b non chiude mai dopo una lettera accentata come la "à" ---
+const soloVelocita = analizzaTesto('Velocità\n8x50').sezioni[0].serie;
+if (!soloVelocita.every((r) => r.zona === 'C3' && r.fiducia === 'gialla')) {
+  male++;
+  console.error('✗ "Velocità" da sola come titolo dovrebbe proporre C3 in fiducia gialla');
 }
 
 // --- la zona scritta sulla riga vince sempre sul titolo ---
@@ -175,7 +183,7 @@ if (!pezzoSenzaZona || pezzoSenzaZona.zona !== 'C1' || pezzoSenzaZona.fiducia !=
   console.error('✗ il pezzo senza zona propria dovrebbe prendere C1 dal titolo, in fiducia gialla');
 }
 
-const quante = prove.length + 8;
+const quante = prove.length + 9;
 if (male) {
   console.error(`\n${male} prove fallite su ${quante}. Pacchetto non costruito.`);
   process.exit(1);

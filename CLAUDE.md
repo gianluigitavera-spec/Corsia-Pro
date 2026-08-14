@@ -147,12 +147,12 @@ automatico restano col punto interrogativo, non col segno di spunta.
 |---|---|
 | riscaldamento, warm up, riscaldo | A1 |
 | defaticamento, sciolto, ripristino | A1 |
-| medio, aerobico medio (mai "aerobico" da solo: è la famiglia A1+A2+B1, non una zona) | A2 |
+| aerobico, medio | A2 |
 | soglia | B1 |
 | vo2, vo2max, massimo consumo | B2 |
 | tolleranza | C1 |
 | potenza | C2 |
-| velocità, sprint | C3 |
+| velocità, sprint | C3 (in codice: lookahead invece di `\b` finale — in JavaScript `\b` non chiude mai dopo una lettera accentata come la "à") |
 
 **Sedute per pochi atleti (doppie).** Oggi la seduta ha solo `categorie` e
 l'appello deduce i convocati da lì: chi fa il doppio trascina dentro tutta la

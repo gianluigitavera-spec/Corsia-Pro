@@ -10,6 +10,13 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.49.1',
+    data: '2026-08-14',
+    voci: [
+      'Corretto: Velocità come titolo ora propone C3 (l’accento ne impediva il riconoscimento); Aerobico propone A2',
+    ],
+  },
+  {
     versione: '0.49.0',
     data: '2026-08-14',
     voci: [
