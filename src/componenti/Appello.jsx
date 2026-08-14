@@ -84,9 +84,15 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
   const categoriaDi = (a) => categoriaAtleta(a, fasce);
 
   const visibili = useMemo(() => {
+    // Seduta per pochi atleti (doppia): l'elenco esplicito vince e ignora
+    // il filtro per categoria di testata, così chi non c'è non entra né
+    // nell'appello né nel suo denominatore di frequenza.
+    if (seduta?.atleti?.length) {
+      return atleti.filter((a) => seduta.atleti.includes(a.id));
+    }
     if (!codiciGruppi) return atleti;
     return atleti.filter((a) => codiciGruppi.includes(categoriaDi(a)));
-  }, [atleti, codiciGruppi, fasce]);
+  }, [atleti, codiciGruppi, fasce, seduta?.atleti]);
 
   async function segna(atletaId, codice) {
     const prossimo = stati[atletaId] === codice ? null : codice;  // ritocca = annulla
