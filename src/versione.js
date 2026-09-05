@@ -10,6 +10,13 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.50.1',
+    data: '2026-09-05',
+    voci: [
+      'Intestazione più compatta sul telefono: nome, versione e tasti di servizio ora stanno tutti su una riga',
+    ],
+  },
+  {
     versione: '0.50.0',
     data: '2026-08-14',
     voci: [

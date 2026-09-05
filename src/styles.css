@@ -91,6 +91,12 @@ h3 { font-size: 17px; letter-spacing: 0.05em; text-transform: uppercase; color: 
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .testata .spazio { flex: 1; }
+/* Quando lo spazio stringe cede solo il nome: la versione e i tasti di
+   servizio restano interi, non si accartocciano e non vanno a capo. */
+.riga-testata .marchio { flex: 0 1 auto; overflow: hidden; }
+.riga-testata .versione,
+.riga-testata .mini,
+.riga-testata .tasto-feedback { flex: none; }
 
 .nav {
   display: flex; gap: 4px; overflow-x: auto; padding: 5px;
@@ -832,12 +838,30 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 /* La testata sul telefono: due righe compatte, niente sotto la tacca */
 @media (max-width: 620px) {
   .testata { gap: 8px; padding-top: calc(10px + env(safe-area-inset-top)); }
-  .testata .marchio { font-size: 21px; gap: 8px; }
-  .testata .marchio .segno { width: 32px; height: 32px; border-radius: 9px; }
+  .testata .marchio { font-size: 18px; gap: 7px; }
+  .testata .marchio .segno { width: 26px; height: 26px; border-radius: 8px; }
   .testata .societa { font-size: 10.5px; letter-spacing: 0.08em; padding: 4px 9px; }
   .scelta-stagione { font-size: 12px; min-height: 32px; padding: 4px 7px; }
-  .riga-testata .mini { padding: 6px 9px; min-height: 32px; }
+  .riga-testata .mini,
+  .riga-testata .tasto-feedback { padding: 0 9px; min-height: 32px; }
   .versione { font-size: 10px; padding: 2px 7px; }
+}
+
+/* Sotto i 400px il nome cede ancora un po': la versione non si tocca,
+   serve a vedere a colpo d'occhio se l'aggiornamento è arrivato. */
+@media (max-width: 400px) {
+  .testata .marchio { font-size: 16px; gap: 6px; }
+  .testata .marchio .segno { width: 23px; height: 23px; border-radius: 7px; }
+}
+
+/* I quattro tasti di servizio (linea, scrivimi, aiuto, esci) stringono in
+   larghezza per stare in riga col marchio, ma restano alti 44px. La regola
+   delle dita bagnate resta intera dove conta davvero: appello e stati
+   P/R/G/A, premuti di fretta con le mani umide. Questi si premono da
+   asciutto e di rado. */
+@media (pointer: coarse) and (max-width: 620px) {
+  .riga-testata .mini,
+  .riga-testata .tasto-feedback { min-height: 44px; padding: 0 9px; }
 }
 
 /* Riga scelta per un'azione di massa: si vede subito quante ne hai prese. */
@@ -869,9 +893,12 @@ tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
   th { padding: 9px 10px; }
   td { padding: 10px 10px; }
 
-  /* La testata va a capo invece di spingere in larghezza. */
-  .testata .riga-testata { flex-wrap: wrap; row-gap: 8px; }
-  .testata .spazio { flex: 1 1 100%; height: 0; }
+  /* Va a capo SOLO la riga secondaria: società sopra, stagione e gruppi
+     sotto. La prima riga resta in linea — marchio e versione a sinistra,
+     i quattro tasti a destra: lo spaziatore a piena larghezza li spingeva
+     sotto e sprecava un'altezza che sul telefono non c'è. */
+  .testata .riga-testata.secondaria { flex-wrap: wrap; row-gap: 8px; }
+  .testata .riga-testata.secondaria .spazio { flex: 1 1 100%; height: 0; }
   .testata .societa { max-width: 60vw; }
   .scelta-stagione { margin-left: auto; }
 }
