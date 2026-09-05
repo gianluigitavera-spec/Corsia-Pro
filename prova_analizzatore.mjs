@@ -183,7 +183,35 @@ if (!pezzoSenzaZona || pezzoSenzaZona.zona !== 'C1' || pezzoSenzaZona.fiducia !=
   console.error('✗ il pezzo senza zona propria dovrebbe prendere C1 dal titolo, in fiducia gialla');
 }
 
-const quante = prove.length + 9;
+// --- Fondo e Mezzofondo sono due gruppi diversi (026) ---
+// La trappola: "mezzofondo" contiene "fondo". Se le regole perdessero
+// l'ancoraggio, i metri del mezzofondo finirebbero anche ai fondisti —
+// un totale plausibile e sbagliato.
+const chiPrende = (titolo) => analizzaTesto(`${titolo}\n8x100`).sezioni[0]?.destinatari;
+const dice = (titolo, atteso) => {
+  const avuto = chiPrende(titolo);
+  if (JSON.stringify(avuto) !== JSON.stringify(atteso)) {
+    male++;
+    console.error(`✗ "${titolo}" doveva andare a ${atteso.join(' + ')}, invece a ${JSON.stringify(avuto)}`);
+  }
+};
+
+dice('Fondo', ['Fondo']);
+dice('Fondista', ['Fondo']);
+dice('Fondisti', ['Fondo']);
+dice('Mezzofondo', ['Mezzofondo']);
+dice('Mezzofondista', ['Mezzofondo']);
+dice('Mezzofondisti', ['Mezzofondo']);
+
+// La prova che conta: "mezzofondo" non deve MAI finire nel Fondo.
+for (const titolo of ['Mezzofondo', 'Mezzofondista', 'Mezzofondisti']) {
+  if ((chiPrende(titolo) || []).includes('Fondo')) {
+    male++;
+    console.error(`✗ "${titolo}" è finito nel Fondo: la regola ha perso l'ancoraggio`);
+  }
+}
+
+const quante = prove.length + 9 + 9;
 if (male) {
   console.error(`\n${male} prove fallite su ${quante}. Pacchetto non costruito.`);
   process.exit(1);

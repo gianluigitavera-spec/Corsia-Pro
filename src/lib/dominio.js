@@ -11,7 +11,10 @@
 
 export const TUTTI = "*";
 
-export const SPECIALIZZAZIONI = ["Velocità", "Mezzofondo", "Salvamento", "Generale"];
+// Stesso ordine dell'enum squadra.specializzazione (Fondo aggiunto dopo
+// Mezzofondo con la 026): le viste che ciclano su enum_range elencano le
+// righe in quest'ordine, e le tendine qui devono coincidere.
+export const SPECIALIZZAZIONI = ["Velocità", "Mezzofondo", "Fondo", "Salvamento", "Generale"];
 
 // Fallback locale: a runtime le zone si leggono da squadra.zone.
 // Qui servono solo per rendering offline e per i test.

@@ -37,7 +37,10 @@ Errori realmente costati tempo, tutti dalla stessa causa:
 - `famiglia` è l'enum `squadra.famiglia_zona` (aerobico, vo2, lattacido,
   alattacido, altro). Non è testo, e `'nonclass'` non esiste.
 - `specializzazione` è l'enum `squadra.specializzazione` (Velocità,
-  Mezzofondo, Salvamento, Generale). Non è testo.
+  Mezzofondo, Fondo, Salvamento, Generale — Fondo aggiunto dopo Mezzofondo
+  con la 026). Non è testo. L'ordine conta: le viste ciclano con
+  `unnest(enum_range(...))`, e `SPECIALIZZAZIONI` in `src/lib/dominio.js`
+  ripete lo stesso ordine.
 - `v_serie` non aveva gli indici di posizione: sono stati aggiunti con la 023
   (`sez_n`, `ser_m`, base zero, via `with ordinality`).
 
@@ -55,8 +58,10 @@ ripetibile su un ambiente pulito. È già successo di perdere la 025.
 Dopo ogni migrazione, rigenerare `schema.sql` e committarlo. È l'unico modo
 perché chi legge il repo sappia com'è fatto davvero il database.
 
-Migrazioni ancora aperte: **025** da riscrivere (eseguita, file mai salvato) e
-**026** da ripensare, ora che `v_carico_zona_reale` esiste.
+Migrazioni: la 025 (atleti sulla seduta) e la 026 (specializzazione Fondo)
+sono eseguite e salvate. Nessuna aperta.
+
+`schema.sql` non esiste ancora nel repo: da rigenerare e committare.
 
 ---
 
@@ -86,6 +91,16 @@ FP/PF, CP, TC, regr. Crono vale C3 o D a seconda della fase di periodizzazione.
 **Ogni atleta può fare qualunque zona.** Un velocista fa lavori di C, un
 fondista pure. Non deve esistere nessun filtro che leghi la zona alla
 specializzazione.
+
+**Cambiare la specializzazione di un atleta gli sposta anche i volumi
+storici.** `sezionePer()` in `dominio.js` confronta stringhe esatte fra la
+specializzazione dell'atleta e i `destinatari` scritti nella sezione. Chi
+passa da Mezzofondo a Fondo smette di ricadere nelle sezioni storiche
+intestate `Mezzofondo`: i suoi metri passati si riducono al riscaldamento
+comune, e Volumi e Dashboard mostrano numeri più bassi di prima. È il
+comportamento corretto, ma è una sorpresa che altrimenti si scopre davanti
+a un grafico che non torna. Se un giorno servisse difendere il pregresso,
+la via è riclassificare a partire da una data, non retroattivamente.
 
 **Chiave atleta:** `cognomenome+annonascita` normalizzato, con l'equivalente
 SQL in `squadra.chiave_atleta()`. Dalla 021 c'è un indice unico su

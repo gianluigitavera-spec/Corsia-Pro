@@ -82,11 +82,19 @@ const ZONA_ESPLICITA = /\b(A1|A2|B1|B2\+?|C1|C2|C3|D)\b/;
 export const PER_STILE = /\b(?:1\s*)?serie\s*x\s*stil\w*|\bmx\s*1x\b|\b1\s*serie\s*x\b/i;
 
 // Intestazioni che indicano A CHI è rivolto il lavoro. "Centrale" vale
-// per tutti; "Velocisti", "Mezzofondo", "Salvamento" restringono la
-// sezione a quel gruppo, dentro le categorie scelte per la seduta.
+// per tutti; "Velocisti", "Mezzofondo", "Fondo", "Salvamento" restringono
+// la sezione a quel gruppo, dentro le categorie scelte per la seduta.
+//
+// "fondo" stava fra le scritture del Mezzofondo finché il Fondo non era
+// una specializzazione a sé (026). Ora sono due gruppi diversi e due
+// regole diverse: mandare quei metri all'uno invece che all'altro darebbe
+// un totale plausibile e falso. La trappola è che "mezzofondo" contiene
+// "fondo" — quello che le tiene separate è l'ancoraggio ^...$, non
+// l'ordine in cui stanno qui sotto.
 export const DESTINATARI_TITOLO = [
   [/^\s*(velocist\w*|velocit[aà])\s*:?\s*$/i, ['Velocità']],
-  [/^\s*(mezzofondist\w*|mezzofondo|fondo)\s*:?\s*$/i, ['Mezzofondo']],
+  [/^\s*(mezzofondist\w*|mezzofondo)\s*:?\s*$/i, ['Mezzofondo']],
+  [/^\s*(fondist\w*|fondo)\s*:?\s*$/i, ['Fondo']],
   [/^\s*(salvament\w*|salvamentist\w*)\s*:?\s*$/i, ['Salvamento']],
   [/^\s*(velocist\w*\s*[e+/]\s*mezzofond\w*)\s*:?\s*$/i, ['Velocità', 'Mezzofondo']],
 ];

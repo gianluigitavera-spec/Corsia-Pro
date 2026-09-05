@@ -10,6 +10,15 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.51.0',
+    data: '2026-09-05',
+    voci: [
+      'Nuova specializzazione Fondo, separata dal Mezzofondo: la scegli sulla scheda Atleti e compare nelle tendine, nei destinatari delle sezioni e nei volumi',
+      'Nel testo libero "Fondo" e "Fondisti" ora indirizzano la sezione ai fondisti; "Mezzofondo" resta al mezzofondo',
+      'Attenzione: spostando un atleta di specializzazione cambiano anche i suoi volumi passati — le sezioni vecchie intestate a un altro gruppo non contano più per lui',
+    ],
+  },
+  {
     versione: '0.50.1',
     data: '2026-09-05',
     voci: [
