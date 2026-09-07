@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Dumbbell, Settings2, LogOut, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Sparkles, Settings2, LogOut, HelpCircle } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, RAGGRUPPAMENTI } from './lib/dominio';
@@ -27,7 +27,10 @@ const SCHEDE = [
   { id: 'benessere', nome: 'Benessere', Icona: HeartPulse },
   { id: 'atleti', nome: 'Atleti', Icona: Users },
   { id: 'volumi', nome: 'Carico atleti', Icona: BarChart3 },
-  { id: 'esercizi', nome: 'Esercizi', Icona: Dumbbell },
+  // L'id resta 'esercizi': ci puntano il tutorial e lo stato della scheda,
+  // e le tabelle in banca dati si chiamano così. Cambia il nome che legge
+  // l'allenatore, non l'impianto sotto.
+  { id: 'esercizi', nome: 'Tecnica', Icona: Sparkles },
   { id: 'squadra', nome: 'Squadra', Icona: Settings2 },
 ];
 

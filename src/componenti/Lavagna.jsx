@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
-import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataIt } from '../lib/dominio';
+import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataIt, eSecco } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 
 // La lavagna del bordo vasca: una sezione per volta, caratteri grandi,
@@ -53,7 +53,12 @@ export default function Lavagna({ seduta, zone, chiudi }) {
         <div className="testa-lavagna">
           <h2>{sez.titolo || `Sezione ${i + 1}`}</h2>
           {!dest.includes(TUTTI) && <span className="chi-lavagna">{dest.join(' · ')}</span>}
-          <span className="mono metri-lavagna">{metriSez.toLocaleString('it-IT')} m</span>
+          {/* A secco "0 m" sembrerebbe una seduta sbagliata: dice i minuti. */}
+          <span className="mono metri-lavagna">
+            {eSecco(sez)
+              ? `a secco${sez.durataMin ? ` · ${sez.durataMin}'` : ''}`
+              : `${metriSez.toLocaleString('it-IT')} m`}
+          </span>
         </div>
 
         <ol className="serie-lavagna">

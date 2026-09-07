@@ -10,6 +10,16 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.52.0',
+    data: '2026-09-07',
+    voci: [
+      'Sezione a secco per palestra e pre-vasca: non fa metri e non ha zone, si riconosce dalla striscia gialla e porta la sua durata in minuti, che entra nella durata della seduta',
+      'Corretto: scrivendo "Palestra" e sotto "4x12 ripetizioni" uscivano 100 metri mai nuotati — ora il titolo a secco vale per tutte le righe sotto',
+      'Nel testo libero bastano "Palestra", "Dryland", "Secco", "Pre-vasca" o "Lavoro a secco" come titolo',
+      'La scheda Esercizi ora si chiama Tecnica',
+    ],
+  },
+  {
     versione: '0.51.0',
     data: '2026-09-05',
     voci: [

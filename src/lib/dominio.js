@@ -215,6 +215,20 @@ export function sezionePer(sezione, specializzazione) {
 }
 
 // ---------------------------------------------------------------------
+// LAVORO A SECCO
+// Palestra, elastici, core: sta nella seduta, occupa tempo, non fa metri
+// e non ha zona. Il titolo lo riconosce l'analizzatore una volta sola e
+// segna il campo; da lì in avanti comanda il campo, non il titolo — che
+// l'allenatore può riscrivere quando vuole senza far rientrare i metri
+// di soppiatto. Chi conta metri passa tutto di qui.
+// ---------------------------------------------------------------------
+export const eSecco = (sezione) => sezione?.aSecco === true;
+
+export function sezioneSeccaVuota(titolo = "Palestra") {
+  return { titolo, destinatari: [TUTTI], aSecco: true, durataMin: 20, serie: [] };
+}
+
+// ---------------------------------------------------------------------
 // VOLUMI — la regola che il prototipo sbagliava.
 // Il volume di chi fa velocità è warm-up comune + sezione velocisti,
 // NON la somma di tutte le sezioni della seduta.
@@ -223,6 +237,7 @@ export function metriPerSpecializzazione(sezioni, specializzazione, svolto) {
   const righe = svolto?.righe || {};
   let totale = 0;
   (sezioni || []).forEach((sez, i) => {
+    if (eSecco(sez)) return;
     if (!sezionePer(sez, specializzazione)) return;
     (sez.serie || []).forEach((s, j) => {
       const c = righe[chiaveRiga(i, j)];
@@ -241,6 +256,7 @@ export function zonePerSpecializzazione(sezioni, specializzazione, svolto) {
   const righe = svolto?.righe || {};
   const per = new Map();
   (sezioni || []).forEach((sez, i) => {
+    if (eSecco(sez)) return;
     if (!sezionePer(sez, specializzazione)) return;
     (sez.serie || []).forEach((s, j) => {
       const c = righe[chiaveRiga(i, j)];
@@ -262,6 +278,7 @@ export function zonePerSpecializzazione(sezioni, specializzazione, svolto) {
 export function caricoPerZona(sezioni, specializzazione) {
   const out = {};
   for (const sez of sezioni || []) {
+    if (eSecco(sez)) continue;
     if (!sezionePer(sez, specializzazione)) continue;
     for (const s of sez.serie || []) {
       const z = (s.zona || "").trim() || "?";
@@ -932,8 +949,16 @@ export function durataStimata(sezioni) {
   let secondi = 0;
   let conRipartenza = 0;
   let senza = 0;
+  let secchi = 0;
 
   for (const sez of sezioni || []) {
+    // Il lavoro a secco non ha tempi di partenza da cui dedurre nulla:
+    // i minuti li scrive l'allenatore e valgono come sono.
+    if (eSecco(sez)) {
+      const min = Number(sez.durataMin) || 0;
+      if (min > 0) { secondi += min * 60; secchi += 1; }
+      continue;
+    }
     for (const s of sez.serie || []) {
       if (!s.metri && !s.senzaMetri) continue;
       const base = secondiDaRipartenza(s.recupero);
@@ -945,7 +970,7 @@ export function durataStimata(sezioni) {
       }
     }
   }
-  return { secondi, conPartenza: conRipartenza, senzaPartenza: senza };
+  return { secondi, conPartenza: conRipartenza, senzaPartenza: senza, sezioniSecche: secchi };
 }
 
 export function inOreMinuti(secondi) {

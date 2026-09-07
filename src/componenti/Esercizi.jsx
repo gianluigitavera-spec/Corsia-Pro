@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Dumbbell, Plus, Search, Link2, Link2Off, Trash2, Pencil, Check, X,
+  Plus, Search, Link2, Link2Off, Trash2, Pencil, Check, X,
   CalendarDays, RefreshCw, AlertTriangle, Building2, Globe,
 } from 'lucide-react';
 import * as api from '../lib/dati';
@@ -219,7 +219,7 @@ export default function Esercizi({ societa, puoScrivere }) {
   return (
     <>
       <div className="barra">
-        <h1>Esercizi</h1>
+        <h1>Tecnica</h1>
         <div className="cerca">
           <Search size={16} />
           <input placeholder="Cerca esercizio…" value={cerca} onChange={(e) => setCerca(e.target.value)} />

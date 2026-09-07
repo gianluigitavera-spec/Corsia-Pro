@@ -1,5 +1,5 @@
 // La seduta in testo semplice: per WhatsApp, per un'email, per gli appunti.
-import { TUTTI, metriPerSpecializzazione, SPECIALIZZAZIONI, dataIt, durataStimata, inOreMinuti } from './dominio';
+import { TUTTI, metriPerSpecializzazione, SPECIALIZZAZIONI, dataIt, durataStimata, inOreMinuti, eSecco } from './dominio';
 
 
 export function sedutaInTesto(seduta, { nomeSquadra } = {}) {
@@ -13,7 +13,10 @@ export function sedutaInTesto(seduta, { nomeSquadra } = {}) {
     const dest = sez.destinatari?.length ? sez.destinatari : [TUTTI];
     const chi = dest.includes(TUTTI) ? '' : ` [${dest.join(', ')}]`;
     const metri = (sez.serie || []).reduce((t, s) => t + (Number(s.metri) || 0), 0);
-    r.push(`${(sez.titolo || 'Sezione').toUpperCase()}${chi} — ${metri} m`);
+    const quanto = eSecco(sez)
+      ? `a secco${sez.durataMin ? ` · ${sez.durataMin}'` : ''}`
+      : `${metri} m`;
+    r.push(`${(sez.titolo || 'Sezione').toUpperCase()}${chi} — ${quanto}`);
     for (const s of sez.serie || []) {
       const pezzi = [s.notazione];
       if (s.recupero) pezzi.push(s.recupero);

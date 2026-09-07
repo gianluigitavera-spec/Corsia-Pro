@@ -59,7 +59,10 @@ Dopo ogni migrazione, rigenerare `schema.sql` e committarlo. È l'unico modo
 perché chi legge il repo sappia com'è fatto davvero il database.
 
 Migrazioni: la 025 (atleti sulla seduta) e la 026 (specializzazione Fondo)
-sono eseguite e salvate. Nessuna aperta.
+sono eseguite e salvate. La **027** (`v_serie` esclude le sezioni a secco)
+è scritta ma **non ancora eseguita** su Supabase; in coda porta anche il
+censimento delle sedute vecchie con sezioni tipo "Palestra" che portano
+metri fantasma, da guardare prima di decidere se correggerle.
 
 `schema.sql` non esiste ancora nel repo: da rigenerare e committare.
 
@@ -76,6 +79,16 @@ Sommare tutte le sezioni gonfia i metri di chiunque. Vale ovunque: viste SQL,
 `dominio.js`, grafici.
 
 **Distanze sotto i 25 m contano 25** (regola della vasca).
+
+**Il lavoro a secco non fa metri e non ha zona.** Palestra, elastici,
+core: sta nella seduta, occupa tempo, ma non si nuota. La sezione porta
+`aSecco: true` e una `durataMin` scritta a mano, che è l'unica durata che
+si ha (le altre sezioni la deducono dai tempi di partenza). Il titolo
+decide una volta sola, in lettura (`TITOLO_A_SECCO`), poi comanda il
+campo: il titolo è libero e rinominarlo non deve far rientrare i metri.
+Dalla 027 il filtro sta anche in `v_serie`, in `where` e non dentro la
+`from` — `with ordinality` deve numerare prima di scartare, o `sez_n` si
+sfasa dalle chiavi di `svolto`.
 
 **Righe con lavoro ma senza metri** = programmato ma non svolto: zero reale,
 programma diverso da zero.

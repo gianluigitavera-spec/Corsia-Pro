@@ -1,4 +1,4 @@
-import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataItLunga, durataStimata, inOreMinuti } from '../lib/dominio';
+import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataItLunga, durataStimata, inOreMinuti, eSecco } from '../lib/dominio';
 
 // Foglio da stampa: invisibile a schermo, è quello che finisce nel PDF.
 // Bianco, essenziale, senza la veste grafica dell'app.
@@ -30,7 +30,11 @@ export default function FoglioStampa({ seduta, societa, categorie }) {
             <div className="foglio-sezione-testa">
               <b>{(sez.titolo || `Sezione ${i + 1}`).toUpperCase()}</b>
               {!dest.includes(TUTTI) && <span> — {dest.join(', ')}</span>}
-              <span className="foglio-metri">{metri} m</span>
+              <span className="foglio-metri">
+                {eSecco(sez)
+                  ? `a secco${sez.durataMin ? ` · ${sez.durataMin}'` : ''}`
+                  : `${metri} m`}
+              </span>
             </div>
             <table className="foglio-tabella">
               <tbody>

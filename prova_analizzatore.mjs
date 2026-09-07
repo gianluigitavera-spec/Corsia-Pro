@@ -6,6 +6,7 @@
 // rotto un test: hai cambiato il significato di una riga che lui usa
 // davvero.
 import { analizzaTesto } from './src/lib/analizzatore.js';
+import { metriPerSpecializzazione, durataStimata } from './src/lib/dominio.js';
 
 const prove = [
   // --- la riga che non tornava ---
@@ -211,7 +212,59 @@ for (const titolo of ['Mezzofondo', 'Mezzofondista', 'Mezzofondisti']) {
   }
 }
 
-const quante = prove.length + 9 + 9;
+// --- la sezione a secco non fa metri, per tutte le sue righe ---
+// Il caso che sbagliava: "Palestra" apriva una sezione qualunque e
+// "4x12 ripetizioni" sotto faceva 100 metri (4×12, col 12 portato a 25
+// dalla regola della vasca). Lavoro a terra contato come nuotato.
+const secco = analizzaTesto('Palestra\n4x12 ripetizioni\n3x10 trazioni').sezioni[0];
+if (!secco?.aSecco) {
+  male++;
+  console.error('✗ "Palestra" come titolo deve marcare la sezione come lavoro a secco');
+}
+const metriSecchi = (secco?.serie || []).reduce((t, s) => t + (Number(s.metri) || 0), 0);
+if (metriSecchi !== 0) {
+  male++;
+  console.error(`✗ la sezione a secco doveva fare 0 metri, ne ha fatti ${metriSecchi}`);
+}
+if ((secco?.serie || []).some((s) => s.zona)) {
+  male++;
+  console.error('✗ le righe a secco non devono prendere nessuna zona');
+}
+
+for (const titolo of ['Dryland', 'Secco', 'Pre-vasca', 'Lavoro a secco']) {
+  const s = analizzaTesto(`${titolo}\n4x12 ripetizioni`).sezioni[0];
+  const m = (s?.serie || []).reduce((t, r) => t + (Number(r.metri) || 0), 0);
+  if (!s?.aSecco || m !== 0) {
+    male++;
+    console.error(`✗ "${titolo}" doveva aprire una sezione a secco da 0 metri, invece ${m} m`);
+  }
+}
+
+// Dopo il secco si torna in acqua: la sezione seguente conta di nuovo.
+const dopoIlSecco = analizzaTesto('Palestra\n3x10 trazioni\nParte centrale\n8x100').sezioni;
+const inAcqua = dopoIlSecco[dopoIlSecco.length - 1];
+if (inAcqua?.aSecco) {
+  male++;
+  console.error('✗ il secco non deve contagiare la sezione dopo');
+}
+if ((inAcqua?.serie || []).reduce((t, s) => t + (Number(s.metri) || 0), 0) !== 800) {
+  male++;
+  console.error('✗ dopo la sezione a secco i metri devono tornare a contare (8x100 = 800)');
+}
+
+// E i conti del dominio la saltano: è lì che i metri finirebbero nei grafici.
+if (metriPerSpecializzazione(dopoIlSecco, 'Generale') !== 800) {
+  male++;
+  console.error('✗ metriPerSpecializzazione deve ignorare la sezione a secco');
+}
+// La durata invece la conta, coi minuti scritti a mano.
+const conMinuti = [{ titolo: 'Palestra', aSecco: true, durataMin: 30, serie: [] }];
+if (durataStimata(conMinuti).secondi !== 1800) {
+  male++;
+  console.error('✗ i minuti della sezione a secco devono entrare nella durata stimata');
+}
+
+const quante = prove.length + 9 + 9 + 11;
 if (male) {
   console.error(`\n${male} prove fallite su ${quante}. Pacchetto non costruito.`);
   process.exit(1);

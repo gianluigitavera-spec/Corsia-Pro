@@ -8,14 +8,18 @@ import {
   TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
+  eSecco, sezioneSeccaVuota,
 } from '../lib/dominio';
-import { TINTA_FAMIGLIA } from '../lib/colori';
+import { TINTA_FAMIGLIA, TINTE } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
 import { condividiSeduta } from '../lib/testoSeduta';
 import Lavagna from './Lavagna';
 import FoglioStampa from './FoglioStampa';
 
 function coloreSezione(sezione, zone) {
+  // Il lavoro a terra ha la sua striscia gialla: si distingue a colpo
+  // d'occhio dal ciano dell'acqua, che è quello che conta metri.
+  if (eSecco(sezione)) return TINTE.yellow;
   const mappa = Object.fromEntries(zone.map((z) => [z.codice, z.famiglia]));
   const conta = {};
   for (const s of sezione.serie || []) {
@@ -98,6 +102,15 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
     aggiorna((s) => {
       const serie = s.sezioni[i].serie[j];
       serie.notazione = valore;
+      // A secco la notazione resta una descrizione: "4x12 trazioni" non
+      // vale 100 metri. Se lasciassimo leggere i metri qui, finirebbero
+      // salvati nel JSON e da lì in avanti li conterebbe anche il
+      // database, che i metri li prende dal dato e non dal titolo.
+      if (eSecco(s.sezioni[i])) {
+        serie.metri = 0;
+        serie.zona = '';
+        return;
+      }
       if (!serie.metriManuali) {
         const m = metriDaNotazione(valore);
         if (m !== null) serie.metri = m;
@@ -510,6 +523,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
       <div className="sezione">
         {(seduta.sezioni || []).map((sez, i) => {
           const dest = sez.destinatari?.length ? sez.destinatari : [TUTTI];
+          const secca = eSecco(sez);
           return (
             <div className="corsia" key={i} style={{ '--colore-corsia': coloreSezione(sez, zone) }}>
               <div className="testa">
@@ -530,17 +544,41 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                   placeholder="Titolo sezione"
                   onChange={(e) => aggiorna((s) => { s.sezioni[i].titolo = e.target.value; })}
                 />
-                <span className="mono" style={{ color: 'var(--testo-3)', fontSize: 13 }}>
-                  {(sez.serie || []).reduce((t, x) => t + (Number(x.metri) || 0), 0)} m
-                </span>
-                <div className="destinatari">
-                  <button className="pastiglia" aria-pressed={dest.includes(TUTTI)} onClick={() => togliDestinatario(i, TUTTI)}>Tutti</button>
-                  {SPECIALIZZAZIONI.filter((x) => x !== 'Generale').map((spec) => (
-                    <button key={spec} className="pastiglia" aria-pressed={dest.includes(spec)} onClick={() => togliDestinatario(i, spec)}>
-                      {spec}
-                    </button>
-                  ))}
-                </div>
+                {secca ? (
+                  <>
+                    <span className="segno-secco">a secco</span>
+                    <label className="durata-secco">
+                      <input
+                        className="mono"
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        value={sez.durataMin ?? ''}
+                        placeholder="20"
+                        aria-label="Durata a secco in minuti"
+                        onChange={(e) => aggiorna((s) => {
+                          const v = e.target.value;
+                          s.sezioni[i].durataMin = v === '' ? '' : Math.max(0, Number(v) || 0);
+                        })}
+                      />
+                      <span>min</span>
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <span className="mono" style={{ color: 'var(--testo-3)', fontSize: 13 }}>
+                      {(sez.serie || []).reduce((t, x) => t + (Number(x.metri) || 0), 0)} m
+                    </span>
+                    <div className="destinatari">
+                      <button className="pastiglia" aria-pressed={dest.includes(TUTTI)} onClick={() => togliDestinatario(i, TUTTI)}>Tutti</button>
+                      {SPECIALIZZAZIONI.filter((x) => x !== 'Generale').map((spec) => (
+                        <button key={spec} className="pastiglia" aria-pressed={dest.includes(spec)} onClick={() => togliDestinatario(i, spec)}>
+                          {spec}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <button className="mini" onClick={() => aggiorna((s) => { s.sezioni.splice(i, 1); })} aria-label="Elimina sezione">
                   <X size={14} />
                 </button>
@@ -548,13 +586,19 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
 
               <div className="serie">
                 {(sez.serie || []).length > 0 && (
-                  <div className="intestazione-serie">
-                    <span>Serie</span><span>Zona</span><span>Metri</span><span className="rec">Recupero</span><span />
-                  </div>
+                  secca ? (
+                    <div className="intestazione-serie secca">
+                      <span>Esercizio</span><span />
+                    </div>
+                  ) : (
+                    <div className="intestazione-serie">
+                      <span>Serie</span><span>Zona</span><span>Metri</span><span className="rec">Recupero</span><span />
+                    </div>
+                  )
                 )}
 
                 {(sez.serie || []).map((s, j) => (
-                  <div className="riga-serie" key={j}>
+                  <div className={secca ? 'riga-serie secca' : 'riga-serie'} key={j}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="maniglie">
                         <button disabled={j === 0} aria-label="Sposta serie su"
@@ -569,31 +613,38 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                       <input
                         style={{ flex: 1, minWidth: 0 }}
                         value={s.notazione || ''}
-                        placeholder="4x(1x100 + 2x50)"
+                        placeholder={secca ? '4x12 trazioni' : '4x(1x100 + 2x50)'}
                         onChange={(e) => cambiaNotazione(i, j, e.target.value)}
                       />
                     </span>
-                    <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].zona = e.target.value; })}>
-                      <option value="">—</option>
-                      {zone.map((z) => <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>)}
-                    </select>
-                    <input
-                      className="mono"
-                      type="number"
-                      inputMode="numeric"
-                      value={s.metri || ''}
-                      placeholder="0"
-                      title={s.metriManuali ? 'Metri scritti a mano' : 'Calcolati dalla notazione'}
-                      onChange={(e) => cambiaMetri(i, j, e.target.value)}
-                    />
-                    <input
-                      className="mono rec"
-                      value={s.recupero || ''}
-                      placeholder="@1:40 o @@2:00"
-                      onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
-                      onBlur={(e) => sistemaRecupero(i, j, e.target.value)}
-                    />
-                    {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
+                    {/* A terra non ci sono né zona né metri: le caselle non
+                        compaiono proprio, così non c'è niente da riempire
+                        per sbaglio. */}
+                    {!secca && (
+                      <>
+                        <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].zona = e.target.value; })}>
+                          <option value="">—</option>
+                          {zone.map((z) => <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>)}
+                        </select>
+                        <input
+                          className="mono"
+                          type="number"
+                          inputMode="numeric"
+                          value={s.metri || ''}
+                          placeholder="0"
+                          title={s.metriManuali ? 'Metri scritti a mano' : 'Calcolati dalla notazione'}
+                          onChange={(e) => cambiaMetri(i, j, e.target.value)}
+                        />
+                        <input
+                          className="mono rec"
+                          value={s.recupero || ''}
+                          placeholder="@1:40 o @@2:00"
+                          onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
+                          onBlur={(e) => sistemaRecupero(i, j, e.target.value)}
+                        />
+                        {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
+                      </>
+                    )}
                     <button className="togli" aria-label="Togli serie" onClick={() => aggiorna((st) => { st.sezioni[i].serie.splice(j, 1); })}>
                       <Trash2 size={14} />
                     </button>
@@ -603,22 +654,35 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                 <button
                   className="mini"
                   style={{ marginTop: 9 }}
-                  onClick={() => aggiorna((s) => { s.sezioni[i].serie = [...(s.sezioni[i].serie || []), serieVuota()]; })}
+                  onClick={() => aggiorna((s) => {
+                    const nuova = secca ? { ...serieVuota(), zona: '' } : serieVuota();
+                    s.sezioni[i].serie = [...(s.sezioni[i].serie || []), nuova];
+                  })}
                 >
-                  <Plus size={13} style={{ verticalAlign: -2 }} /> serie
+                  <Plus size={13} style={{ verticalAlign: -2 }} /> {secca ? 'esercizio' : 'serie'}
                 </button>
               </div>
             </div>
           );
         })}
 
-        <button
-          className="azione fantasma"
-          style={{ marginTop: 12 }}
-          onClick={() => aggiorna((s) => { s.sezioni.push({ titolo: '', destinatari: [TUTTI], serie: [] }); })}
-        >
-          <Plus size={15} style={{ verticalAlign: -3 }} /> sezione
-        </button>
+        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 12 }}>
+          <button
+            className="azione fantasma"
+            onClick={() => aggiorna((s) => { s.sezioni.push({ titolo: '', destinatari: [TUTTI], serie: [] }); })}
+          >
+            <Plus size={15} style={{ verticalAlign: -3 }} /> sezione
+          </button>
+          {/* Il lavoro a terra viene quasi sempre prima dell'acqua, quindi
+              nasce in cima. Resta spostabile con le frecce come le altre:
+              nessun vincolo di posizione. */}
+          <button
+            className="azione fantasma"
+            onClick={() => aggiorna((s) => { s.sezioni.unshift(sezioneSeccaVuota()); })}
+          >
+            <Plus size={15} style={{ verticalAlign: -3 }} /> sezione a secco
+          </button>
+        </div>
       </div>
 
       {/* ------------------------------- volumi per specializzazione */}

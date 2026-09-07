@@ -207,6 +207,17 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 .intestazione-serie { display: grid; grid-template-columns: 1fr 96px 96px 108px 38px; gap: 8px; padding-top: 7px; }
 .intestazione-serie span { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--testo-3); }
 
+/* A secco restano descrizione e cestino: niente zona, niente metri,
+   niente partenza. La griglia si accorcia di conseguenza. */
+.riga-serie.secca, .intestazione-serie.secca { grid-template-columns: 1fr 38px; }
+.segno-secco {
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #FDE047; border: 1px solid rgba(253, 224, 71, 0.4);
+  background: rgba(253, 224, 71, 0.1); border-radius: 999px; padding: 3px 9px;
+}
+.durata-secco { display: inline-flex; align-items: center; gap: 6px; color: var(--testo-3); font-size: 12px; }
+.durata-secco input { width: 68px; min-height: 34px; padding: 4px 8px; }
+
 /* ------------------------------------------------- riquadri KPI */
 .volumi { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 14px; }
 .volume {

@@ -135,6 +135,19 @@ export function zonaDaTitolo(titolo) {
 // Lavoro a terra: sta nella seduta ma non fa metri.
 export const A_SECCO = /\b(secco|palestra|plank|salti|elastic\w+|core|addominali|circuito a terra)\b/i;
 
+// Lo stesso lavoro a terra, ma scritto come TITOLO di sezione: da lì in
+// giù è tutto a secco, riga per riga, senza metri e senza zona. Prima
+// A_SECCO si testava solo sulla singola riga, quindi "Palestra" apriva
+// una sezione qualunque e "4x12 ripetizioni" sotto faceva 100 metri —
+// 4×12 con la regola della vasca che porta il 12 a 25. Lavoro a terra
+// contato come nuotato: il tipo di numero che sembra giusto e non lo è.
+//
+// Il titolo decide una volta sola, in lettura. Poi il campo `aSecco`
+// sulla sezione se lo porta dietro salvato: rinominare la sezione non
+// deve far rientrare i metri di soppiatto.
+export const TITOLO_A_SECCO =
+  /^\s*(lavoro\s+a\s+secco|a\s+secco|secco|palestra|dry\s*-?\s*land|pre\s*-?\s*vasca)\s*:?\s*$/i;
+
 // LA REGOLA DELLA VASCA
 // Partenze, virate, scivolamenti: si scrivono con la distanza a cui si
 // arriva ("2x10", "partendo dai 10m"), ma l'atleta la vasca la finisce
@@ -577,8 +590,9 @@ export function analizzaTesto(testo) {
   let zonaCorrente = '';        // dichiarata da una riga di sola zona
   const avvisi = [];
 
-  const nuovaSezione = (titolo, destinatari = ['*']) => {
+  const nuovaSezione = (titolo, destinatari = ['*'], aSecco = false) => {
     sezione = { titolo, destinatari, serie: [] };
+    if (aSecco) { sezione.aSecco = true; sezione.durataMin = 20; }
     sezioni.push(sezione);
     return sezione;
   };
@@ -613,6 +627,16 @@ export function analizzaTesto(testo) {
       zonaCorrente = soloZona[1].toUpperCase().replace('+', '');
       moltiplicatoreAttivo = 1;
       nuovaSezione(zonaCorrente);
+      continue;
+    }
+
+    // "Palestra", "Dryland", "Pre-vasca": da qui in giù si lavora a terra.
+    // Prima delle altre intestazioni, altrimenti "Palestra" finisce fra i
+    // destinatari particolari e le sue righe tornano a fare metri.
+    if (TITOLO_A_SECCO.test(riga)) {
+      chiudiGruppo();
+      moltiplicatoreAttivo = 1;
+      nuovaSezione(riga.replace(':', '').trim(), ['*'], true);
       continue;
     }
 
@@ -666,6 +690,17 @@ export function analizzaTesto(testo) {
     }
 
     if (!sezione) nuovaSezione('Riscaldamento');
+
+    // Dentro una sezione a secco non si contano metri, punto: qualunque
+    // riga vale come lavoro a terra, anche se è scritta con le x e i
+    // numeri di una serie in acqua ("4x12 ripetizioni").
+    if (sezione.aSecco) {
+      sezione.serie.push({
+        notazione: riga, metri: 0, zona: '', recupero: trovaRecupero(riga),
+        senzaMetri: true, fiducia: 'gialla',
+      });
+      continue;
+    }
 
     // Righe senza metri: partenze, virate, esercizi a secco
     // Il lavoro a secco resta a zero sempre. Partenze e virate no: se

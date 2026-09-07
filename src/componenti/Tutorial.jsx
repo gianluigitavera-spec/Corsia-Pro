@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   X, ChevronLeft, ChevronRight, LayoutDashboard, Waves, ClipboardCheck,
   HeartPulse, Users, BarChart3, Settings2, Sparkles, KeyRound, Smartphone,
-  PencilLine, WifiOff, Dumbbell,
+  PencilLine, WifiOff,
 } from 'lucide-react';
 
 // Il tutorial cambia scheda mentre spiega: dietro al riquadro c'è la
@@ -64,8 +64,8 @@ const PASSI = [
   },
   {
     scheda: 'esercizi',
-    Icona: Dumbbell,
-    titolo: 'Esercizi',
+    Icona: Sparkles,
+    titolo: 'Tecnica',
     testo: 'Tre livelli: quelli che hai scelto per QUESTA settimana, col video pronto da mostrare a bordo vasca; il catalogo della tua squadra; e quelli comuni a tutti. Il codice (DO-01, TC-03) nasce con l\u2019esercizio e non cambia più. "Controlla i video" segna in rosso i link di YouTube spariti.',
   },
   {
