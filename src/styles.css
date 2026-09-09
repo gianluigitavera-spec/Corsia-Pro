@@ -531,6 +531,18 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 .voce-registro ul { margin: 7px 0 0; padding-left: 19px; color: var(--testo-2); font-size: 14px; }
 .voce-registro li { margin-bottom: 4px; }
 
+/* La finestra delle novità: si legge in piedi, con una mano, e si chiude
+   in fretta. Il tasto sta in fondo e non scorre via col testo, e sotto
+   c'è la barra dell'iPhone da scavalcare. */
+.registro-riquadro.novita { display: flex; flex-direction: column; max-width: 520px; }
+.registro-riquadro.novita .corpo { overflow-y: auto; }
+.piede-novita {
+  position: sticky; bottom: 0; padding: 13px 16px;
+  padding-bottom: calc(13px + env(safe-area-inset-bottom));
+  border-top: var(--riga); background: rgba(16, 27, 51, 0.98);
+}
+.piede-novita .azione { width: 100%; justify-content: center; min-height: 46px; }
+
 /* ------------------------------------------------- appello a elenco */
 .intestazione-appello, .riga-appello {
   display: grid; grid-template-columns: 1fr 176px 56px 56px 56px 44px;

@@ -5,13 +5,28 @@
 // la cache del service worker prima di ogni build.
 // Ad ogni consegna: alza "version" in package.json e aggiungi qui la voce
 // corrispondente in CAMBIAMENTI — senza, la build si ferma.
+//
+// `annuncia: true` fa aprire la finestra delle novità alla prima apertura
+// dopo l'aggiornamento. Si mette a mano, voce per voce: lo decide chi
+// scrive la voce, perché è l'unico che sa se quella cosa vale una
+// finestra in faccia o solo una riga nel registro. Senza il campo la voce
+// resta consultabile dalla pillola della versione, e non interrompe
+// nessuno.
 // =====================================================================
 export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.53.0',
+    data: '2026-09-09',
+    voci: [
+      'Dopo un aggiornamento l’app apre una finestra con le novità della versione, una volta sola; il registro completo resta sotto la pillola della versione in alto',
+    ],
+  },
+  {
     versione: '0.52.0',
     data: '2026-09-07',
+    annuncia: true,
     voci: [
       'Sezione a secco per palestra e pre-vasca: non fa metri e non ha zone, si riconosce dalla striscia gialla e porta la sua durata in minuti, che entra nella durata della seduta',
       'Corretto: scrivendo "Palestra" e sotto "4x12 ripetizioni" uscivano 100 metri mai nuotati — ora il titolo a secco vale per tutte le righe sotto',

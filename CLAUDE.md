@@ -129,6 +129,13 @@ sua voce in `src/versione.js`, o `sincronizza_versione.mjs` ferma la build.
 Le voci si scrivono per un allenatore, non per uno sviluppatore: cosa cambia
 per chi usa l'app, non quale funzione è stata toccata.
 
+Sulla voce si può mettere **`annuncia: true`**: dalla 0.53.0 fa aprire la
+finestra delle novità alla prima apertura dopo l'aggiornamento (`src/lib/
+novita.js`, puro e sotto prova in `prova_novita.mjs`). Si decide a mano,
+voce per voce — una regola automatica dovrebbe indovinare cosa è
+importante, e indovinerebbe male. Senza il campo la voce resta solo nel
+registro consultabile, e non interrompe nessuno a bordo vasca.
+
 **Prima di pacchettizzare si esegue `npm run build`**, che è la catena
 completa: allineamento versione, eslint, controllo import, 61 prove
 dell'analizzatore, prove stagioni, build Vite col guardiano sui chunk

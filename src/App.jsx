@@ -4,6 +4,7 @@ import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, RAGGRUPPAMENTI } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
+import { novitaDaMostrare } from './lib/novita';
 import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
 import StatoLinea from './componenti/StatoLinea';
@@ -19,6 +20,7 @@ import Esercizi from './componenti/Esercizi';
 import Feedback from './componenti/Feedback';
 import SenzaSquadra from './componenti/SenzaSquadra';
 import Tutorial from './componenti/Tutorial';
+import Novita from './componenti/Novita';
 
 const SCHEDE = [
   { id: 'dashboard', nome: 'Dashboard', Icona: LayoutDashboard },
@@ -67,6 +69,7 @@ export default function App() {
   const [apertura, setApertura] = useState(null); // {id} oppure {data}
   const [registro, setRegistro] = useState(false);
   const [tutorial, setTutorial] = useState(false);
+  const [novita, setNovita] = useState([]);
   const [ricarica, setRicarica] = useState(0);
 
   const [stagione, setStagione] = useState(stagioneCorrente());
@@ -110,6 +113,29 @@ export default function App() {
       } catch { setTutorial(true); }
     } catch { /* navigazione privata: pazienza, non parte */ }
   }, [societa?.id]);
+
+  // Le novità dopo un aggiornamento. Parte dopo il tutorial e mai
+  // insieme: chi apre l'app per la prima volta ha già il tutorial davanti,
+  // e due finestre sovrapposte sono una di troppo.
+  //
+  // Al contrario del tutorial, se localStorage non risponde qui si sta
+  // zitti: senza poter scrivere "vista", la finestra tornerebbe a ogni
+  // apertura, e a bordo vasca è una molestia. Nel dubbio, silenzio.
+  useEffect(() => {
+    if (!societa || tutorial) return;
+    try {
+      const vistaPrima = localStorage.getItem('corsiapro:novita');
+      // Prima apertura in assoluto: si registra la versione e basta,
+      // senza annunciare niente. La decisione sta in novitaDaMostrare.
+      setNovita(novitaDaMostrare(VERSIONE, CAMBIAMENTI, vistaPrima));
+      // La versione si segna comunque, anche quando non si apre niente:
+      // così una voce senza `annuncia` non resta in agguato per la volta
+      // dopo.
+      localStorage.setItem('corsiapro:novita', VERSIONE);
+    } catch { /* navigazione privata: nessun annuncio, nessun danno */ }
+  }, [societa?.id, tutorial]);
+
+  const chiudiNovita = useCallback(() => setNovita([]), []);
 
   const chiudiTutorial = useCallback((nonPiu) => {
     setTutorial(false);
@@ -200,6 +226,10 @@ export default function App() {
 
       {tutorial && societa && (
         <Tutorial vaiA={setScheda} chiudi={chiudiTutorial} />
+      )}
+
+      {!tutorial && novita.length > 0 && (
+        <Novita voci={novita} chiudi={chiudiNovita} />
       )}
 
       {registro && (
