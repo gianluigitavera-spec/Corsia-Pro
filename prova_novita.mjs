@@ -2,7 +2,7 @@
 // altre: qui un errore non si vede subito, si vede quando un allenatore
 // apre l'app e trova una finestra che non doveva esserci — o non trova
 // quella che doveva.
-import { novitaDaMostrare, TETTO_NOVITA } from './src/lib/novita.js';
+import { novitaDaMostrare, novitaDiRecupero, TETTO_NOVITA } from './src/lib/novita.js';
 
 let male = 0;
 const dice = (cosa, avuto, atteso) => {
@@ -85,6 +85,33 @@ if (!una || una.voci?.[0] !== 'quattro' || una.data !== '2026-09-20') {
   male++;
   console.error('✗ la voce deve tornare intera: numero, data e testo');
 }
+
+// --- il recupero, per chi usava l'app prima che l'annuncio esistesse ---
+// Una voce sola: la più recente annunciabile che il pacchetto contiene.
+dice('recupero: la piu\' recente annunciabile',
+  versioni(novitaDiRecupero('0.54.0', REGISTRO)), ['0.54.0']);
+
+// Se la corrente non è annunciabile, si scende alla prima che lo è.
+dice('recupero: scende alla prima annunciabile sotto la corrente',
+  versioni(novitaDiRecupero('0.53.1', REGISTRO)), ['0.53.0']);
+
+// Mai voci più recenti della versione che gira.
+dice('recupero: non annuncia il futuro',
+  versioni(novitaDiRecupero('0.51.0', REGISTRO)), ['0.51.0']);
+
+// Una voce sola, mai un arretrato: chi rientra dopo mesi non deve
+// scorrere cinque schermate prima di segnare l'appello.
+if (novitaDiRecupero('0.54.0', REGISTRO).length !== 1) {
+  male++;
+  console.error('✗ il recupero deve tornare una voce sola');
+}
+
+// Nessuna voce annunciabile in tutto il registro: silenzio.
+dice('recupero: registro senza voci annunciabili',
+  novitaDiRecupero('0.53.1', [{ versione: '0.53.1', voci: ['x'] }]), []);
+dice('recupero: versione corrente fuori dal registro',
+  novitaDiRecupero('0.99.0', REGISTRO), []);
+dice('recupero: registro vuoto', novitaDiRecupero('0.54.0', []), []);
 
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);

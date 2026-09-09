@@ -21,6 +21,7 @@ export const CAMBIAMENTI = [
     data: '2026-09-09',
     voci: [
       'Dopo un aggiornamento l’app apre una finestra con le novità della versione, una volta sola; il registro completo resta sotto la pillola della versione in alto',
+      'Chi usava già CorsiaPro vede al primo avvio la novità più recente, per non essersela persa nel passaggio',
     ],
   },
   {

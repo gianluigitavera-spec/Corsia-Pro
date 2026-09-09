@@ -4,7 +4,7 @@ import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, RAGGRUPPAMENTI } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
-import { novitaDaMostrare } from './lib/novita';
+import { novitaDaMostrare, novitaDiRecupero } from './lib/novita';
 import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
 import StatoLinea from './componenti/StatoLinea';
@@ -35,6 +35,17 @@ const SCHEDE = [
   { id: 'esercizi', nome: 'Tecnica', Icona: Sparkles },
   { id: 'squadra', nome: 'Squadra', Icona: Settings2 },
 ];
+
+// L'app è già stata usata su questo telefono? Basta una qualunque chiave
+// lasciata da un uso precedente — il magazzino locale, i gruppi scelti,
+// il tutorial chiuso — tolta quella delle novità, che è quella che stiamo
+// decidendo. Serve solo a non trattare come nuovo chi nuovo non è.
+function giaUsata() {
+  try {
+    return Object.keys(localStorage)
+      .some((k) => k.startsWith('corsiapro:') && k !== 'corsiapro:novita');
+  } catch { return false; }
+}
 
 export default function App() {
   const [sessione, setSessione] = useState(undefined);
@@ -127,7 +138,18 @@ export default function App() {
       const vistaPrima = localStorage.getItem('corsiapro:novita');
       // Prima apertura in assoluto: si registra la versione e basta,
       // senza annunciare niente. La decisione sta in novitaDaMostrare.
-      setNovita(novitaDaMostrare(VERSIONE, CAMBIAMENTI, vistaPrima));
+      //
+      // Senza versione salvata ci sono però due persone diverse: chi apre
+      // l'app oggi per la prima volta, e chi la usa da mesi ma è arrivato
+      // prima che l'annuncio esistesse. Trattarli uguale vorrebbe dire
+      // che il secondo si perde in silenzio la novità appena consegnata.
+      // A distinguerli è una qualunque altra traccia lasciata dall'uso:
+      // il magazzino, i gruppi scelti, il tutorial chiuso.
+      setNovita(
+        vistaPrima
+          ? novitaDaMostrare(VERSIONE, CAMBIAMENTI, vistaPrima)
+          : (giaUsata() ? novitaDiRecupero(VERSIONE, CAMBIAMENTI) : [])
+      );
       // La versione si segna comunque, anche quando non si apre niente:
       // così una voce senza `annuncia` non resta in agguato per la volta
       // dopo.

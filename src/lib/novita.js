@@ -62,3 +62,25 @@ export function novitaDaMostrare(versione, cambiamenti, vistaPrima) {
     .filter((c) => c.annuncia === true)
     .slice(0, TETTO_NOVITA);
 }
+
+/**
+ * Il recupero, per chi usava l'app PRIMA che l'annuncio esistesse.
+ *
+ * Questi allenatori non hanno la versione salvata da nessuna parte, e
+ * senza distinguerli finirebbero nella regola della prima apertura: mai
+ * un annuncio, e la novità appena consegnata la scoprirebbero per caso.
+ * Non sono nuovi però: hanno già altre tracce nel telefono, ed è chi
+ * chiama a riconoscerle.
+ *
+ * Torna UNA voce sola, la più recente annunciabile che questo pacchetto
+ * contiene: è un recupero, non un arretrato da smaltire. Chi rientra dopo
+ * mesi non deve trovarsi cinque schermate da scorrere prima di segnare
+ * l'appello.
+ */
+export function novitaDiRecupero(versione, cambiamenti) {
+  const registro = Array.isArray(cambiamenti) ? cambiamenti : [];
+  const qui = registro.findIndex((c) => c.versione === versione);
+  if (qui === -1) return [];
+  const prima = registro.slice(qui).find((c) => c.annuncia === true);
+  return prima ? [prima] : [];
+}
