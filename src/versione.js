@@ -17,6 +17,16 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.53.1',
+    data: '2026-09-09',
+    annuncia: true,
+    voci: [
+      'Corretto: spostando o cancellando righe di una seduta già rilevata, i metri nuotati restavano attaccati alla posizione invece che alla riga, e finivano sul lavoro sbagliato; ora seguono la riga',
+      'Cancellando una riga o una sezione che ha metri nuotati registrati, l’app avvisa prima di perderli',
+      'Vale la pena ricontrollare le sedute in cui hai spostato righe DOPO aver segnato i metri: quelle già salvate restano come sono',
+    ],
+  },
+  {
     versione: '0.53.0',
     data: '2026-09-09',
     voci: [

@@ -105,6 +105,18 @@ FP/PF, CP, TC, regr. Crono vale C3 o D a seconda della fase di periodizzazione.
 fondista pure. Non deve esistere nessun filtro che leghi la zona alla
 specializzazione.
 
+**Le chiavi di `svolto` sono posizionali e devono seguire le righe.**
+`"sez_n-ser_m"` non contiene niente che dica a quale riga appartiene: se
+le righe si spostano e le chiavi restano ferme, i metri nuotati finiscono
+sul lavoro sbagliato — il totale resta credibile, la ripartizione per
+zona no. Dalla 0.53.1 ogni gesto che cambia gli indici rimappa nello
+stesso `aggiorna()`: nucleo `rimappaSvolto` e involucri in `dominio.js`,
+provati in `prova_svolto.mjs`. Chi aggiunge un gesto nuovo che tocca
+`sezioni` o `serie` deve richiamare l'involucro giusto — attenzione ai
+casi che inseriscono **in cima** (`unshift`), che spostano tutto.
+`svoltoCollassato` è l'unico posto che decide quando `svolto` torna
+`null`: righe vuote **e** nessuna nota.
+
 **Cambiare la specializzazione di un atleta gli sposta anche i volumi
 storici.** `sezionePer()` in `dominio.js` confronta stringhe esatte fra la
 specializzazione dell'atleta e i `destinatari` scritti nella sezione. Chi
@@ -208,6 +220,14 @@ DA FARE:
 NOTA: `v_frequenza` NON va toccata — conta dal registro presenze, non dalle
 categorie. Non segnare gli altri (invece di segnarli assenti) vuol dire che
 non entrano nel loro denominatore: le medie restano giuste.
+
+**Coda offline e chiavi di `svolto`.** `salvaSvolto` accoda quando manca
+la linea (`dati.js:118`) e la coda parte più tardi (`:667`). Se rilevi
+senza linea e poi sposti una riga nell'editor, la voce accodata arriva
+**con le chiavi vecchie** e si riprende il posto sbagliato: il payload è
+stato congelato prima dello spostamento, e la rimappatura agisce solo
+sull'oggetto in memoria. Da chiudere — probabilmente rimappando anche la
+coda, o rifiutando l'accodamento quando la seduta è cambiata sotto.
 
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);

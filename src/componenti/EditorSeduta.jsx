@@ -9,6 +9,9 @@ import {
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
   eSecco, sezioneSeccaVuota,
+  svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
+  svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
+  metriSvoltiDiRiga, metriSvoltiDiSezione,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA, TINTE } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
@@ -153,6 +156,56 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
     });
   }
 
+  // ------------------------------------------------------------------
+  // Spostare e cancellare: le chiavi di svolto viaggiano con le righe.
+  // Sempre dentro lo stesso aggiorna() che muove le righe — in due tempi
+  // esisterebbe un istante in cui un salvataggio parte con le chiavi
+  // sfasate, e sarebbe scritto sul database.
+  //
+  // La guardia sui bordi ripete quella di muovi() a bella posta: se lo
+  // spostamento non avviene, la rimappatura non deve avvenire.
+  // ------------------------------------------------------------------
+  const muoviRiga = (i, da, a) => aggiorna((s) => {
+    const serie = s.sezioni[i].serie || [];
+    if (a < 0 || a >= serie.length) return;
+    s.sezioni[i].serie = muovi(serie, da, a);
+    s.svolto = svoltoDopoMuoviRiga(s.svolto, i, da, a);
+  });
+
+  const muoviSezione = (da, a) => aggiorna((s) => {
+    if (a < 0 || a >= (s.sezioni || []).length) return;
+    s.sezioni = muovi(s.sezioni, da, a);
+    s.svolto = svoltoDopoMuoviSezione(s.svolto, da, a);
+  });
+
+  // Cancellare una riga rilevata butta via i metri nuotati: non c'è più
+  // la riga a cui erano attaccati, e tenerli da qualche parte vorrebbe
+  // dire cambiare il formato di svolto. Quindi si chiede prima.
+  const togliRiga = (i, j) => {
+    const persi = metriSvoltiDiRiga(seduta.svolto, i, j);
+    if (persi !== null && !window.confirm(
+      `Questa riga ha ${persi.toLocaleString('it-IT')} m nuotati registrati.\n\n`
+      + 'Cancellandola quei metri si perdono. Procedo?'
+    )) return;
+    aggiorna((s) => {
+      s.sezioni[i].serie.splice(j, 1);
+      s.svolto = svoltoDopoTogliRiga(s.svolto, i, j);
+    });
+  };
+
+  const togliSezione = (i) => {
+    const persi = metriSvoltiDiSezione(seduta.svolto, i);
+    if (persi && !window.confirm(
+      `Questa sezione ha ${persi.metri.toLocaleString('it-IT')} m nuotati registrati `
+      + `su ${persi.righe} ${persi.righe === 1 ? 'riga' : 'righe'}.\n\n`
+      + 'Cancellandola quei metri si perdono. Procedo?'
+    )) return;
+    aggiorna((s) => {
+      s.sezioni.splice(i, 1);
+      s.svolto = svoltoDopoTogliSezione(s.svolto, i);
+    });
+  };
+
   const togliDestinatario = (i, spec) =>
     aggiorna((s) => {
       const sez = s.sezioni[i];
@@ -262,6 +315,17 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
         zone={zone}
         indietro={() => setDaTesto(false)}
         usaSeduta={(sezioni) => {
+          // REGOLA: sostituire in blocco le sezioni azzera le posizioni,
+          // e le chiavi di svolto sono posizionali — nessuna rimappatura
+          // può salvarle, perché le righe vecchie non esistono più.
+          //
+          // Oggi non si perde niente: si parte sempre da sedutaVuota(),
+          // che di svolto non ne ha. Ma è sicuro per costruzione, non per
+          // scelta. Se un domani si potrà reimportare del testo DENTRO
+          // una seduta esistente, questo punto deve o portarsi dietro
+          // svolto, o dire all'allenatore che i metri rilevati si
+          // perdono. Mai in silenzio: sono metri nuotati davvero.
+          // Il caso è fissato in prova_svolto.mjs.
           setSeduta({ ...sedutaVuota(), sezioni });
           setDaTesto(false);
         }}
@@ -529,11 +593,11 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
               <div className="testa">
                 <span className="maniglie">
                   <button disabled={i === 0} aria-label="Sposta sezione su"
-                    onClick={() => aggiorna((s) => { s.sezioni = muovi(s.sezioni, i, i - 1); })}>
+                    onClick={() => muoviSezione(i, i - 1)}>
                     <ChevronUp size={15} />
                   </button>
                   <button disabled={i === seduta.sezioni.length - 1} aria-label="Sposta sezione giù"
-                    onClick={() => aggiorna((s) => { s.sezioni = muovi(s.sezioni, i, i + 1); })}>
+                    onClick={() => muoviSezione(i, i + 1)}>
                     <ChevronDown size={15} />
                   </button>
                 </span>
@@ -579,7 +643,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                     </div>
                   </>
                 )}
-                <button className="mini" onClick={() => aggiorna((s) => { s.sezioni.splice(i, 1); })} aria-label="Elimina sezione">
+                <button className="mini" onClick={() => togliSezione(i)} aria-label="Elimina sezione">
                   <X size={14} />
                 </button>
               </div>
@@ -602,11 +666,11 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="maniglie">
                         <button disabled={j === 0} aria-label="Sposta serie su"
-                          onClick={() => aggiorna((st) => { st.sezioni[i].serie = muovi(st.sezioni[i].serie, j, j - 1); })}>
+                          onClick={() => muoviRiga(i, j, j - 1)}>
                           <ChevronUp size={13} />
                         </button>
                         <button disabled={j === sez.serie.length - 1} aria-label="Sposta serie giù"
-                          onClick={() => aggiorna((st) => { st.sezioni[i].serie = muovi(st.sezioni[i].serie, j, j + 1); })}>
+                          onClick={() => muoviRiga(i, j, j + 1)}>
                           <ChevronDown size={13} />
                         </button>
                       </span>
@@ -645,7 +709,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                         {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
                       </>
                     )}
-                    <button className="togli" aria-label="Togli serie" onClick={() => aggiorna((st) => { st.sezioni[i].serie.splice(j, 1); })}>
+                    <button className="togli" aria-label="Togli serie" onClick={() => togliRiga(i, j)}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -656,7 +720,12 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                   style={{ marginTop: 9 }}
                   onClick={() => aggiorna((s) => {
                     const nuova = secca ? { ...serieVuota(), zona: '' } : serieVuota();
+                    const quante = (s.sezioni[i].serie || []).length;
                     s.sezioni[i].serie = [...(s.sezioni[i].serie || []), nuova];
+                    // In coda non muove nessuna chiave, ma il richiamo c'è
+                    // lo stesso: il giorno che si potrà inserire in mezzo,
+                    // il punto giusto è già qui e già corretto.
+                    s.svolto = svoltoDopoInserisciRiga(s.svolto, i, quante);
                   })}
                 >
                   <Plus size={13} style={{ verticalAlign: -2 }} /> {secca ? 'esercizio' : 'serie'}
@@ -669,7 +738,10 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
         <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 12 }}>
           <button
             className="azione fantasma"
-            onClick={() => aggiorna((s) => { s.sezioni.push({ titolo: '', destinatari: [TUTTI], serie: [] }); })}
+            onClick={() => aggiorna((s) => {
+              s.sezioni.push({ titolo: '', destinatari: [TUTTI], serie: [] });
+              s.svolto = svoltoDopoInserisciSezione(s.svolto, s.sezioni.length - 1);
+            })}
           >
             <Plus size={15} style={{ verticalAlign: -3 }} /> sezione
           </button>
@@ -678,7 +750,12 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
               nessun vincolo di posizione. */}
           <button
             className="azione fantasma"
-            onClick={() => aggiorna((s) => { s.sezioni.unshift(sezioneSeccaVuota()); })}
+            onClick={() => aggiorna((s) => {
+              // Questa entra in CIMA: fa scalare di uno il sez_n di ogni
+              // sezione della seduta, quindi tutte le chiavi si spostano.
+              s.sezioni.unshift(sezioneSeccaVuota());
+              s.svolto = svoltoDopoInserisciSezione(s.svolto, 0);
+            })}
           >
             <Plus size={15} style={{ verticalAlign: -3 }} /> sezione a secco
           </button>

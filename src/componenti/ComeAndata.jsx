@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Check } from 'lucide-react';
 import * as api from '../lib/dati';
-import { chiaveRiga, metriSvolti, scartoPerZona } from '../lib/dominio';
+import { chiaveRiga, metriSvolti, scartoPerZona, svoltoCollassato } from '../lib/dominio';
 
 export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
   const [righe, setRighe] = useState({});
@@ -39,13 +39,10 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
   async function salva(nuoveRighe, nuovaNota) {
     setSalvato(false);
     // Una seduta andata come scritta non salva niente: svolto resta
-    // vuoto invece di riempirsi di righe uguali al programma.
-    const pulite = Object.fromEntries(
-      Object.entries(nuoveRighe).filter(([, v]) => v !== '' && v !== null && v !== undefined)
-    );
-    const corpo = Object.keys(pulite).length || nuovaNota
-      ? { righe: pulite, nota: nuovaNota || undefined }
-      : null;
+    // vuoto invece di riempirsi di righe uguali al programma. La regola
+    // sta in dominio.js e la usa anche l'editor dopo aver rimappato le
+    // chiavi: un posto solo decide quando svolto smette di esistere.
+    const corpo = svoltoCollassato({ righe: nuoveRighe, nota: nuovaNota });
     try {
       await api.salvaSvolto(seduta.id, corpo);
       setSalvato(true);

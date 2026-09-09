@@ -365,6 +365,108 @@ export function metriSvolti(sezioni, svolto) {
   return totale;
 }
 
+// ---------------------------------------------------------------------
+// LE CHIAVI DI svolto SEGUONO LE RIGHE
+//
+// Le chiavi sono posizionali ("sez_n-ser_m") e non hanno dentro niente
+// che dica a quale riga appartengono: se le righe si spostano e le
+// chiavi restano ferme, i metri davvero nuotati finiscono su un'altra
+// riga. Il totale resta credibile — sono gli stessi numeri, in posti
+// diversi — ma il carico è attribuito al lavoro sbagliato, e la
+// ripartizione per zona cambia senza che si veda.
+//
+// Quindi ogni gesto che cambia gli indici rimappa le chiavi nello stesso
+// passaggio. L'aritmetica sta tutta qui: negli spostamenti il fuori-di-
+// uno cambia segno a seconda che si salga o si scenda, ed è il genere di
+// errore che non si nota mai guardando un totale.
+//
+// Il formato di svolto non cambia: stesse chiavi, stessi valori, solo
+// rinumerate. Niente migrazioni, e v_serie non se ne accorge.
+// ---------------------------------------------------------------------
+
+// Quando svolto smette di esistere. Un posto solo che lo decide: una
+// seduta andata come prevista non tiene un oggetto vuoto in archivio.
+// La nota però non è posizionale e non c'entra con le righe: finché c'è
+// lei, svolto resta.
+export function svoltoCollassato(svolto) {
+  const righe = Object.fromEntries(
+    Object.entries(svolto?.righe || {})
+      .filter(([, v]) => v !== '' && v !== null && v !== undefined)
+  );
+  const nota = svolto?.nota || undefined;
+  if (!Object.keys(righe).length && !nota) return null;
+  return { righe, nota };
+}
+
+// Il nucleo. `dove(i, j)` torna la posizione nuova come [i2, j2], oppure
+// null se quella riga non esiste più.
+export function rimappaSvolto(svolto, dove) {
+  if (!svolto?.righe) return svolto ?? null;
+  const righe = {};
+  for (const [chiave, valore] of Object.entries(svolto.righe)) {
+    const [i, j] = chiave.split('-').map(Number);
+    if (!Number.isInteger(i) || !Number.isInteger(j)) continue;  // chiave malfatta: si lascia cadere
+    const nuova = dove(i, j);
+    if (!nuova) continue;
+    righe[chiaveRiga(nuova[0], nuova[1])] = valore;
+  }
+  return svoltoCollassato({ ...svolto, righe });
+}
+
+// Lo spostamento, in un posto solo: da `da` a `a`, tutto il resto scorre
+// per riempire il buco. Vale identico per le righe e per le sezioni.
+function posizioneDopoSpostamento(p, da, a) {
+  if (p === da) return a;
+  if (da < a) return p > da && p <= a ? p - 1 : p;
+  return p >= a && p < da ? p + 1 : p;
+}
+
+export const svoltoDopoTogliRiga = (svolto, i, j) => rimappaSvolto(svolto, (si, sj) => {
+  if (si !== i) return [si, sj];
+  if (sj === j) return null;                 // la riga non c'è più
+  return [si, sj > j ? sj - 1 : sj];
+});
+
+export const svoltoDopoTogliSezione = (svolto, i) => rimappaSvolto(svolto, (si, sj) => {
+  if (si === i) return null;                 // con la sezione se ne vanno tutte le sue righe
+  return [si > i ? si - 1 : si, sj];
+});
+
+export const svoltoDopoMuoviRiga = (svolto, i, da, a) => rimappaSvolto(svolto, (si, sj) =>
+  (si !== i ? [si, sj] : [si, posizioneDopoSpostamento(sj, da, a)]));
+
+export const svoltoDopoMuoviSezione = (svolto, da, a) => rimappaSvolto(svolto, (si, sj) =>
+  [posizioneDopoSpostamento(si, da, a), sj]);
+
+// Inserimenti. In coda non muovono niente (j è la lunghezza, nessuna
+// chiave le sta sopra) — ma in cima sì: sezioneSeccaVuota entra con
+// unshift e fa scalare ogni sezione della seduta.
+export const svoltoDopoInserisciRiga = (svolto, i, j) => rimappaSvolto(svolto, (si, sj) =>
+  (si === i && sj >= j ? [si, sj + 1] : [si, sj]));
+
+export const svoltoDopoInserisciSezione = (svolto, i) => rimappaSvolto(svolto, (si, sj) =>
+  [si >= i ? si + 1 : si, sj]);
+
+// I metri nuotati che si perderebbero cancellando. Servono all'avviso:
+// una riga rilevata non deve sparire in silenzio.
+export function metriSvoltiDiRiga(svolto, i, j) {
+  const v = svolto?.righe?.[chiaveRiga(i, j)];
+  return Number.isFinite(+v) && v !== null && v !== '' ? +v : null;
+}
+
+export function metriSvoltiDiSezione(svolto, i) {
+  let totale = 0;
+  let quante = 0;
+  for (const [chiave, valore] of Object.entries(svolto?.righe || {})) {
+    const [si] = chiave.split('-').map(Number);
+    if (si !== i) continue;
+    if (!Number.isFinite(+valore) || valore === null || valore === '') continue;
+    totale += +valore;
+    quante += 1;
+  }
+  return quante ? { metri: totale, righe: quante } : null;
+}
+
 // Quanto manca all'appello, zona per zona: quando tagli il finale tagli
 // quasi sempre la parte tosta, e la ripartizione si sposta senza che si
 // veda dal totale.
