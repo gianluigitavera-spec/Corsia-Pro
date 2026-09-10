@@ -17,6 +17,17 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.54.0',
+    data: '2026-09-10',
+    annuncia: true,
+    voci: [
+      'Blocchi ripetuti anche nell’editor a campi: il tasto "ripetizione" apre un blocco, e le righe sotto si moltiplicano come già faceva il testo libero',
+      'Il blocco si vede come tale: intestazione ×3 e righe rientrate sotto, nell’editor, sulla lavagna e sul foglio di stampa',
+      'Corretto: una riga "3x" scritta nelle mascherine non moltiplicava niente e si portava dietro qualche metro di troppo — la sezione faceva 1003 invece di 3000',
+      'Se apri una seduta con una riga di ripetizione da sistemare, l’app dice quanti metri mancano e offre di applicarla; sulle sedute già rilevate lo dice soltanto, perché cambiare i metri sotto un valore rilevato sposta lo scarto',
+    ],
+  },
+  {
     versione: '0.53.1',
     data: '2026-09-09',
     annuncia: true,

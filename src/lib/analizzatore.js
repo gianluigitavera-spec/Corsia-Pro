@@ -1,3 +1,7 @@
+// L'estensione serve: prova_analizzatore.mjs esegue questo file con node
+// diretto, e node non risolve gli import senza. Vite se ne infischia.
+import { aperturaDiBlocco } from './dominio.js';
+
 // =====================================================================
 // ANALIZZATORE DI SEDUTE SCRITTE A MANO LIBERA
 //
@@ -486,10 +490,8 @@ function trovaMisure(riga) {
 
   // 2. "4x", "6x (gio 4 volte)", "4 volte:", e anche "4x A2" — la zona
   // scritta sull'apertura vale per tutto il blocco.
-  m = t.match(/^\s*(\d{1,3})\s*x\s*(?:volte?\s*)?(?:\(.*\))?\s*(A1|A2|B1|B2\+?|C1|C2|C3|D)?\s*:?\s*$/i);
-  if (m && !/\(\s*\d/.test(t)) {
-    return { moltiplicatore: +m[1], zonaBlocco: m[2] ? m[2].toUpperCase().replace('+', '') : null };
-  }
+  const apre = aperturaDiBlocco(t);
+  if (apre) return { moltiplicatore: apre.ripetizioni, zonaBlocco: apre.zona };
 
   // 3. Un gruppo fra parentesi, con o senza il moltiplicatore davanti:
   // "2x(4x25 + 1x100)" = 400, "(2x50+4x25)" da solo = 200 (il 3x della

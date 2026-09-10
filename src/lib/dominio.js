@@ -366,6 +366,171 @@ export function metriSvolti(sezioni, svolto) {
 }
 
 // ---------------------------------------------------------------------
+// APERTURA DI BLOCCO
+// "3x" da solo su una riga: da qui in giù si ripete tre volte, fino a
+// fine blocco. La riga non è un lavoro, è un'intestazione: zero metri.
+//
+// Questa funzione è l'UNICA che decide cos'è un'apertura, e la usano
+// tutte e due le strade — il lettore del testo e l'editor a campi. Prima
+// la regola stava solo nel lettore, e l'editor non ne sapeva niente: una
+// riga "3x" battuta nelle mascherine restava un lavoro qualunque e le
+// righe sotto non si moltiplicavano, con la sezione che faceva 1003
+// invece di 3000. Due regole scritte in due posti divergono sempre:
+// tenerne una sola è il motivo per cui questa funzione è esportata.
+//
+// Accetta esattamente quello che accettava il lettore, riga per riga:
+// "4x", "4x volte:", "6x (gio 4 volte)" e "4x A2", dove la zona scritta
+// sull'apertura vale per tutto il blocco. Non accetta "4x100" — quello è
+// un lavoro, non un blocco.
+//
+// Accetta anche "1x", che ripete una volta sola e quindi non ripete
+// niente: è una stranezza del lettore, ma toglierla cambierebbe come
+// vengono lette le sedute già scritte, e le correzioni al lettore vanno
+// in un rilascio loro. Chi offre il comando "ripeti ×N" nell'editor si
+// ferma da sé sotto il 2.
+// ---------------------------------------------------------------------
+export function aperturaDiBlocco(testo) {
+  const t = String(testo || '').replace(/[×*]/g, 'x').trim();
+  if (!t) return null;
+  const m = t.match(/^\s*(\d{1,3})\s*x\s*(?:volte?\s*)?(?:\(.*\))?\s*(A1|A2|B1|B2\+?|C1|C2|C3|D)?\s*:?\s*$/i);
+  if (!m) return null;
+  if (/\(\s*\d/.test(t)) return null;      // "4x(2x50)" è un gruppo, non un'apertura
+  return { ripetizioni: +m[1], zona: m[2] ? m[2].toUpperCase().replace('+', '') : null };
+}
+
+// ---------------------------------------------------------------------
+// BLOCCHI RIPETUTI
+//
+// "3x" su una riga per sé apre un blocco: da lì in giù si ripete tre
+// volte. Il dato è piatto, senza contenitore — l'apertura è una serie a
+// zero metri con `apreBlocco: N`, le figlie portano `moltiplicato: N` e
+// i loro `metri` sono GIÀ moltiplicati. Chi legge somma e basta: né
+// dominio.js né v_serie né svolto moltiplicano una seconda volta.
+//
+// Un contenitore sarebbe più bello da guardare e molto peggio da avere:
+// annidare le righe sposterebbe ogni `ser_m` e le chiavi posizionali di
+// svolto finirebbero sulla riga sbagliata su tutto lo storico.
+//
+// IN LETTURA il confine si ricava riga per riga da `moltiplicato`, così
+// una seduta salvata si ridisegna esattamente com'è — comprese quelle
+// dove il lettore chiuse il blocco a metà sezione. IN SCRITTURA il
+// blocco va dall'apertura alla prossima apertura o a fine sezione.
+// ---------------------------------------------------------------------
+
+// Le figlie del blocco aperto alla posizione `m`, in scrittura.
+export function figlieDelBlocco(sezione, m) {
+  const serie = sezione?.serie || [];
+  const fuori = [];
+  for (let k = m + 1; k < serie.length; k++) {
+    if (serie[k]?.apreBlocco) break;            // un altro blocco: qui il nostro finisce
+    // Anche un'apertura NUDA chiude il blocco: se non la contassimo,
+    // applicando il primo blocco ci si mangerebbe il secondo e le sue
+    // righe si moltiplicherebbero per il numero sbagliato.
+    const altra = aperturaDiBlocco(serie[k]?.notazione);
+    if (altra && altra.ripetizioni > 1) break;
+    fuori.push(k);
+  }
+  return fuori;
+}
+
+// I metri di una riga dentro un blocco ripetuto N volte. I metri scritti
+// a mano non si toccano: quel numero l'ha messo l'allenatore e solo lui
+// sa se è il totale o il giro.
+export function metriInBlocco(serie, n) {
+  if (serie?.metriManuali) return Number(serie.metri) || 0;
+  const base = metriDaNotazione(serie?.notazione);
+  if (base === null) return Number(serie?.metri) || 0;
+  return base * (n || 1);
+}
+
+// ---------------------------------------------------------------------
+// LE APERTURE NUDE
+//
+// Una riga "3x" scritta nelle mascherine invece che nel testo: sembra
+// un'apertura, ma non ha `apreBlocco` e le righe sotto non sono state
+// moltiplicate. La sezione fa 1003 invece di 3000, e così finisce
+// salvata.
+//
+// Questa funzione le trova E dice quanti metri mancano; è la stessa che
+// usa il tasto per applicarle. Un'anteprima calcolata a parte prima o
+// poi mentirebbe sul numero che promette.
+//
+// `applicabile: false` sta qui dentro, non nel componente: così la
+// regola si può provare senza montare React.
+// ---------------------------------------------------------------------
+export function apertureNude(seduta, { puoScrivere = true } = {}) {
+  const trovate = [];
+  const conSvolto = Object.keys(seduta?.svolto?.righe || {}).length > 0;
+
+  (seduta?.sezioni || []).forEach((sezione, sezN) => {
+    if (eSecco(sezione)) return;                      // a secco non ci sono metri da moltiplicare
+    (sezione.serie || []).forEach((riga, serM) => {
+      if (riga?.apreBlocco) return;                   // già un blocco vero
+      const apre = aperturaDiBlocco(riga?.notazione);
+      if (!apre || apre.ripetizioni < 2) return;      // "1x" non ripete niente
+
+      const n = apre.ripetizioni;
+      const figlie = figlieDelBlocco(sezione, serM)
+        .filter((k) => !sezione.serie[k]?.moltiplicato);   // le già a posto si lasciano stare
+      if (!figlie.length) return;
+
+      // I metri fissi non si toccano, quindi non entrano nemmeno nel
+      // conto: prometterebbero metri che il tasto non consegna.
+      const daMoltiplicare = figlie.filter((k) => !sezione.serie[k]?.metriManuali);
+      const metriFissi = figlie.length - daMoltiplicare.length;
+
+      const ora = daMoltiplicare.reduce((t, k) => t + (Number(sezione.serie[k].metri) || 0), 0);
+      const dopo = daMoltiplicare.reduce((t, k) => t + metriInBlocco(sezione.serie[k], n), 0);
+      const mancanti = dopo - ora - (Number(riga.metri) || 0);
+      if (mancanti <= 0) return;
+
+      trovate.push({
+        sezN,
+        serM,
+        sezione: sezione.titolo || `Sezione ${sezN + 1}`,
+        ripetizioni: n,
+        righe: figlie.length,
+        righeAMetriFissi: metriFissi,
+        metriOra: ora + (Number(riga.metri) || 0),
+        metriDopo: dopo,
+        metriMancanti: mancanti,
+        applicabile: !conSvolto && puoScrivere,
+        perche: conSvolto ? 'svolto' : (puoScrivere ? null : 'sola-lettura'),
+      });
+    });
+  });
+
+  return trovate;
+}
+
+// Applica il blocco: l'apertura diventa un'intestazione a zero metri e
+// le figlie si moltiplicano. Muta la sezione ricevuta — l'editor la
+// chiama dentro aggiorna(), che lavora già su una copia.
+export function applicaAperturaBlocco(sezione, m) {
+  const riga = sezione?.serie?.[m];
+  const apre = aperturaDiBlocco(riga?.notazione);
+  if (!apre || apre.ripetizioni < 2) return false;
+  const n = apre.ripetizioni;
+
+  // L'apertura non è un lavoro: zero metri, nessuna zona. Qui si chiude
+  // anche il residuo del tasto intermedio — battendo "3" la riga prende
+  // 3 metri, e "3x" torna illeggibile senza toglierli più.
+  riga.metri = 0;
+  riga.senzaMetri = true;
+  riga.zona = apre.zona || '';
+  riga.apreBlocco = n;
+  delete riga.metriManuali;
+
+  for (const k of figlieDelBlocco(sezione, m)) {
+    const figlia = sezione.serie[k];
+    if (figlia.moltiplicato) continue;              // già a posto
+    figlia.metri = metriInBlocco(figlia, n);
+    figlia.moltiplicato = n;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------
 // LE CHIAVI DI svolto SEGUONO LE RIGHE
 //
 // Le chiavi sono posizionali ("sez_n-ser_m") e non hanno dentro niente

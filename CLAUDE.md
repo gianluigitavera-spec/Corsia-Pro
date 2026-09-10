@@ -105,6 +105,18 @@ FP/PF, CP, TC, regr. Crono vale C3 o D a seconda della fase di periodizzazione.
 fondista pure. Non deve esistere nessun filtro che leghi la zona alla
 specializzazione.
 
+**Un blocco ripetuto ha i metri già moltiplicati in archivio.**
+L'apertura è una serie a zero metri con `apreBlocco: N`, le figlie
+portano `moltiplicato: N` e i loro `metri` sono **già** il totale. Chi
+legge somma e basta — `dominio.js`, `v_serie` e `svolto` non moltiplicano
+mai una seconda volta. Niente contenitore: annidare sposterebbe ogni
+`ser_m` e le chiavi di `svolto` finirebbero sulla riga sbagliata.
+`aperturaDiBlocco` in `dominio.js` è l'**unica** regola che dice cos'è
+un'apertura, e la usano tutte e due le strade — il lettore del testo e
+l'editor a campi. Quando ne esisteva una sola, l'editor non moltiplicava
+e la sezione faceva 1003 invece di 3000: la prova di parità in
+`prova_blocchi.mjs` esiste per non ripeterlo.
+
 **Le chiavi di `svolto` sono posizionali e devono seguire le righe.**
 `"sez_n-ser_m"` non contiene niente che dica a quale riga appartiene: se
 le righe si spostano e le chiavi restano ferme, i metri nuotati finiscono

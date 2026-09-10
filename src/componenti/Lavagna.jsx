@@ -63,7 +63,12 @@ export default function Lavagna({ seduta, zone, chiudi }) {
 
         <ol className="serie-lavagna">
           {(sez.serie || []).map((s, j) => (
-            <li key={j}>
+            // L'apertura di blocco è un'intestazione, non un lavoro: a
+            // bordo vasca "3x — 0 m" non vuol dire niente, "×3" sì.
+            s.apreBlocco > 1 ? (
+              <li key={j} className="apre-lavagna">×{s.apreBlocco}</li>
+            ) : (
+            <li key={j} className={s.moltiplicato ? 'in-blocco' : undefined}>
               <span className="notaz">{s.notazione || '—'}</span>
               {s.recupero && <span className="rec mono">{s.recupero}</span>}
               {s.zona && (
@@ -73,6 +78,7 @@ export default function Lavagna({ seduta, zone, chiudi }) {
               )}
               {s.note && <span className="nota">{s.note}</span>}
             </li>
+            )
           ))}
         </ol>
       </div>

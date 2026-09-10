@@ -207,6 +207,39 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 .intestazione-serie { display: grid; grid-template-columns: 1fr 96px 96px 108px 38px; gap: 8px; padding-top: 7px; }
 .intestazione-serie span { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--testo-3); }
 
+/* ------------------------------------------- blocchi ripetuti
+   L'apertura non è una riga di lavoro: è l'intestazione del blocco, e
+   le righe sotto rientrano con un filetto. Prima si vedeva una riga
+   "3x" da 0 metri in mezzo alle altre, che non diceva niente. */
+.apre-blocco {
+  display: flex; align-items: center; gap: 9px; margin-top: 10px;
+  padding: 7px 11px; border-radius: var(--raggio-p);
+  background: rgba(34, 211, 238, 0.07); border: 1px dashed rgba(34, 211, 238, 0.35);
+}
+.segno-blocco {
+  display: inline-flex; align-items: center; gap: 2px; flex: none;
+  font-family: var(--dati); font-size: 15px; font-weight: 700; color: var(--ciano);
+}
+.segno-blocco input {
+  width: 52px; min-height: 32px; padding: 3px 6px; font-size: 15px; font-weight: 700;
+  color: var(--ciano); background: transparent; border: var(--riga);
+}
+.dice-blocco { color: var(--testo-3); font-size: 12.5px; min-width: 0; }
+.metri-blocco { margin-left: auto; color: var(--testo-2); font-size: 13px; flex: none; }
+
+/* Le figlie: rientrate, col filetto che dice fin dove arriva il blocco. */
+.riga-serie.in-blocco {
+  padding-left: 13px; margin-left: 9px;
+  border-left: 2px solid rgba(34, 211, 238, 0.35);
+}
+
+/* L'avviso delle aperture nude: una riga per apertura, col suo tasto. */
+.riga-nuda {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 13.5px;
+}
+.riga-nuda .mini { margin-left: auto; flex: none; }
+
 /* A secco restano descrizione e cestino: niente zona, niente metri,
    niente partenza. La griglia si accorcia di conseguenza. */
 .riga-serie.secca, .intestazione-serie.secca { grid-template-columns: 1fr 38px; }
@@ -448,6 +481,18 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   color: #06121F; border-radius: 7px; padding: 3px 11px;
 }
 .serie-lavagna .nota { font-size: calc(16px * var(--scala, 1)); color: var(--testo-3); flex-basis: 100%; }
+
+/* Il blocco ripetuto sulla lavagna: "×3" grosso, e sotto le righe
+   rientrate col filetto. A bordo vasca si legge da lontano. */
+.serie-lavagna .apre-lavagna {
+  font-family: var(--dati); font-weight: 700; color: var(--ciano);
+  font-size: calc(30px * var(--scala, 1)); border-bottom: 0; padding-bottom: 0;
+}
+.serie-lavagna li.in-blocco {
+  padding-left: calc(20px * var(--scala, 1));
+  border-left: 3px solid rgba(34, 211, 238, 0.4);
+  margin-left: calc(8px * var(--scala, 1));
+}
 .piede-lavagna { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: var(--riga); flex-wrap: wrap; }
 .punti-lavagna { display: inline-flex; gap: 7px; }
 .punti-lavagna i { width: 9px; height: 9px; border-radius: 50%; background: var(--bordo-vivo); display: block; }
@@ -482,6 +527,9 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   .foglio-tabella { width: 100%; border-collapse: collapse; }
   .foglio-tabella td { padding: 1.4mm 0; border-bottom: 1px dotted #ccc; font-size: 11pt; }
   .foglio-notaz { font-weight: 600; }
+  .foglio-apre td { font-weight: 700; border-bottom: 0; padding-bottom: 0.4mm; }
+  .foglio-in-blocco td:first-child { padding-left: 5mm; }
+  .foglio-in-blocco td { border-left: 0; }
   .foglio-rec, .foglio-zona, .foglio-m { font-family: 'IBM Plex Mono', monospace; font-size: 10pt; white-space: nowrap; }
   .foglio-rec { width: 24mm; }
   .foglio-zona { width: 14mm; text-align: center; }

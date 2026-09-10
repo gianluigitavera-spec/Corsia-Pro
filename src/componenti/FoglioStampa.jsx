@@ -39,12 +39,20 @@ export default function FoglioStampa({ seduta, societa, categorie }) {
             <table className="foglio-tabella">
               <tbody>
                 {(sez.serie || []).map((s, j) => (
-                  <tr key={j}>
-                    <td className="foglio-notaz">{s.notazione}</td>
-                    <td className="foglio-rec">{s.recupero || ''}</td>
-                    <td className="foglio-zona">{s.zona || ''}</td>
-                    <td className="foglio-m">{s.metri ? `${s.metri} m` : ''}</td>
-                  </tr>
+                  // L'apertura di blocco prende la riga per sé: "×3" e le
+                  // righe che seguono rientrate sotto.
+                  s.apreBlocco > 1 ? (
+                    <tr key={j} className="foglio-apre">
+                      <td colSpan={4}>×{s.apreBlocco}</td>
+                    </tr>
+                  ) : (
+                    <tr key={j} className={s.moltiplicato ? 'foglio-in-blocco' : undefined}>
+                      <td className="foglio-notaz">{s.notazione}</td>
+                      <td className="foglio-rec">{s.recupero || ''}</td>
+                      <td className="foglio-zona">{s.zona || ''}</td>
+                      <td className="foglio-m">{s.metri ? `${s.metri} m` : ''}</td>
+                    </tr>
+                  )
                 ))}
               </tbody>
             </table>

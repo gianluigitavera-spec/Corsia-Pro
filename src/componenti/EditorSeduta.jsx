@@ -9,6 +9,7 @@ import {
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
   eSecco, sezioneSeccaVuota,
+  apertureNude, applicaAperturaBlocco, figlieDelBlocco, metriInBlocco, aperturaDiBlocco,
   svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
   svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
   metriSvoltiDiRiga, metriSvoltiDiSezione,
@@ -114,9 +115,36 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
         serie.zona = '';
         return;
       }
+      // "3x" su una riga per sé è un'apertura di blocco, non un lavoro.
+      // Stessa regola del testo: aperturaDiBlocco la decide per tutti e
+      // due. Qui si azzerano anche i metri residui — battendo "3" la riga
+      // prende 3 metri, e "3x" torna illeggibile senza togliere quel 3:
+      // è da lì che venivano le sezioni da 1003 invece di 3000.
+      const apre = aperturaDiBlocco(valore);
+      if (apre && apre.ripetizioni > 1) {
+        applicaAperturaBlocco(s.sezioni[i], j);
+        return;
+      }
+
+      // Non è (più) un'apertura: se lo era, il blocco si scioglie e le
+      // figlie tornano ai metri di un giro solo.
+      if (serie.apreBlocco) {
+        for (const k of figlieDelBlocco(s.sezioni[i], j)) {
+          const figlia = s.sezioni[i].serie[k];
+          if (!figlia.moltiplicato) continue;
+          figlia.metri = metriInBlocco(figlia, 1);
+          delete figlia.moltiplicato;
+        }
+        delete serie.apreBlocco;
+        delete serie.senzaMetri;
+      }
+
       if (!serie.metriManuali) {
+        // Dentro un blocco i metri salvati sono già moltiplicati: se qui
+        // si scrivesse la lettura nuda, ritoccare una riga ripetuta le
+        // taglierebbe i metri a un terzo, in silenzio.
         const m = metriDaNotazione(valore);
-        if (m !== null) serie.metri = m;
+        if (m !== null) serie.metri = m * (serie.moltiplicato || 1);
       }
       // Se la partenza nasce da un passo base, cambiando la distanza si rifà.
       if (serie.base) {
@@ -155,6 +183,47 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
       serie.metriManuali = true;   // da qui in poi decidi tu
     });
   }
+
+  // ------------------------------------------------------------------
+  // BLOCCHI RIPETUTI
+  // Due strade per la stessa cosa: chi conosce la notazione scrive "3x"
+  // e basta (ci pensa cambiaNotazione), chi non la conosce usa questo
+  // comando. Il dato che esce è identico, perché passano tutte e due da
+  // applicaAperturaBlocco.
+  // ------------------------------------------------------------------
+  function ripetiBlocco(i, j, n) {
+    aggiorna((s) => {
+      const sezione = s.sezioni[i];
+      const serie = sezione.serie[j];
+      if (!(n > 1)) {                       // "×1" scioglie il blocco
+        for (const k of figlieDelBlocco(sezione, j)) {
+          const figlia = sezione.serie[k];
+          if (!figlia.moltiplicato) continue;
+          figlia.metri = metriInBlocco(figlia, 1);
+          delete figlia.moltiplicato;
+        }
+        delete serie.apreBlocco;
+        delete serie.senzaMetri;
+        return;
+      }
+      // La notazione diventa quella del testo: così la riga si rilegge
+      // uguale se un domani la seduta ripassa dall'analizzatore.
+      const zona = serie.zona ? ` ${serie.zona}` : '';
+      serie.notazione = `${n}x${zona}`;
+      applicaAperturaBlocco(sezione, j);
+    });
+  }
+
+  // Il tasto dell'avviso: applica una singola apertura nuda. È una
+  // modifica alla bozza come tutte le altre, non un salvataggio — se te
+  // ne vai senza premere Salva non è stato scritto niente.
+  const applicaNuda = (sezN, serM) =>
+    aggiorna((s) => { applicaAperturaBlocco(s.sezioni[sezN], serM); });
+
+  const nude = useMemo(
+    () => (seduta ? apertureNude(seduta, { puoScrivere }) : []),
+    [seduta, puoScrivere]
+  );
 
   // ------------------------------------------------------------------
   // Spostare e cancellare: le chiavi di svolto viaggiano con le righe.
@@ -581,6 +650,48 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
             </div>
           </div>
         )}
+
+        {nude.length > 0 && (
+          <div className="corpo" style={{ paddingTop: 0 }}>
+            <div className="avviso">
+              <AlertTriangle size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
+              <b>{nude.length === 1 ? 'Una riga di ripetizione non moltiplica' : 'Righe di ripetizione che non moltiplicano'} le righe sotto.</b>
+              {nude.map((n) => (
+                <div key={`${n.sezN}-${n.serM}`} className="riga-nuda">
+                  <span>
+                    <b>{n.sezione}</b> · {n.righe} {n.righe === 1 ? 'riga' : 'righe'} ·{' '}
+                    <b>mancano {n.metriMancanti.toLocaleString('it-IT')} m</b>{' '}
+                    <span style={{ color: 'var(--testo-3)' }}>
+                      (ora {n.metriOra.toLocaleString('it-IT')}, dopo {n.metriDopo.toLocaleString('it-IT')})
+                    </span>
+                    {n.righeAMetriFissi > 0 && (
+                      <span style={{ color: 'var(--testo-3)' }}>
+                        {' '}· {n.righeAMetriFissi} a metri fissi {n.righeAMetriFissi === 1 ? 'resta' : 'restano'} come {n.righeAMetriFissi === 1 ? 'è' : 'sono'}
+                      </span>
+                    )}
+                  </span>
+                  {n.applicabile && (
+                    <button className="mini" onClick={() => applicaNuda(n.sezN, n.serM)}>
+                      Applica il blocco ×{n.ripetizioni}
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div style={{ color: 'var(--testo-3)', fontSize: 12.5, marginTop: 8 }}>
+                {nude.some((n) => n.perche === 'svolto') ? (
+                  <>
+                    Il tasto non c’è perché questa seduta ha <b>metri rilevati</b>: applicando il
+                    blocco cambierebbero i metri <i>programmati</i> sotto un valore già{' '}
+                    <i>rilevato</i>, e lo scarto fra i due si sposterebbe senza che si veda da
+                    nessuna parte. Guardala a mano.
+                  </>
+                ) : (
+                  <>Do per scontato che il blocco arrivi a fine sezione: controlla che sia così prima di applicare.</>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* -------------------------------------------------- le corsie */}
@@ -662,7 +773,53 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                 )}
 
                 {(sez.serie || []).map((s, j) => (
-                  <div className={secca ? 'riga-serie secca' : 'riga-serie'} key={j}>
+                  // L'apertura di blocco non è una riga di lavoro: diventa
+                  // l'intestazione, e le figlie rientrano sotto di lei. Il
+                  // confine si legge da `moltiplicato`, riga per riga, così
+                  // una seduta salvata si ridisegna esattamente com'è.
+                  s.apreBlocco > 1 ? (
+                    <div className="apre-blocco" key={j}>
+                      <span className="maniglie">
+                        <button disabled={j === 0} aria-label="Sposta blocco su"
+                          onClick={() => muoviRiga(i, j, j - 1)}>
+                          <ChevronUp size={13} />
+                        </button>
+                        <button disabled={j === sez.serie.length - 1} aria-label="Sposta blocco giù"
+                          onClick={() => muoviRiga(i, j, j + 1)}>
+                          <ChevronDown size={13} />
+                        </button>
+                      </span>
+                      <label className="segno-blocco" title="Quante volte si ripete">
+                        ×
+                        <input
+                          className="mono"
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          value={s.apreBlocco}
+                          aria-label="Quante volte si ripete il blocco"
+                          onChange={(e) => ripetiBlocco(i, j, Math.max(1, Number(e.target.value) || 1))}
+                        />
+                      </label>
+                      <span className="dice-blocco">
+                        ripeti le righe qui sotto
+                        {figlieDelBlocco(sez, j).some((k) => sez.serie[k]?.metriManuali)
+                          && <> · <span title="I metri scritti a mano restano come sono">una riga a metri fissi non si moltiplica</span></>}
+                      </span>
+                      <span className="mono metri-blocco">
+                        {figlieDelBlocco(sez, j)
+                          .reduce((t, k) => t + (Number(sez.serie[k].metri) || 0), 0)
+                          .toLocaleString('it-IT')} m
+                      </span>
+                      <button className="mini" onClick={() => ripetiBlocco(i, j, 1)} title="Sciogli il blocco">
+                        Sciogli
+                      </button>
+                      <button className="togli" aria-label="Togli blocco" onClick={() => togliRiga(i, j)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                  <div className={`riga-serie${secca ? ' secca' : ''}${s.moltiplicato ? ' in-blocco' : ''}`} key={j}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="maniglie">
                         <button disabled={j === 0} aria-label="Sposta serie su"
@@ -713,6 +870,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                       <Trash2 size={14} />
                     </button>
                   </div>
+                  )
                 ))}
 
                 <button
@@ -730,6 +888,26 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                 >
                   <Plus size={13} style={{ verticalAlign: -2 }} /> {secca ? 'esercizio' : 'serie'}
                 </button>
+
+                {/* Il blocco ripetuto senza sapere la notazione: la riga
+                    nasce come "2x" e il numero si cambia nell'intestazione.
+                    A secco non ha senso — non ci sono metri da moltiplicare. */}
+                {!secca && (
+                  <button
+                    className="mini"
+                    style={{ marginTop: 9, marginLeft: 8 }}
+                    onClick={() => aggiorna((st) => {
+                      const quante = (st.sezioni[i].serie || []).length;
+                      st.sezioni[i].serie = [
+                        ...(st.sezioni[i].serie || []),
+                        { notazione: '2x', metri: 0, zona: '', recupero: '', note: '', senzaMetri: true, apreBlocco: 2 },
+                      ];
+                      st.svolto = svoltoDopoInserisciRiga(st.svolto, i, quante);
+                    })}
+                  >
+                    <Plus size={13} style={{ verticalAlign: -2 }} /> ripetizione
+                  </button>
+                )}
               </div>
             </div>
           );
