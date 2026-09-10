@@ -111,11 +111,33 @@ portano `moltiplicato: N` e i loro `metri` sono **già** il totale. Chi
 legge somma e basta — `dominio.js`, `v_serie` e `svolto` non moltiplicano
 mai una seconda volta. Niente contenitore: annidare sposterebbe ogni
 `ser_m` e le chiavi di `svolto` finirebbero sulla riga sbagliata.
-`aperturaDiBlocco` in `dominio.js` è l'**unica** regola che dice cos'è
-un'apertura, e la usano tutte e due le strade — il lettore del testo e
-l'editor a campi. Quando ne esisteva una sola, l'editor non moltiplicava
-e la sezione faceva 1003 invece di 3000: la prova di parità in
-`prova_blocchi.mjs` esiste per non ripeterlo.
+`aperturaDiBlocco` in `dominio.js` dice cos'è un'apertura **nel testo**.
+Nell'editor la notazione non crea blocchi: si usa solo il tasto
+"+ ripetizione". Il riconoscimento scattava a ogni tasto, e scrivendo
+`2x200` si passava per `2x` — la riga apriva un blocco per un istante,
+si prendeva le righe sotto e al tasto dopo le lasciava staccate da quello
+vero, coi metri divisi.
+
+**L'appartenenza a un blocco si deriva, non si ricorda.**
+`ricalcolaBlocchi(sezione)` scorre dall'alto col fattore dell'apertura più
+vicina sopra e riscrive `moltiplicato` e i metri. Va chiamata **dopo ogni
+gesto strutturale** (aggiunta, digitazione, spostamento, cancellazione,
+cambio di N, sciogli) e **mai in lettura**: aprire una seduta e salvarla
+senza toccarla non deve cambiarne un byte. Prima `moltiplicato` era una
+copia scritta una volta e mai mantenuta, e invecchiava al primo gesto —
+riga aggiunta sotto un'apertura che non prendeva mai il fattore (sezione
+da 900 invece di 3600), riga spostata fuori che se lo teneva addosso.
+
+I metri **non si rileggono dalla notazione**: si riscalano per rapporto,
+e solo se il fattore è cambiato davvero. Rileggerli riscriverebbe righe
+che nessuno ha toccato — la regola della vasca (`2x10` vale 50, non 20),
+le righe di composizione che valgono 0 apposta. E **se la divisione non è
+esatta non si riscala**: meglio una riga non aggiornata che un numero
+inventato.
+
+Le prove in `prova_blocchi.mjs` partono dai **gesti**, non da strutture
+montate a mano: la versione che partiva dalle strutture era tutta verde
+mentre l'app dava 900 invece di 3600.
 
 **Le chiavi di `svolto` sono posizionali e devono seguire le righe.**
 `"sez_n-ser_m"` non contiene niente che dica a quale riga appartiene: se

@@ -17,6 +17,17 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.55.0',
+    data: '2026-09-10',
+    annuncia: true,
+    voci: [
+      'Corretto: le ripetizioni create col tasto non moltiplicavano le righe aggiunte dopo — una sezione ×4 con tre serie da 900 faceva 900 invece di 3600',
+      'Corretto: scrivendo una serie tipo "2x200" dentro una ripetizione, le righe sotto si staccavano dal blocco e perdevano i metri',
+      'Le ripetizioni ora si creano solo col tasto "+ ripetizione": scrivere "3x" in una serie non la trasforma più da sola',
+      'Se apri una seduta fatta con la versione di ieri, l’app ti dice quanti metri mancano e offre di sistemarla',
+    ],
+  },
+  {
     versione: '0.54.0',
     data: '2026-09-10',
     annuncia: true,

@@ -9,7 +9,7 @@ import {
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
   eSecco, sezioneSeccaVuota,
-  apertureNude, applicaAperturaBlocco, figlieDelBlocco, metriInBlocco, aperturaDiBlocco,
+  apertureNude, applicaAperturaBlocco, figlieDelBlocco, ricalcolaBlocchi,
   svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
   svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
   metriSvoltiDiRiga, metriSvoltiDiSezione,
@@ -115,37 +115,19 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
         serie.zona = '';
         return;
       }
-      // "3x" su una riga per sé è un'apertura di blocco, non un lavoro.
-      // Stessa regola del testo: aperturaDiBlocco la decide per tutti e
-      // due. Qui si azzerano anche i metri residui — battendo "3" la riga
-      // prende 3 metri, e "3x" torna illeggibile senza togliere quel 3:
-      // è da lì che venivano le sezioni da 1003 invece di 3000.
-      const apre = aperturaDiBlocco(valore);
-      if (apre && apre.ripetizioni > 1) {
-        applicaAperturaBlocco(s.sezioni[i], j);
-        return;
-      }
-
-      // Non è (più) un'apertura: se lo era, il blocco si scioglie e le
-      // figlie tornano ai metri di un giro solo.
-      if (serie.apreBlocco) {
-        for (const k of figlieDelBlocco(s.sezioni[i], j)) {
-          const figlia = s.sezioni[i].serie[k];
-          if (!figlia.moltiplicato) continue;
-          figlia.metri = metriInBlocco(figlia, 1);
-          delete figlia.moltiplicato;
-        }
-        delete serie.apreBlocco;
-        delete serie.senzaMetri;
-      }
-
+      // Nell'editor la notazione NON crea blocchi: le ripetizioni si
+      // fanno solo col tasto "+ ripetizione". Il riconoscimento scattava
+      // a ogni tasto, e scrivendo "2x200" si passava per "2x", che è
+      // un'apertura valida: per un attimo la riga apriva un blocco, si
+      // prendeva le righe sotto, e al tasto dopo le lasciava staccate da
+      // quello vero coi metri divisi. Nel testo il riconoscimento resta.
       if (!serie.metriManuali) {
-        // Dentro un blocco i metri salvati sono già moltiplicati: se qui
-        // si scrivesse la lettura nuda, ritoccare una riga ripetuta le
-        // taglierebbe i metri a un terzo, in silenzio.
+        // Si scrive la lettura A GIRO: il fattore lo applica il ricalcolo,
+        // che è l'unico posto che sa in quale blocco sta questa riga.
         const m = metriDaNotazione(valore);
-        if (m !== null) serie.metri = m * (serie.moltiplicato || 1);
+        if (m !== null) { serie.metri = m; delete serie.moltiplicato; }
       }
+      ricalcolaBlocchi(s.sezioni[i]);
       // Se la partenza nasce da un passo base, cambiando la distanza si rifà.
       if (serie.base) {
         try {
@@ -193,24 +175,10 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
   // ------------------------------------------------------------------
   function ripetiBlocco(i, j, n) {
     aggiorna((s) => {
-      const sezione = s.sezioni[i];
-      const serie = sezione.serie[j];
-      if (!(n > 1)) {                       // "×1" scioglie il blocco
-        for (const k of figlieDelBlocco(sezione, j)) {
-          const figlia = sezione.serie[k];
-          if (!figlia.moltiplicato) continue;
-          figlia.metri = metriInBlocco(figlia, 1);
-          delete figlia.moltiplicato;
-        }
-        delete serie.apreBlocco;
-        delete serie.senzaMetri;
-        return;
-      }
-      // La notazione diventa quella del testo: così la riga si rilegge
-      // uguale se un domani la seduta ripassa dall'analizzatore.
-      const zona = serie.zona ? ` ${serie.zona}` : '';
-      serie.notazione = `${n}x${zona}`;
-      applicaAperturaBlocco(sezione, j);
+      // "×1" scioglie: ci pensa il ricalcolo, che sull'apertura senza
+      // fattore toglie apreBlocco e libera le figlie.
+      s.sezioni[i].serie[j].apreBlocco = n > 1 ? n : 1;
+      ricalcolaBlocchi(s.sezioni[i]);
     });
   }
 
@@ -239,6 +207,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
     if (a < 0 || a >= serie.length) return;
     s.sezioni[i].serie = muovi(serie, da, a);
     s.svolto = svoltoDopoMuoviRiga(s.svolto, i, da, a);
+    ricalcolaBlocchi(s.sezioni[i]);      // la riga può essere uscita o entrata in un blocco
   });
 
   const muoviSezione = (da, a) => aggiorna((s) => {
@@ -259,6 +228,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
     aggiorna((s) => {
       s.sezioni[i].serie.splice(j, 1);
       s.svolto = svoltoDopoTogliRiga(s.svolto, i, j);
+      ricalcolaBlocchi(s.sezioni[i]);    // se era l'apertura, le figlie si liberano
     });
   };
 
@@ -655,11 +625,22 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
           <div className="corpo" style={{ paddingTop: 0 }}>
             <div className="avviso">
               <AlertTriangle size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
-              <b>{nude.length === 1 ? 'Una riga di ripetizione non moltiplica' : 'Righe di ripetizione che non moltiplicano'} le righe sotto.</b>
+              {/* Due guai diversi, e il secondo va detto per esteso: il
+                  blocco a metà si DISEGNA giusto e conta sbagliato, quindi
+                  guardando la seduta non si vede niente di storto. */}
+              <b>
+                {nude.every((n) => n.forma === 'a-meta')
+                  ? (nude.length === 1
+                    ? 'Una ripetizione conta come se non ci fosse.'
+                    : 'Alcune ripetizioni contano come se non ci fossero.')
+                  : (nude.length === 1
+                    ? 'Una riga di ripetizione non moltiplica le righe sotto.'
+                    : 'Righe di ripetizione che non moltiplicano le righe sotto.')}
+              </b>
               {nude.map((n) => (
                 <div key={`${n.sezN}-${n.serM}`} className="riga-nuda">
                   <span>
-                    <b>{n.sezione}</b> · {n.righe} {n.righe === 1 ? 'riga' : 'righe'} ·{' '}
+                    <b>{n.sezione}</b>{n.forma === 'a-meta' && <> · <span title="Il blocco c'è, ma le righe sotto non sono moltiplicate">disegnata come ×{n.ripetizioni}, contata come ×1</span></>} · {n.righe} {n.righe === 1 ? 'riga' : 'righe'} ·{' '}
                     <b>mancano {n.metriMancanti.toLocaleString('it-IT')} m</b>{' '}
                     <span style={{ color: 'var(--testo-3)' }}>
                       (ora {n.metriOra.toLocaleString('it-IT')}, dopo {n.metriDopo.toLocaleString('it-IT')})
@@ -684,6 +665,13 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                     blocco cambierebbero i metri <i>programmati</i> sotto un valore già{' '}
                     <i>rilevato</i>, e lo scarto fra i due si sposterebbe senza che si veda da
                     nessuna parte. Guardala a mano.
+                  </>
+                ) : nude.every((n) => n.forma === 'a-meta') ? (
+                  <>
+                    Il blocco è disegnato come tale — l’intestazione ×N c’è e le righe stanno
+                    rientrate sotto — ma i metri delle righe sono rimasti quelli di un giro solo.
+                    Guardando la seduta non si vede niente di storto: è il totale a essere basso.
+                    Viene dalle ripetizioni create con la versione di ieri.
                   </>
                 ) : (
                   <>Do per scontato che il blocco arrivi a fine sezione: controlla che sia così prima di applicare.</>
@@ -880,6 +868,10 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                     const nuova = secca ? { ...serieVuota(), zona: '' } : serieVuota();
                     const quante = (s.sezioni[i].serie || []).length;
                     s.sezioni[i].serie = [...(s.sezioni[i].serie || []), nuova];
+                    // La riga nuova può cadere dentro un blocco aperto sopra:
+                    // senza questo non prendeva mai il fattore, ed era il
+                    // guasto per cui la sezione faceva 900 invece di 3600.
+                    ricalcolaBlocchi(s.sezioni[i]);
                     // In coda non muove nessuna chiave, ma il richiamo c'è
                     // lo stesso: il giorno che si potrà inserire in mezzo,
                     // il punto giusto è già qui e già corretto.
@@ -903,6 +895,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                         { notazione: '2x', metri: 0, zona: '', recupero: '', note: '', senzaMetri: true, apreBlocco: 2 },
                       ];
                       st.svolto = svoltoDopoInserisciRiga(st.svolto, i, quante);
+                      ricalcolaBlocchi(st.sezioni[i]);
                     })}
                   >
                     <Plus size={13} style={{ verticalAlign: -2 }} /> ripetizione
