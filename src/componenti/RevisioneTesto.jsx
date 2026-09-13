@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Wand2, ArrowLeft, Check, AlertTriangle, CircleHelp } from 'lucide-react';
 import { analizzaTesto } from '../lib/analizzatore';
 import { TUTTI, durataStimata, inOreMinuti } from '../lib/dominio';
+import { sedutaDaLettura } from '../lib/importaTesto';
 
 const ESEMPIO = `300 stile
 
@@ -60,22 +61,11 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
   const daVedere = letto.sezioni.reduce((t, sez, i) =>
     t + sez.serie.filter((s, j) => s.fiducia !== 'verde' && !valore(i, j, 'confermata', false)).length, 0);
 
+  // La conversione sta in lib/importaTesto.js, non qui: è l'unico punto
+  // che decide cosa della lettura finisce in archivio, e lì si prova
+  // senza montare React (prova_import.mjs).
   function conferma() {
-    const sezioni = letto.sezioni.map((sez, i) => ({
-      titolo: sez.titolo,
-      destinatari: sez.destinatari?.length ? sez.destinatari : [TUTTI],
-      serie: sez.serie.map((s, j) => ({
-        notazione: s.notazione,
-        metri: Number(valore(i, j, 'metri', s.metri)) || 0,
-        zona: valore(i, j, 'zona', s.zona) || '',
-        recupero: s.recupero || '',
-        note: [s.note, (s.modalita || []).join(', '), (s.attrezzi || []).join(', ')]
-          .filter(Boolean).join(' · '),
-        metriManuali: true,          // vengono dal testo: non ricalcolarli
-      })).filter((s) => s.notazione),
-    })).filter((sez) => sez.serie.length > 0);
-
-    usaSeduta(sezioni);
+    usaSeduta(sedutaDaLettura(letto.sezioni, correzioni));
   }
 
   return (

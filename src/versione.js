@@ -17,6 +17,14 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.55.1',
+    data: '2026-09-13',
+    voci: [
+      'Corretto: una sezione di palestra scritta in "Scrivi o incolla" arrivava nell’editor come lavoro in acqua, con la zona e i metri da riempire — ora resta lavoro a secco, con la sua striscia gialla e la durata in minuti',
+      'Corretto: i blocchi ripetuti scritti nel testo perdevano la ripetizione passando all’editor — le righe c’erano e i metri tornavano, ma il "3x" non si vedeva più',
+    ],
+  },
+  {
     versione: '0.55.0',
     data: '2026-09-10',
     annuncia: true,

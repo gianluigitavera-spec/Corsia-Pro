@@ -151,6 +151,32 @@ casi che inseriscono **in cima** (`unshift`), che spostano tutto.
 `svoltoCollassato` è l'unico posto che decide quando `svolto` torna
 `null`: righe vuote **e** nessuna nota.
 
+**Nel passaggio testo → editor si elencano i campi da SCARTARE, mai
+quelli da tenere.** `sedutaDaLettura` in `src/lib/importaTesto.js` parte
+dalla sezione che il lettore ha prodotto e toglie per nome quello che non
+deve finire in archivio (`SCARTA_RIGA`, `SCARTA_SEZIONE`). L'elenco dei
+campi da tenere sembra la forma prudente ed è quella che perde: ogni
+campo aggiunto al modello e non aggiunto anche lì cade in silenzio. È
+successo tre volte, cinque campi — `aSecco` e `durataMin` con la 0.52.0
+(la sezione "Palestra" arrivava come lavoro in acqua, con zona e metri),
+`apreBlocco`, `moltiplicato` e `senzaMetri` con la 0.54.0 (il blocco
+arrivava piatto). I campi del lettore cambiano di rado, quelli del
+dominio crescono: l'elenco di scarto è la parte ferma, e un campo nuovo
+passa da sé invece di sparire. La conversione sta in un file suo, e non
+dentro `RevisioneTesto`, per poterla provare senza montare React:
+`prova_import.mjs`, che parte dal testo e non da strutture montate a
+mano.
+
+Attenzione a `metriManuali`: sta sulle righe importate perché i metri
+vengono dal testo e non si rileggono dalla notazione (la regola della
+vasca è già applicata, le figlie di un blocco sono già moltiplicate).
+Finché `moltiplicato` si perdeva era però lui, per combinazione, a
+impedire che un blocco importato venisse moltiplicato due volte —
+`apertureNude` scarta le figlie coi metri fissi e `ricalcolaBlocchi` le
+salta. La prova che questo non succeda spoglia le righe di
+`metriManuali` apposta: deve fallire se qualcuno lo toglie, non passare
+per coincidenza.
+
 **Cambiare la specializzazione di un atleta gli sposta anche i volumi
 storici.** `sezionePer()` in `dominio.js` confronta stringhe esatte fra la
 specializzazione dell'atleta e i `destinatari` scritti nella sezione. Chi
@@ -262,6 +288,14 @@ senza linea e poi sposti una riga nell'editor, la voce accodata arriva
 stato congelato prima dello spostamento, e la rimappatura agisce solo
 sull'oggetto in memoria. Da chiudere — probabilmente rimappando anche la
 coda, o rifiutando l'accodamento quando la seduta è cambiata sotto.
+
+**Descrizione delle righe di composizione.** Quando i sotto-tratti
+sommano la distanza della riga sopra, l'analizzatore appende alla riga
+padre una `descrizione` (`analizzatore.js:610`). Nel passaggio testo →
+editor si perde: `importaTesto.js` la scarta di proposito, perché
+l'editor non ha dove mostrarla e scriverla in archivio senza che nessuno
+la legga è peggio che non averla. Si recupera quando l'editor saprà
+cosa farsene — non prima.
 
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);
