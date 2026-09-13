@@ -94,10 +94,15 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
               const previsto = +serie.metri || 0;
               const corretto = righe[k];
               const diverso = corretto !== undefined && +corretto !== previsto;
+              // Lavoro, zona e metri sono colonne (styles.css, "com'è
+              // andata"): erano tre span inline senza spazio fra loro e si
+              // leggevano attaccati. Il segnaposto che teneva il posto del
+              // tasto non serve più — con la griglia la colonna resta al
+              // suo posto anche vuota.
               return (
                 <div key={k} className="riga-andata">
                   <span className="testo-riga">{serie.notazione}</span>
-                  {serie.zona && <span className="mono zona-riga">{serie.zona}</span>}
+                  {serie.zona && <span className="mono pastiglia-zona">{serie.zona}</span>}
                   <span className="mono previsto">{previsto} m</span>
                   <input
                     className="mono"
@@ -107,14 +112,14 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
                     placeholder={String(previsto)}
                     value={corretto ?? ''}
                     onChange={(e) => cambia(k, e.target.value)}
-                    style={{ width: 84, borderColor: diverso ? 'var(--ambra)' : undefined }}
+                    style={{ borderColor: diverso ? 'var(--ambra)' : undefined }}
                   />
-                  {diverso ? (
+                  {diverso && (
                     <button className="mini" title="Rimetti come programmato"
                       onClick={() => cambia(k, '')}>
                       <RotateCcw size={13} />
                     </button>
-                  ) : <span style={{ width: 28 }} />}
+                  )}
                 </div>
               );
             })}

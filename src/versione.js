@@ -17,6 +17,14 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.55.2',
+    data: '2026-09-13',
+    voci: [
+      'Corretto: in "Com\'è andata", sul telefono, lavoro, zona e metri si leggevano attaccati in una parola sola — "…sulle SUBA1300 m". Ora il lavoro sta sulla sua riga, la zona è un\'etichetta a parte e i metri restano incolonnati',
+      'Le righe di lavoro lunghe vanno a capo senza più schiacciare la casella dei metri rilevati',
+    ],
+  },
+  {
     versione: '0.55.1',
     data: '2026-09-13',
     voci: [

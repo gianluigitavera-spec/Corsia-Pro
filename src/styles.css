@@ -311,6 +311,73 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 .atleta-riga[data-stato='G'] .stato { background: rgba(251, 191, 36, 0.18); color: var(--ambra); }
 .atleta-riga .spec { font-size: 12px; color: var(--testo-3); }
 
+/* ------------------------------------------------- com'è andata
+   Le righe del rilevato avevano solo il padding qui sotto nella media
+   query del telefono: nient'altro. Lavoro, zona e metri erano tre span
+   inline senza spazio fra loro (JSX toglie l'a capo fra i tag), e si
+   leggevano come una parola sola — "...sulle SUBA1300 m". Da qui in giù
+   sono colonne, e la zona è un'etichetta che si distingue dal testo.
+
+   min-width: 0 sulla colonna del lavoro è la riga che conta: una
+   colonna 1fr non scende sotto la larghezza del suo contenuto, e a
+   pagarla è la casella accanto, che si schiaccia quando la notazione è
+   lunga. Con overflow-wrap il lavoro va a capo e i numeri stanno fermi.
+   ---------------------------------------------------------------- */
+.riga-andata {
+  display: grid;
+  /* L'ultima colonna è `auto`, non una misura fissa: vuota vale zero, e
+     quando il tasto "rimetti come programmato" compare si allarga quanto
+     serve. Un 28px fisso lo tagliava — il tasto ne misura una quarantina
+     con le dita bagnate, e quel numero veniva dal segnaposto vuoto che
+     teneva il posto prima della griglia. */
+  grid-template-columns: 1fr auto auto 84px auto;
+  grid-template-areas: "lavoro zona previsto casella ripristino";
+  align-items: center;
+  column-gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(30, 46, 79, 0.5);
+}
+.riga-andata:last-child { border-bottom: 0; }
+
+.riga-andata .testo-riga {
+  grid-area: lavoro;
+  min-width: 0; overflow-wrap: anywhere; line-height: 1.35;
+}
+.riga-andata input { grid-area: casella; width: 100%; }
+.riga-andata .mini, .riga-andata .ripristino { grid-area: ripristino; }
+
+/* La zona come etichetta, non come parola in coda alla frase. Neutra:
+   il colore per famiglia vorrebbe l'elenco delle zone, che qui non
+   arriva. Classe sua — `zona-riga` è delle barre della Dashboard, e
+   prestargliela le portava addosso padding e bordo di quelle. */
+.pastiglia-zona {
+  grid-area: zona;
+  justify-self: start;
+  padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--bordo-vivo);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--testo-2); font-size: 12px; line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* Il programmato resta sempre in vista: è il riferimento da cui si parte
+   per decidere cosa scrivere. Smorzato, perché il numero che conta è
+   quello rilevato nella casella. */
+.riga-andata .previsto { grid-area: previsto; color: var(--testo-3); white-space: nowrap; }
+
+/* Stretto: il lavoro si prende tutta la riga e i numeri vanno sotto.
+   Incolonnarli accanto a una notazione di tre righe vuol dire una
+   casella da 30px, che a bordo vasca non si centra col dito. */
+@media (max-width: 560px) {
+  .riga-andata {
+    grid-template-columns: auto auto 84px auto;
+    grid-template-areas: "lavoro  lavoro   lavoro  lavoro"
+                         "zona    previsto casella ripristino";
+    row-gap: 7px;
+  }
+  .riga-andata .mini, .riga-andata .ripristino { justify-self: start; }
+}
+
 /* -------------------------------------------------------- messaggi */
 .avviso {
   border: 1px solid rgba(251, 191, 36, 0.3); border-left: 3px solid var(--ambra);
