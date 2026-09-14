@@ -90,6 +90,24 @@ const prove = [
   ['Lun 12/10/2025', 0, 'una data non è una scala'],
   ['4x50/4x25', 200, 'la barra fra due set non fa una scala di 1350 m'],
 
+  // --- il titolo di sezione chiude il blocco ---
+  // Un "3x" scritto sopra continuava a moltiplicare oltre il titolo:
+  // "Sciolto / 200" faceva 600. La riga vuota chiudeva il blocco, il
+  // titolo no — ma a bordo vasca il titolo si scrive di seguito.
+  // I primi tre titoli sono quelli che sbagliavano (Riscaldamento,
+  // Sciolto/defaticamento, [main]); gli altri erano già a posto e
+  // devono restarci: la correzione toglie da loro la riga che li
+  // salvava, e la sposta in un punto solo.
+  ['3x\n8x50 B1\nSciolto\n200', 1400, 'lo sciolto dopo un blocco non si moltiplica'],
+  ['3x\n8x50 B1\nDefaticamento\n200', 1400, 'stessa cosa scritta "defaticamento"'],
+  ['3x\n8x50 B1\nRiscaldamento\n200', 1400, 'il riscaldamento dopo un blocco nemmeno'],
+  ['3x\n8x50 B1\n[main]\n200', 1400, '[main] chiude il blocco come gli altri titoli'],
+  ['3x\n8x50 B1\nVelocisti\n200', 1400, 'i destinatari lo chiudevano già: resta così'],
+  ['3x\n8x50 B1\nB1\n200', 1400, 'e una riga di sola zona pure'],
+  ['3x\n8x50 B1\n\nSciolto\n200', 1400, 'con la riga vuota prima, come ha sempre funzionato'],
+  // Il blocco nuovo riparte da capo: 100 x2 = 200, non 100 x6.
+  ['3x\n8x50 B1\nSciolto\n2x\n100', 1400, 'un blocco nuovo dopo il titolo parte pulito'],
+
   // --- una riga, una andatura ---
   ['8x50 A2 + 4x25 C1', 500, 'due andature: si spezza e i metri non si perdono'],
   ['4x(8x50 B1 + 4x50 B2)', 2400, 'blocco con due andature dentro'],

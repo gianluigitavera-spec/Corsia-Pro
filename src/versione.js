@@ -17,6 +17,14 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.55.3',
+    data: '2026-09-15',
+    voci: [
+      'Corretto: in "Scrivi o incolla", scrivendo un titolo di sezione subito sotto una ripetizione — senza lasciare la riga vuota — il "3x" continuava a moltiplicare anche il lavoro della sezione dopo: uno sciolto da 200 diventava 600. Ora il titolo chiude la ripetizione come già faceva la riga vuota',
+      'Vale per Riscaldamento, Sciolto, defaticamento e [main]; gli altri titoli di sezione funzionavano già. Le sedute già salvate non cambiano: portano i metri con cui sono state salvate, e vanno corrette a mano',
+    ],
+  },
+  {
     versione: '0.55.2',
     data: '2026-09-13',
     voci: [

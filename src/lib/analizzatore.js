@@ -592,7 +592,25 @@ export function analizzaTesto(testo) {
   let zonaCorrente = '';        // dichiarata da una riga di sola zona
   const avvisi = [];
 
+  // UNA SEZIONE NUOVA COMINCIA SENZA MOLTIPLICATORE.
+  //
+  // L'azzeramento sta qui, e non nei rami che aprono le sezioni, perché
+  // di rami ce ne sono otto e la riga era stata scritta solo in cinque:
+  // "Riscaldamento", "Sciolto"/"defaticamento" e "[main]" non la
+  // avevano, e un "3x" scritto sopra continuava a moltiplicare il lavoro
+  // della sezione dopo. Scrivendo
+  //
+  //     3x / 8x50 B1 / Sciolto / 200
+  //
+  // senza riga vuota prima del titolo, i 200 dello sciolto diventavano
+  // 600. La riga vuota azzerava (vedi sotto), il titolo no: due strade
+  // per la stessa cosa, e una sola funzionava.
+  //
+  // Qui ci passano tutti e otto, compreso il ramo che apre la sezione
+  // implicita a inizio testo. Un ramo aggiunto domani non può
+  // dimenticarsene.
   const nuovaSezione = (titolo, destinatari = ['*'], aSecco = false) => {
+    moltiplicatoreAttivo = 1;
     sezione = { titolo, destinatari, serie: [] };
     if (aSecco) { sezione.aSecco = true; sezione.durataMin = 20; }
     sezioni.push(sezione);
@@ -627,7 +645,6 @@ export function analizzaTesto(testo) {
       // separare i blocchi, apre anche una sezione con quel nome.
       chiudiGruppo();
       zonaCorrente = soloZona[1].toUpperCase().replace('+', '');
-      moltiplicatoreAttivo = 1;
       nuovaSezione(zonaCorrente);
       continue;
     }
@@ -637,7 +654,6 @@ export function analizzaTesto(testo) {
     // destinatari particolari e le sue righe tornano a fare metri.
     if (TITOLO_A_SECCO.test(riga)) {
       chiudiGruppo();
-      moltiplicatoreAttivo = 1;
       nuovaSezione(riga.replace(':', '').trim(), ['*'], true);
       continue;
     }
@@ -646,7 +662,6 @@ export function analizzaTesto(testo) {
     const chi = destinatariDaTitolo(riga);
     if (chi) {
       chiudiGruppo();
-      moltiplicatoreAttivo = 1;
       const s = nuovaSezione(riga.replace(':', '').trim(), chi);
       if (zonaCorrente) s.zonaEreditata = zonaCorrente;
       continue;
@@ -668,7 +683,6 @@ export function analizzaTesto(testo) {
     }
     if (/^(lc|lavoro centrale|parte centrale|centrale|pregara)\b/i.test(riga)) {
       chiudiGruppo();
-      moltiplicatoreAttivo = 1;
       const { titolo, zona } = zonaDelTitolo(riga.replace(':', ''));
       const s = nuovaSezione(titolo);
       if (zona) { zonaCorrente = zona; s.zonaEreditata = zona; }
@@ -677,7 +691,6 @@ export function analizzaTesto(testo) {
     // "Garetto:", "Edo/teo", "Salvamento:" → destinatari particolari
     if (/^[A-ZÀ-Ù][\wÀ-ù/ ]{1,24}:?$/.test(riga) && !trovaMisure(riga) && !SOLA_ZONA.test(riga)) {
       chiudiGruppo();
-      moltiplicatoreAttivo = 1;
       const { titolo, zona } = zonaDelTitolo(riga.replace(':', ''));
       const s = nuovaSezione(titolo);
       if (zona) { zonaCorrente = zona; s.zonaEreditata = zona; }

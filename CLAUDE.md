@@ -297,6 +297,20 @@ l'editor non ha dove mostrarla e scriverla in archivio senza che nessuno
 la legga è peggio che non averla. Si recupera quando l'editor saprà
 cosa farsene — non prima.
 
+**Due fughe della stessa forma, lasciate aperte di proposito.** Con la
+0.55.3 l'azzeramento di `moltiplicatoreAttivo` è passato dentro
+`nuovaSezione`, perché era scritto in cinque rami su otto e tre se lo
+dimenticavano. Nello stesso ciclo ce ne sono altre due con la stessa
+forma, non toccate per tenere il rilascio leggibile:
+
+- `zonaCorrente` si propaga oltre i titoli di sezione. Non produce metri
+  sbagliati, solo zone ereditate dove magari non le vuoi — va deciso
+  caso per caso se è un difetto o è comodo.
+- `chiudiGruppo()` è ripetuto in tutti e otto i rami che aprono una
+  sezione, esattamente com'era l'azzeramento. Assorbirlo in
+  `nuovaSezione` è lo stesso ragionamento, ma tocca il calcolo della
+  composizione — dove stanno i metri veri — e vuole un rilascio suo.
+
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);
 esercizi legati a notazione e lavagna; modifica gare già salvate; Crono che
