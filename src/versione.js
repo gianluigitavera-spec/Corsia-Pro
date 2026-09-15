@@ -17,6 +17,15 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.55.4',
+    data: '2026-09-15',
+    voci: [
+      'Il campo del recupero torna scrivibile dal telefono: in verticale non era stretto o storto, non c\'era proprio, e le ripartenze si potevano mettere solo da computer',
+      'Le righe della seduta sul telefono stanno su due file: sopra il lavoro per esteso, sotto zona, metri e recupero, ognuno con la sua etichetta',
+      'Corretto: sulle righe col passo base il cestino finiva a capo da solo, anche su schermo grande',
+    ],
+  },
+  {
     versione: '0.55.3',
     data: '2026-09-15',
     voci: [

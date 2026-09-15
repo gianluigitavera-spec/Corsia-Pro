@@ -808,7 +808,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                     </div>
                   ) : (
                   <div className={`riga-serie${secca ? ' secca' : ''}${s.moltiplicato ? ' in-blocco' : ''}`} key={j}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="lavoro-riga" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="maniglie">
                         <button disabled={j === 0} aria-label="Sposta serie su"
                           onClick={() => muoviRiga(i, j, j - 1)}>
@@ -829,29 +829,47 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                     {/* A terra non ci sono né zona né metri: le caselle non
                         compaiono proprio, così non c'è niente da riempire
                         per sbaglio. */}
+                    {/* Ogni campo sta in un'etichetta sua. In orizzontale
+                        l'etichetta è nascosta e comanda l'intestazione in
+                        cima; in verticale l'intestazione sparisce e le
+                        didascalie restano attaccate al campo — a bordo
+                        vasca si guarda lo schermo per mezzo secondo, e una
+                        casella vuota senza etichetta la si sbaglia.
+                        Il passo base sta DENTRO la cella del recupero: da
+                        figlio diretto della griglia era un sesto elemento
+                        su cinque colonne, e spingeva il cestino a capo. */}
                     {!secca && (
                       <>
-                        <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].zona = e.target.value; })}>
-                          <option value="">—</option>
-                          {zone.map((z) => <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>)}
-                        </select>
-                        <input
-                          className="mono"
-                          type="number"
-                          inputMode="numeric"
-                          value={s.metri || ''}
-                          placeholder="0"
-                          title={s.metriManuali ? 'Metri scritti a mano' : 'Calcolati dalla notazione'}
-                          onChange={(e) => cambiaMetri(i, j, e.target.value)}
-                        />
-                        <input
-                          className="mono rec"
-                          value={s.recupero || ''}
-                          placeholder="@1:40 o @@2:00"
-                          onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
-                          onBlur={(e) => sistemaRecupero(i, j, e.target.value)}
-                        />
-                        {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
+                        <label className="campo-riga zona">
+                          <span className="eti">Zona</span>
+                          <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].zona = e.target.value; })}>
+                            <option value="">—</option>
+                            {zone.map((z) => <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>)}
+                          </select>
+                        </label>
+                        <label className="campo-riga metri">
+                          <span className="eti">Metri</span>
+                          <input
+                            className="mono"
+                            type="number"
+                            inputMode="numeric"
+                            value={s.metri || ''}
+                            placeholder="0"
+                            title={s.metriManuali ? 'Metri scritti a mano' : 'Calcolati dalla notazione'}
+                            onChange={(e) => cambiaMetri(i, j, e.target.value)}
+                          />
+                        </label>
+                        <label className="campo-riga rec">
+                          <span className="eti">Recupero</span>
+                          <input
+                            className="mono"
+                            value={s.recupero || ''}
+                            placeholder="@1:40 o @@2:00"
+                            onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
+                            onBlur={(e) => sistemaRecupero(i, j, e.target.value)}
+                          />
+                          {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
+                        </label>
                       </>
                     )}
                     <button className="togli" aria-label="Togli serie" onClick={() => togliRiga(i, j)}>
