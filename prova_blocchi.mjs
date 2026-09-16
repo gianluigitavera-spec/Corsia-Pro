@@ -17,7 +17,7 @@ import { analizzaTesto } from './src/lib/analizzatore.js';
 import {
   ricalcolaBlocchi, applicaAperturaBlocco, apertureNude, figlieDelBlocco,
   metriDaNotazione, metriPerSpecializzazione, serieVuota, svoltoDopoTogliRiga,
-  svoltoDopoMuoviRiga,
+  svoltoDopoMuoviRiga, durataStimata,
 } from './src/lib/dominio.js';
 
 let male = 0;
@@ -77,6 +77,9 @@ const g = {
     ricalcolaBlocchi(sez);
   },
   sciogli(sez, j) { g.cambiaN(sez, j, 1); },
+  scriviRecupero(sez, j, valore) {                  // battuta nel campo recupero
+    sez.serie[j].recupero = valore;                 // non è un gesto strutturale
+  },
 };
 
 const totale = (sez) => metriPerSpecializzazione([sez], 'Generale');
@@ -382,6 +385,67 @@ Sciolto
   ricalcolaBlocchi(sez);
   dice('due blocchi, due fattori',
     sez.serie.map((s) => s.moltiplicato ?? null), [null, 3, null, 2, 2]);
+}
+
+// =====================================================================
+// LA DURATA CONTA IL BLOCCO N VOLTE
+//
+// Segnalato da un allenatore: un blocco ×3 dava la stessa durata della
+// stessa sezione scritta piatta — 15' per 2400 m come per 800.
+//
+// Il motivo è che sui TEMPI `moltiplicato` vuol dire il contrario che
+// sui METRI. In archivio i metri sono già moltiplicati e chi legge
+// somma e basta; la durata invece non deriva dai metri — è ripartenza
+// × ripetute — e lì il blocco va contato per davvero: "8x50" sono otto
+// partenze a giro, per tre giri fa ventiquattro.
+// =====================================================================
+{
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '8x50');  g.scriviRecupero(sez, a, '@1:00');
+  const b = g.piuSerie(sez); g.scrivi(sez, b, '4x100'); g.scriviRecupero(sez, b, '@1:40');
+
+  // La stessa sezione senza blocco: stesse notazioni, stessi recuperi.
+  const piatta = nuovaSezione();
+  const c = g.piuSerie(piatta); g.scrivi(piatta, c, '8x50');  g.scriviRecupero(piatta, c, '@1:00');
+  const d = g.piuSerie(piatta); g.scrivi(piatta, d, '4x100'); g.scriviRecupero(piatta, d, '@1:40');
+
+  const conBlocco = durataStimata([sez]).secondi;
+  const senzaBlocco = durataStimata([piatta]).secondi;
+
+  // 8×60 + 4×100 = 880 s a giro.
+  dice('la sezione piatta vale un giro', senzaBlocco, 880);
+  dice('col blocco ×3 vale tre giri', conBlocco, 2640);
+  dice('cioè esattamente il triplo', conBlocco, senzaBlocco * 3);
+  dice('e i metri restano quelli di prima, non si moltiplicano due volte',
+    totale(sez), 2400);
+
+  // Sciogliendo il blocco si torna al giro singolo: il fattore non
+  // resta appiccicato alle righe.
+  g.sciogli(sez, 0);
+  dice('sciolto il blocco, la durata torna quella piatta',
+    durataStimata([sez]).secondi, 880);
+}
+
+// =====================================================================
+// IL CONTATORE DELLE RIGHE SENZA RIPARTENZA CONTA RIGHE
+//
+// `senzaPartenza` alimenta l'avviso "N serie senza partenza non
+// contate". È un conteggio di righe da sistemare, non di lavoro: dentro
+// un blocco ×3 la riga da sistemare resta una. Se un giorno l'avviso
+// dovrà dire quanto lavoro manca alla stima, si dirà in metri o in
+// minuti — non moltiplicando questo numero.
+// =====================================================================
+{
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '8x50'); g.scriviRecupero(sez, a, '@1:00');
+  const b = g.piuSerie(sez); g.scrivi(sez, b, '4x100');          // niente ripartenza
+
+  const d = durataStimata([sez]);
+  dice('una riga sola da sistemare, anche dentro un ×3', d.senzaPartenza, 1);
+  dice('e l\'altra riga conta i suoi tre giri', d.secondi, 8 * 60 * 3);
+  dice('la riga senza ripartenza non porta secondi', d.conPartenza, 1);
 }
 
 // =====================================================================

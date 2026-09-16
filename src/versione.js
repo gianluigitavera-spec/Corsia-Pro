@@ -17,6 +17,14 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.55.5',
+    data: '2026-09-16',
+    voci: [
+      'Corretto: la durata stimata non teneva conto delle ripetizioni — un blocco ×3 contava come se fosse uno solo, e una seduta da 2400 m con le ripetute risultava lunga quanto una da 800. Segnalato da Marco',
+      'Le serie senza ripartenza continuano a contarsi una per riga, come prima: l\'avviso dice quante righe mancano alla stima, non quanto lavoro',
+    ],
+  },
+  {
     versione: '0.55.4',
     data: '2026-09-15',
     voci: [

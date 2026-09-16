@@ -1299,11 +1299,28 @@ export function durataStimata(sezioni) {
     }
     for (const s of sez.serie || []) {
       if (!s.metri && !s.senzaMetri) continue;
+      // SUI TEMPI `moltiplicato` È UN FATTORE, non una didascalia.
+      // Sui metri è il contrario (vedi il commento dei blocchi ripetuti
+      // più sopra), e confondere i due significati costa in entrambi i
+      // versi: qui la durata restava bassa — un blocco ×3 dava lo stesso
+      // tempo della sezione piatta, 15' tanto per 2400 m quanto per 800
+      // — mentre sui metri moltiplicare di nuovo li gonfierebbe.
+      //
+      // Il tempo non deriva dai metri: è ripartenza × ripetute. E le
+      // ripetute di una figlia stanno metà nella notazione ("8x50" fa
+      // otto partenze) e metà nel blocco che la contiene (tre giri):
+      // 8 × 3 = 24 partenze da un minuto.
       const base = secondiDaRipartenza(s.recupero);
       if (base) {
-        secondi += base * ripetizioniDa(s.notazione);
+        secondi += base * ripetizioniDa(s.notazione) * (Number(s.moltiplicato) || 1);
         conRipartenza += 1;
       } else if (s.metri) {
+        // `senza` conta RIGHE da sistemare, non lavoro: alimenta
+        // l'avviso "N serie senza partenza non contate". Moltiplicarlo
+        // per il blocco lo renderebbe illeggibile (una riga dentro un
+        // ×3 diventerebbe 3, o 24 col fattore intero) senza dire niente
+        // di più. Se un giorno l'avviso dovrà dire QUANTO lavoro manca
+        // alla stima, si dice in metri o in minuti, non in righe.
         senza += 1;
       }
     }

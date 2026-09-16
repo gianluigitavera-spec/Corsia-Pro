@@ -118,6 +118,29 @@ Nell'editor la notazione non crea blocchi: si usa solo il tasto
 si prendeva le righe sotto e al tasto dopo le lasciava staccate da quello
 vero, coi metri divisi.
 
+**`moltiplicato` vuol dire due cose opposte secondo cosa si sta
+contando.** Sui **metri** è una didascalia: in archivio i metri sono già
+moltiplicati, e chi legge somma e basta — `dominio.js`, `v_serie` e
+`svolto` non moltiplicano mai una seconda volta. Sui **tempi** è un
+fattore da applicare: la durata non deriva dai metri, è ripartenza ×
+ripetute, e le ripetute di una figlia stanno metà nella notazione
+(`8x50` fa otto partenze) e metà nel blocco che la contiene (tre giri) —
+8 × 3 = 24. Fino alla 0.55.5 `durataStimata` leggeva solo la notazione:
+un blocco ×3 dava lo stesso tempo della sezione piatta, 15' tanto per
+2400 m quanto per 800.
+
+Chi arriva qui dalla regola dei metri è a un passo dal togliere quella
+moltiplicazione citando la regola giusta nel posto sbagliato. Sono due
+significati dello stesso campo, e sbagliarli costa in entrambi i versi:
+metri gonfiati di là, durata bassa di qua. Il caso è fissato in
+`prova_blocchi.mjs`.
+
+Il contatore `senzaPartenza` invece **non** si moltiplica: conta righe
+da sistemare per l'avviso "N serie senza partenza non contate", non
+lavoro non stimato. Una riga dentro un ×3 resta una riga. Se un giorno
+l'avviso dovrà dire quanto lavoro manca alla stima, si dice in metri o
+in minuti, non in righe.
+
 **L'appartenenza a un blocco si deriva, non si ricorda.**
 `ricalcolaBlocchi(sezione)` scorre dall'alto col fattore dell'apertura più
 vicina sopra e riscrive `moltiplicato` e i metri. Va chiamata **dopo ogni
