@@ -55,6 +55,10 @@ export const CATEGORIE = [
   // tesseramento, non un'età. Si assegna a mano con categoria_override,
   // altrimenti ci finirebbe dentro ogni agonista adulto.
   { codice: "MAS", nome: "Master", ordine: 200 },
+  // Triathlon: percorso, non età, esattamente come Teen e Master. Niente
+  // riga in categorie_stagione, nessuna fascia, nessuna deduzione
+  // automatica: o è scritto nel foglio, o si mette a mano.
+  { codice: "TRI", nome: "Triathlon", ordine: 210 },
 ];
 
 // ---------------------------------------------------------------------
@@ -873,26 +877,114 @@ export function perSettimana(sedute) {
     .sort((a, b) => b.lunedi.localeCompare(a.lunedi));
 }
 
-// La colonna "categoria" del CSV. Teen, Master e Propaganda non sono
-// età ma percorsi, quindi dall'anno di nascita non si ricavano: o li
-// scrivi nel foglio, o l'app non può saperlo.
-// L'unica scorciatoia è il Master sopra i 25 anni, ed è una PROPOSTA:
-// tira dentro anche i Senior e gli Assoluti adulti, che Master non sono.
-// Per questo l'import li elenca a parte, da controllare.
-export function categoriaDaCsv(scritta, annoNascita, oggi = new Date()) {
+// La colonna "categoria" del CSV. Teen, Master, Propaganda e Triathlon
+// non sono età ma percorsi, quindi dall'anno di nascita non si ricavano:
+// o li scrivi nel foglio, o l'app non può saperlo.
+//
+// COLONNA VUOTA VUOL DIRE "DALL'ANNO", A QUALSIASI ETÀ.
+// Fino alla 0.55.5 c'era una scorciatoia: sopra i 25 anni proponeva
+// Master. Era nata come proposta e si comportava come una scrittura — il
+// codice finiva in `categoria_override` indistinguibile da uno messo a
+// mano, e l'import lo riscriveva anche sugli atleti già in squadra. Un
+// Senior o un Assoluto adulto, o chiunque avesse l'override azzerato
+// apposta, tornava Master al primo foglio con la colonna vuota. Master è
+// un tipo di tesseramento, non un'età: non si indovina. Chi vuole
+// ritrovarseli lo scrive nel foglio.
+export function categoriaDaCsv(scritta) {
   const pulita = String(scritta || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-  if (pulita) {
-    const trovata = CATEGORIE.find((c) => c.codice === pulita);
-    if (trovata) return { codice: trovata.codice, indovinata: false };
-    // Scritta per esteso: "Master", "Teen 2", "Propaganda 2"
-    const perNome = CATEGORIE.find(
-      (c) => c.nome.toUpperCase().replace(/[\s-]+/g, '_') === pulita
-    );
-    if (perNome) return { codice: perNome.codice, indovinata: false };
+  if (!pulita) return { codice: null };          // null = si calcola dall'età
+  const trovata = CATEGORIE.find((c) => c.codice === pulita);
+  if (trovata) return { codice: trovata.codice };
+  // Scritta per esteso: "Master", "Triathlon", "Teen 2", "Propaganda 2"
+  const perNome = CATEGORIE.find(
+    (c) => c.nome.toUpperCase().replace(/[\s-]+/g, '_') === pulita
+  );
+  return { codice: perNome ? perNome.codice : null };
+}
+
+// Come si scrive la categoria di un atleta nell'elenco. Quando c'è un
+// override, accanto va il derivato dall'età: "Master (SEN_1)". Serve a
+// sapere DOVE ricade l'atleta prima di azzerargli l'override — senza,
+// si toglie il Master alla cieca e si scopre dopo in quale gruppo è
+// finito. Il derivato non compare quando è nullo (fasce non caricate,
+// o età fuori da ogni fascia) né quando non c'è override, che è il caso
+// in cui la categoria mostrata È già il derivato.
+export function etichettaCategoria(atleta, fasce) {
+  const derivato = categoriaDi(atleta?.anno_nascita, atleta?.sesso, fasce);
+  const override = atleta?.categoria_override || null;
+  return {
+    testo: override || derivato || null,
+    derivato: override && derivato ? derivato : null,
+    conOverride: !!override,
+  };
+}
+
+// ---------------------------------------------------------------------
+// I SOSPETTI DI UN IMPORT — si guardano PRIMA di salvare.
+//
+// Un avviso a cose fatte non serve a niente: dice cosa è già stato
+// scritto in archivio, e per rimediare bisogna ricordarsi di andare a
+// sistemare a mano. Questa funzione gira sulle righe lette dal foglio e
+// restituisce cosa vale la pena rileggere prima di premere. Non decide
+// niente: decide l'allenatore.
+//
+// Tre motivi, e nessuno è un errore certo:
+//
+//   mas_fuori_fascia  Master la cui fascia derivata NON è SEN_1. Master
+//                     è un tesseramento, non un'età, ma un 2006 marcato
+//                     MAS che per età sarebbe CAD_2 è quasi sempre una
+//                     colonna compilata male.
+//   tri               Triathlon, elencati sempre: è un gruppo piccolo e
+//                     rileggerlo costa niente.
+//   cambia_override   Chi è già in squadra con un override e nel foglio
+//                     ha un codice DIVERSO. La riga sembra innocua e
+//                     riscrive una scelta fatta a mano: un Master che
+//                     diventa Teen, un Senior che diventa Triathlon.
+//
+// LA COLONNA VUOTA NON SI SEGNALA, perché non cambia niente: l'import
+// scrive solo quello che è scritto nel foglio, e su un override esistente
+// una casella vuota non passa (vedi il filtro in Atleti.jsx, che aggiorna
+// solo quando la categoria del foglio è valorizzata). Segnalarla direbbe
+// il falso. Ed è giusto che non passi: i fogli scaricati prima della
+// 0.56.0 non hanno affatto la colonna categoria, quindi reimportarne uno
+// a inizio stagione azzererebbe in un colpo gli override di tutta la
+// squadra — ogni Master, Teen, Propaganda e Triathlon tornerebbe alla
+// categoria per età. Per togliere un override c'è la voce
+// "— (dall'anno)" nella scheda Atleti, che lo fa dove si vede.
+//
+// UNA RIGA PUÒ ESSERE SOSPETTA PER PIÙ MOTIVI INSIEME, e deve comparire
+// per ciascuno: un atleta oggi MAS che nel foglio è TRI va letto sia fra
+// i Triathlon sia fra le sovrascritture, o il cambio di percorso passa
+// inosservato proprio perché il codice nuovo era legittimo.
+//
+// I MAS che derivano SEN_1 NON si segnalano: sono la norma, e un avviso
+// che scatta sempre smette di essere letto.
+// ---------------------------------------------------------------------
+export function sospettiImport(righe, esistenti, fasce) {
+  const gia = new Map((esistenti || []).map((a) => [chiaveAtleta(a), a]));
+  const fuori = [];
+
+  for (const r of righe || []) {
+    const chiave = chiaveAtleta(r);
+    const nome = `${r.cognome} ${r.nome} ${r.anno_nascita}`;
+    const derivato = categoriaDi(r.anno_nascita, r.sesso, fasce);
+    const nuovo = r.categoria_override || null;
+    const comune = { chiave, nome, anno: r.anno_nascita, derivato };
+
+    if (nuovo === 'MAS' && derivato !== 'SEN_1') {
+      fuori.push({ ...comune, tipo: 'mas_fuori_fascia' });
+    }
+    if (nuovo === 'TRI') {
+      fuori.push({ ...comune, tipo: 'tri' });
+    }
+    // `nuovo` deve esserci: senza, l'import non tocca l'override e non
+    // c'è niente da segnalare.
+    const vecchio = gia.get(chiave)?.categoria_override || null;
+    if (vecchio && nuovo && vecchio !== nuovo) {
+      fuori.push({ ...comune, tipo: 'cambia_override', perdeva: vecchio, diventa: nuovo });
+    }
   }
-  const eta = oggi.getFullYear() - Number(annoNascita || 0);
-  if (annoNascita && eta >= 25) return { codice: 'MAS', indovinata: true };
-  return { codice: null, indovinata: false };   // null = si calcola dall'età
+  return fuori;
 }
 
 export function categoriaAtleta(atleta, fasce) {
@@ -994,6 +1086,7 @@ export const RAGGRUPPAMENTI = [
   { nome: "Senior",       codici: ["SEN_1", "SEN_2"] },
   { nome: "Assoluti",     codici: ["ASS"] },
   { nome: "Master",       codici: ["MAS"] },
+  { nome: "Triathlon",    codici: ["TRI"] },
 ];
 
 // Filtri del calendario: come guardi la settimana quando pianifichi.

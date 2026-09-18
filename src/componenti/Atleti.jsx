@@ -2,7 +2,10 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import { Search, Plus, Upload, Download, Pencil, Check, X, Archive, Users, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI, CATEGORIE, categoriaAtleta, chiaveAtleta, categoriaDaCsv } from '../lib/dominio';
+import {
+  SPECIALIZZAZIONI, CATEGORIE, categoriaAtleta, chiaveAtleta, categoriaDaCsv,
+  categoriaDi, etichettaCategoria, sospettiImport,
+} from '../lib/dominio';
 
 const VUOTO = { nome: '', cognome: '', sesso: 'M', anno_nascita: '', specializzazione: 'Generale' };
 
@@ -28,6 +31,8 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
   const [messaggio, setMessaggio] = useState(null);
   const [selezione, setSelezione] = useState(() => new Set());
   const [inCorso, setInCorso] = useState(false);
+  // Import in attesa di una decisione: { righe, scarti, esistenti, sospetti }
+  const [daConfermare, setDaConfermare] = useState(null);
   const fileRef = useRef(null);
 
   useEffect(() => { ricarica(); }, [societa.id]);
@@ -74,6 +79,9 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
         sesso: inModifica.sesso,
         anno_nascita: Number(inModifica.anno_nascita),
         specializzazione: inModifica.specializzazione,
+        // Sempre sull'override, mai sul derivato: null vuol dire
+        // "ricalcolalo dall'anno", e null va scritto per davvero.
+        categoria_override: inModifica.categoria_override || null,
       });
       setInModifica(null);
       ricarica();
@@ -150,14 +158,24 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
     finally { setInCorso(false); }
   }
 
+  // L'intestazione del modello è parlante — "categoria (vuoto=dall'anno,
+  // MAS, TRI, TEEN_2...)" — e con header:true Papa userebbe quella
+  // stringa intera come nome del campo: r.categoria diventerebbe
+  // undefined e ogni categoria del foglio verrebbe ignorata in silenzio.
+  // Qui si taglia via la parte fra parentesi e si normalizza, così il
+  // modello nuovo, quello vecchio e un foglio scritto a mano con
+  // "Categoria" o "ANNO_NASCITA" entrano tutti dalla stessa porta.
+  const intestazionePulita = (h) =>
+    String(h || '').split('(')[0].trim().toLowerCase().replace(/\s+/g, '_');
+
   function importaCsv(file) {
     Papa.parse(file, {
       header: true,
+      transformHeader: intestazionePulita,
       skipEmptyLines: true,
       complete: async ({ data }) => {
         const righe = [];
         const scarti = [];
-        const indovinati = [];
         data.forEach((r, i) => {
           const anno = Number(r.anno_nascita ?? r.anno);
           const sesso = String(r.sesso || '').trim().toUpperCase();
@@ -166,11 +184,11 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
             return;
           }
           const spec = String(r.specializzazione || 'Generale').trim();
-          // La colonna categoria comanda: Teen, Master e Propaganda non
-          // si ricavano dall'età, sono percorsi. Se è vuota, si prova a
-          // indovinare dall'anno (over 25 → Master) e per tutti gli
-          // altri decide il calcolo per età, come sempre.
-          const override = categoriaDaCsv(r.categoria, anno);
+          // La colonna categoria comanda: Teen, Master, Propaganda e
+          // Triathlon non si ricavano dall'età, sono percorsi. Se è
+          // vuota resta vuota, a qualsiasi età: decide il calcolo per
+          // età, e l'override non si scrive.
+          const override = categoriaDaCsv(r.categoria);
           righe.push({
             societa_id: societa.id,
             nome: String(r.nome).trim(),
@@ -180,7 +198,6 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
             specializzazione: SPECIALIZZAZIONI.includes(spec) ? spec : 'Generale',
             categoria_override: override.codice,
           });
-          if (override.indovinata) indovinati.push(`${r.cognome} ${r.nome}`);
         });
 
         if (righe.length === 0) {
@@ -192,97 +209,122 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
           return;
         }
 
+        // Il controllo si fa PRIMA di salvare. Un avviso dopo direbbe
+        // cosa è già finito in archivio, e per rimediare bisognerebbe
+        // ricordarsi di tornare a sistemare a mano.
         try {
-          // Chi c'è già, archiviati compresi: la chiave la calcola dominio.js,
-          // la stessa che difende il database. Chi combacia non entra.
           const esistenti = await api.leggiAtletiTutti(societa.id);
-          const gia = new Map(esistenti.map((a) => [chiaveAtleta(a), a]));
-
-          const nuovi = [];
-          const daCorreggere = [];
-          const doppiNelFoglio = [];
-          const doppiInSquadra = [];
-          const visteQui = new Set();
-
-          righe.forEach((r) => {
-            const k = chiaveAtleta(r);
-            const nome = `${r.cognome} ${r.nome} ${r.anno_nascita}`;
-            if (visteQui.has(k)) { doppiNelFoglio.push(nome); return; }
-            visteQui.add(k);
-            const vecchio = gia.get(k);
-            if (vecchio) {
-              doppiInSquadra.push(nome + (vecchio.attivo ? '' : ' (in archivio)'));
-              // Non lo reinserisco, ma se il foglio dice una categoria e
-              // quella salvata è diversa, quella la aggiorno: se no i Teen
-              // e i Master importati da un foglio nuovo restano per sempre
-              // nel gruppo che il calcolo per età gli aveva dato.
-              if (r.categoria_override && vecchio.categoria_override !== r.categoria_override) {
-                daCorreggere.push({ id: vecchio.id, codice: r.categoria_override, nome });
-              }
-              return;
-            }
-            nuovi.push(r);
-          });
-
-          await api.importaAtleti(nuovi);
-
-          // Chi c'era già non viene reinserito, ma la sua categoria manuale
-          // sì: è il caso dei Teen e dei Master importati prima che il
-          // modello avesse la colonna categoria.
-          const daSistemare = righe
-            .filter((r) => gia.has(chiaveAtleta(r)) && r.categoria_override)
-            .map((r) => ({ atleta: r, categoria: r.categoria_override }));
-          const sistemati = daSistemare.length
-            ? await api.aggiornaCategorieDaCsv(societa.id, daSistemare)
-            : { aggiornati: [] };
-
-          // Le correzioni di categoria, raggruppate per codice: una
-          // chiamata per gruppo, non una per atleta.
-          for (const codice of [...new Set(daCorreggere.map((x) => x.codice))]) {
-            const ids = daCorreggere.filter((x) => x.codice === codice).map((x) => x.id);
-            await api.aggiornaAtleti(ids, { categoria_override: codice });
+          const sospetti = sospettiImport(righe, esistenti, fasce);
+          if (sospetti.length) {
+            setDaConfermare({ righe, scarti, esistenti, sospetti });
+            return;
           }
-
-          const parti = [`Importati ${nuovi.length} atleti.`];
-          if (doppiInSquadra.length) {
-            parti.push(`${doppiInSquadra.length} erano già in squadra e non sono stati reinseriti: ${elenco(doppiInSquadra)}.`);
-          }
-          if (sistemati.aggiornati.length) {
-            parti.push(`A ${sistemati.aggiornati.length} di loro è stata aggiornata la categoria dal foglio.`);
-          }
-          if (daCorreggere.length) {
-            parti.push(`${daCorreggere.length} già in squadra hanno preso la categoria del foglio: ${elenco(daCorreggere.map((x) => x.nome))}.`);
-          }
-          if (doppiNelFoglio.length) {
-            parti.push(`${doppiNelFoglio.length} comparivano due volte nel foglio: ${elenco(doppiNelFoglio)}.`);
-          }
-          if (scarti.length) {
-            parti.push(`Saltate ${scarti.length} righe incomplete: ${elenco(scarti, 5)}.`);
-          }
-          if (indovinati.length) {
-            parti.push(`${indovinati.length} messi in Master perché sopra i 25 anni e senza colonna categoria: ${elenco(indovinati)}. Controllali, gli agonisti adulti non sono Master.`);
-          }
-          setMessaggio({
-            tipo: nuovi.length ? 'ok' : 'errore',
-            testo: parti.join(' '),
-          });
-          ricarica();
+          await eseguiImport(righe, scarti, esistenti);
         } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
       },
     });
   }
 
+  // Il salvataggio vero. Sta fuori dal lettore del file perché ci si
+  // arriva da due strade: nessun sospetto, oppure l'allenatore ha
+  // guardato l'elenco e ha scelto come procedere.
+  async function eseguiImport(righe, scarti, esistenti) {
+    setInCorso(true);
+    try {
+      // Chi c'è già, archiviati compresi: la chiave la calcola dominio.js,
+      // la stessa che difende il database. Chi combacia non entra.
+      const gia = new Map(esistenti.map((a) => [chiaveAtleta(a), a]));
+
+      const nuovi = [];
+      const daCorreggere = [];
+      const doppiNelFoglio = [];
+      const doppiInSquadra = [];
+      const visteQui = new Set();
+
+      righe.forEach((r) => {
+        const k = chiaveAtleta(r);
+        const nome = `${r.cognome} ${r.nome} ${r.anno_nascita}`;
+        if (visteQui.has(k)) { doppiNelFoglio.push(nome); return; }
+        visteQui.add(k);
+        const vecchio = gia.get(k);
+        if (vecchio) {
+          doppiInSquadra.push(nome + (vecchio.attivo ? '' : ' (in archivio)'));
+          // Non lo reinserisco, ma se il foglio dice una categoria e
+          // quella salvata è diversa, quella la aggiorno: se no i Teen
+          // e i Master importati da un foglio nuovo restano per sempre
+          // nel gruppo che il calcolo per età gli aveva dato.
+          if (r.categoria_override && vecchio.categoria_override !== r.categoria_override) {
+            daCorreggere.push({ id: vecchio.id, codice: r.categoria_override, nome });
+          }
+          return;
+        }
+        nuovi.push(r);
+      });
+
+      await api.importaAtleti(nuovi);
+
+      // Chi c'era già non viene reinserito, ma la sua categoria manuale
+      // sì: è il caso dei Teen e dei Master importati prima che il
+      // modello avesse la colonna categoria.
+      const daSistemare = righe
+        .filter((r) => gia.has(chiaveAtleta(r)) && r.categoria_override)
+        .map((r) => ({ atleta: r, categoria: r.categoria_override }));
+      const sistemati = daSistemare.length
+        ? await api.aggiornaCategorieDaCsv(societa.id, daSistemare)
+        : { aggiornati: [] };
+
+      // Le correzioni di categoria, raggruppate per codice: una
+      // chiamata per gruppo, non una per atleta.
+      for (const codice of [...new Set(daCorreggere.map((x) => x.codice))]) {
+        const ids = daCorreggere.filter((x) => x.codice === codice).map((x) => x.id);
+        await api.aggiornaAtleti(ids, { categoria_override: codice });
+      }
+
+      const parti = [`Importati ${nuovi.length} atleti.`];
+      if (doppiInSquadra.length) {
+        parti.push(`${doppiInSquadra.length} erano già in squadra e non sono stati reinseriti: ${elenco(doppiInSquadra)}.`);
+      }
+      if (sistemati.aggiornati.length) {
+        parti.push(`A ${sistemati.aggiornati.length} di loro è stata aggiornata la categoria dal foglio.`);
+      }
+      if (daCorreggere.length) {
+        parti.push(`${daCorreggere.length} già in squadra hanno preso la categoria del foglio: ${elenco(daCorreggere.map((x) => x.nome))}.`);
+      }
+      if (doppiNelFoglio.length) {
+        parti.push(`${doppiNelFoglio.length} comparivano due volte nel foglio: ${elenco(doppiNelFoglio)}.`);
+      }
+      if (scarti.length) {
+        parti.push(`Saltate ${scarti.length} righe incomplete: ${elenco(scarti, 5)}.`);
+      }
+      setMessaggio({
+        tipo: nuovi.length ? 'ok' : 'errore',
+        testo: parti.join(' '),
+      });
+      setDaConfermare(null);
+      await ricarica();
+    } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
+    finally { setInCorso(false); }
+  }
+
   const completo = nuovo.nome && nuovo.cognome && Number(nuovo.anno_nascita) > 1900;
 
-  // Modello vuoto da compilare in Excel o Fogli Google. Due righe di
-  // esempio: si cancellano, servono solo a far vedere come si scrive.
+  // Modello da compilare in Excel o Fogli Google. Le righe di esempio si
+  // cancellano: servono a far vedere come si scrive, e soprattutto che
+  // la colonna categoria si lascia VUOTA per gli agonisti — è il caso
+  // più frequente ed è quello che si sbaglia.
+  //
+  // L'intestazione della categoria è parlante e sta fra virgolette
+  // perché contiene virgole. Le istruzioni stanno lì e non in un foglio
+  // a parte: un foglio di istruzioni separato non lo apre nessuno, e
+  // chi compila guarda l'intestazione della colonna che ha davanti.
+  // La legge `intestazionePulita` qui sopra, che taglia la parentesi.
   function scaricaModello() {
     const righe = [
-      'nome,cognome,sesso,anno_nascita,specializzazione,categoria',
+      'nome,cognome,sesso,anno_nascita,specializzazione,'
+        + '"categoria (vuoto=dall\'anno, MAS, TRI, TEEN_2...)"',
       'Mario,Rossi,M,2013,Velocità,',
-      'Giulia,Bianchi,F,2014,Generale,',
       'Anna,Verdi,F,1988,Generale,MAS',
-      'Luca,Neri,M,2009,Generale,TEEN_2',
+      'Sara,Conti,F,2001,Fondo,TRI',
     ];
     // Il BOM serve a Excel per leggere le lettere accentate.
     const testo = '\ufeff' + righe.join('\r\n') + '\r\n';
@@ -331,6 +373,71 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
       {messaggio && (
         <div className={`avviso ${messaggio.tipo === 'errore' ? 'errore' : ''}`} style={{ marginBottom: 12 }}>
           {messaggio.testo}
+        </div>
+      )}
+
+      {/* PRIMA di salvare: cosa vale la pena rileggere. Non blocca —
+          l'import deve poter procedere — ma mette l'elenco davanti
+          quando ancora si può cambiare idea. */}
+      {daConfermare && (
+        <div className="scheda" style={{ marginBottom: 12, borderColor: 'var(--ambra)' }}>
+          <div className="intestazione">
+            <b style={{ color: 'var(--ambra)' }}>Da rileggere prima di importare</b>
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: 12, color: 'var(--testo-3)' }}>
+              {daConfermare.righe.length} righe nel foglio
+            </span>
+          </div>
+          <div className="corpo">
+            {(() => {
+              const per = (t) => daConfermare.sospetti.filter((s) => s.tipo === t);
+              const mas = per('mas_fuori_fascia');
+              const tri = per('tri');
+              const cambi = per('cambia_override');
+              return (
+                <>
+                  {mas.length > 0 && (
+                    <p style={{ marginTop: 0 }}>
+                      <b>{mas.length} atleti marcati MAS ricadrebbero in categorie agonistiche</b>:{' '}
+                      {mas.map((s) => `${s.nome} → ${s.derivato || 'nessuna fascia'}`).join(', ')}.
+                      {' '}MAS va solo ai tesserati Master FIN, non agli adulti.
+                    </p>
+                  )}
+                  {tri.length > 0 && (
+                    <p>
+                      <b>{tri.length} atleti marcati TRI</b>: {tri.map((s) => s.nome).join(', ')}.
+                      {' '}Sono elencati sempre: il gruppo è piccolo e vale la pena rileggerlo.
+                    </p>
+                  )}
+                  {cambi.length > 0 && (
+                    <p>
+                      <b>{cambi.length} già in squadra cambiano categoria fissata a mano</b>:{' '}
+                      {cambi.map((s) => `${s.nome}: ${s.perdeva} → ${s.diventa}`).join(', ')}.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+              <button className="azione" disabled={inCorso}
+                onClick={() => eseguiImport(daConfermare.righe, daConfermare.scarti, daConfermare.esistenti)}>
+                Importa comunque
+              </button>
+              <button className="azione fantasma" disabled={inCorso}
+                onClick={() => {
+                  const segnalate = new Set(daConfermare.sospetti.map((s) => s.chiave));
+                  const tenute = daConfermare.righe.filter((r) => !segnalate.has(chiaveAtleta(r)));
+                  eseguiImport(tenute, daConfermare.scarti, daConfermare.esistenti);
+                }}>
+                Salta le righe segnalate
+                {' '}({new Set(daConfermare.sospetti.map((s) => s.chiave)).size})
+              </button>
+              <div style={{ flex: 1 }} />
+              <button className="mini" disabled={inCorso} onClick={() => setDaConfermare(null)}>
+                Annulla
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -466,8 +573,23 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                         <input className="mono" style={{ width: 80 }} type="number" value={m.anno_nascita}
                           onChange={(e) => setInModifica({ ...m, anno_nascita: e.target.value })} />
                       </td>
-                      <td className="mono" style={{ color: 'var(--testo-3)' }}>
-                        {categoriaAtleta({ ...m, anno_nascita: Number(m.anno_nascita) }, fasce) || '—'}
+                      {/* La categoria si SCEGLIE, e quello che si scrive
+                          è sempre categoria_override: il derivato non si
+                          tocca, si ricalcola da sé. "— (dall'anno)" lo
+                          riporta a null, cioè lascia decidere all'età. */}
+                      <td>
+                        <select
+                          value={m.categoria_override || ''}
+                          onChange={(e) => setInModifica({ ...m, categoria_override: e.target.value || null })}
+                          aria-label="Categoria">
+                          <option value="">
+                            — (dall'anno{(() => {
+                              const d = categoriaDi(Number(m.anno_nascita), m.sesso, fasce);
+                              return d ? `: ${d}` : '';
+                            })()})
+                          </option>
+                          {CATEGORIE.map((c) => <option key={c.codice} value={c.codice}>{c.nome}</option>)}
+                        </select>
                       </td>
                       <td>
                         <select value={m.specializzazione} onChange={(e) => setInModifica({ ...m, specializzazione: e.target.value })}>
@@ -495,7 +617,25 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                     <td><b>{a.cognome}</b> {a.nome}</td>
                     <td className="col-stretta" style={{ color: 'var(--testo-3)' }}>{a.sesso}</td>
                     <td className="mono col-stretta">{a.anno_nascita}</td>
-                    <td className="mono" style={{ color: 'var(--ciano)' }}>{categoriaAtleta(a, fasce) || '—'}</td>
+                    {/* Con un override attivo, accanto va il derivato
+                        dall'età: "Master (SEN_1)". Serve a sapere dove
+                        ricade l'atleta PRIMA di azzerarglielo. */}
+                    <td className="mono">
+                      {(() => {
+                        const e = etichettaCategoria(a, fasce);
+                        if (!e.testo) return <span style={{ color: 'var(--ciano)' }}>—</span>;
+                        return (
+                          <>
+                            <span style={{ color: 'var(--ciano)' }}>{e.testo}</span>
+                            {e.derivato && (
+                              <span style={{ color: 'var(--testo-3)' }} title="Dove ricadrebbe per età, senza la categoria fissata a mano">
+                                {' '}({e.derivato})
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </td>
                     <td>{a.specializzazione}</td>
                     {puoScrivere && (
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -503,6 +643,7 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                           onClick={() => setInModifica({
                             id: a.id, nome: a.nome, cognome: a.cognome, sesso: a.sesso,
                             anno_nascita: a.anno_nascita, specializzazione: a.specializzazione,
+                            categoria_override: a.categoria_override || null,
                           })}>
                           <Pencil size={14} />
                         </button>{' '}

@@ -58,9 +58,20 @@ ripetibile su un ambiente pulito. È già successo di perdere la 025.
 Dopo ogni migrazione, rigenerare `schema.sql` e committarlo. È l'unico modo
 perché chi legge il repo sappia com'è fatto davvero il database.
 
-Migrazioni: la 025 (atleti sulla seduta) e la 026 (specializzazione Fondo)
-sono eseguite e salvate. La **027** (`v_serie` esclude le sezioni a secco)
-è scritta ma **non ancora eseguita** su Supabase; in coda porta anche il
+Le categorie **non** sono un enum: sono la tabella `squadra.categorie`
+(`codice`, `nome`, `ordine`, `colore` NOT NULL), e `atleti.categoria_override`
+è una colonna `text` con foreign key su `squadra.categorie(codice)`. In
+`squadra` l'unico enum pertinente è `specializzazione` — quello sì vuole
+`alter type ... add value`, fuori transazione. Aggiungere una categoria è
+un `insert ... on conflict`, sul modello della 020. Il `colore` è un nome
+della mappa `TINTE` in `src/lib/colori.js`: se manca, `tinta()` non lascia
+un buco visibile ma ripiega sul ciano, quindi la categoria nuova sembra
+colorata come le altre.
+
+Migrazioni: la 025 (atleti sulla seduta), la 026 (specializzazione Fondo)
+e la 028 (categoria Triathlon) sono eseguite e salvate. La **027**
+(`v_serie` esclude le sezioni a secco) è scritta ma **non ancora
+eseguita** su Supabase; in coda porta anche il
 censimento delle sedute vecchie con sezioni tipo "Palestra" che portano
 metri fantasma, da guardare prima di decidere se correggerle.
 
@@ -209,6 +220,28 @@ comune, e Volumi e Dashboard mostrano numeri più bassi di prima. È il
 comportamento corretto, ma è una sorpresa che altrimenti si scopre davanti
 a un grafico che non torna. Se un giorno servisse difendere il pregresso,
 la via è riclassificare a partire da una data, non retroattivamente.
+
+**Ci sono categorie che sono percorsi, non età: Propaganda, Teen, Master
+e Triathlon.** Non hanno righe in `categorie_stagione` e non devono
+averne: se gliene dai una, ogni atleta di quell'età ci cade dentro da
+solo — un agonista di 28 anni diventa Master, e Master è un tipo di
+tesseramento. Si assegnano a mano (`categoria_override`) o scrivendole
+nella colonna categoria del CSV.
+
+Per lo stesso motivo **non si deducono**. Fino alla 0.55.5
+`categoriaDaCsv` proponeva Master sopra i 25 anni: era nata come
+proposta, ma il codice finiva in `categoria_override` indistinguibile da
+uno scritto a mano, e al reimport successivo riscriveva la scelta
+dell'allenatore. Dalla 0.56.0 colonna vuota vuol dire "dall'anno" a
+qualsiasi età. Chi guarda quel codice tenendo presente solo l'import
+nuovo è tentato di rimetterla: non è una comodità mancante, è una
+scrittura mascherata da suggerimento.
+
+Nota di sicurezza sull'import: una colonna categoria **vuota** non tocca
+un override esistente, e non è un dettaglio — i fogli scaricati prima
+della 0.56.0 non hanno affatto quella colonna, quindi reimportarne uno a
+inizio stagione azzererebbe gli override di tutta la squadra. Per
+togliere un override c'è la voce "— (dall'anno)" nella scheda Atleti.
 
 **Chiave atleta:** `cognomenome+annonascita` normalizzato, con l'equivalente
 SQL in `squadra.chiave_atleta()`. Dalla 021 c'è un indice unico su

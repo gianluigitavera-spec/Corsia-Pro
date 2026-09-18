@@ -17,6 +17,18 @@ export { VERSIONE } from './lib/versione';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.0',
+    data: '2026-09-18',
+    voci: [
+      'Nuova categoria Triathlon (TRI): come Teen e Master è un percorso, non un\'età — si assegna a mano o si scrive nel foglio, e nessuno ci finisce dentro per l\'anno di nascita',
+      'Importando un CSV, la colonna categoria lasciata vuota ora vuol dire "calcolala dall\'età" a qualsiasi età. Prima, sopra i 25 anni, l\'app metteva Master da sé: ci finivano dentro anche gli agonisti adulti, e al reimport successivo la scelta fatta a mano veniva riscritta',
+      'Prima di importare, l\'app mostra cosa vale la pena rileggere — i Master che per età sarebbero in una categoria agonistica, tutti i Triathlon, e chi cambia categoria fissata a mano — e lascia scegliere se importare comunque o saltare quelle righe',
+      'Nella scheda Atleti la categoria si sceglie riga per riga, con la voce "— (dall\'anno)" che toglie la categoria fissata e rimette il calcolo per età',
+      'Con una categoria fissata a mano, accanto compare in grigio quella per età — "Master (SEN_1)" — così si sa dove ricade l\'atleta prima di togliergliela',
+      'Il modello CSV dice nell\'intestazione stessa cosa si può scrivere nella colonna categoria, con tre righe di esempio: un agonista, un Master e un Triathlon',
+    ],
+  },
+  {
     versione: '0.55.5',
     data: '2026-09-16',
     voci: [

@@ -15,6 +15,7 @@ export const TINTE = {
   rose: '#FB7185',
   pink: '#F472B6',
   purple: '#C084FC',
+  fuchsia: '#E879F9',
   violet: '#A78BFA',
   indigo: '#818CF8',
   slate: '#94A3B8',
