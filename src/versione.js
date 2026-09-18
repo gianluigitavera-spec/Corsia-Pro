@@ -13,12 +13,16 @@
 // resta consultabile dalla pillola della versione, e non interrompe
 // nessuno.
 // =====================================================================
-export { VERSIONE } from './lib/versione';
+// Con l'estensione: vite risolve comunque, node no — e senza, questo
+// file non è importabile dalle prove, che è il motivo per cui il
+// registro vero non è mai stato sotto controllo.
+export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
-    versione: '0.56.0',
+    versione: '0.56.1',
     data: '2026-09-18',
+    annuncia: true,
     voci: [
       'Nuova categoria Triathlon (TRI): come Teen e Master è un percorso, non un\'età — si assegna a mano o si scrive nel foglio, e nessuno ci finisce dentro per l\'anno di nascita',
       'Importando un CSV, la colonna categoria lasciata vuota ora vuol dire "calcolala dall\'età" a qualsiasi età. Prima, sopra i 25 anni, l\'app metteva Master da sé: ci finivano dentro anche gli agonisti adulti, e al reimport successivo la scelta fatta a mano veniva riscritta',
