@@ -367,6 +367,28 @@ forma, non toccate per tenere il rilascio leggibile:
   `nuovaSezione` è lo stesso ragionamento, ma tocca il calcolo della
   composizione — dove stanno i metri veri — e vuole un rilascio suo.
 
+**Promemoria su `annuncia` mancante, solo per minor e major.** È già
+successo di consegnare una minor senza `annuncia: true` e accorgersene
+dal campo: la 0.56.0 portava il Master che non si indovina più, e il
+pannello non si è aperto (rimediato con la 0.56.1, perché App.jsx segna
+la versione vista a ogni apertura e ripubblicare la stessa non avrebbe
+annunciato niente a chi l'aveva già aperta).
+
+Da fare in `sincronizza_versione.mjs`, che già legge sia `package.json`
+sia il registro. Due vincoli, e sono il punto:
+
+- **Solo quando cambia minor o major.** Su ogni patch sarebbe rumore —
+  delle sette voci fino alla 0.56.0, sei giustamente non annunciavano, e
+  un avviso che scatta quasi sempre si impara a saltare. È lo stesso
+  motivo per cui `sospettiImport` non segnala i MAS che derivano SEN_1.
+  Una patch è una correzione e il silenzio è il default giusto; una
+  minor è roba nuova, e lì l'assenza è quasi sempre una dimenticanza.
+- **Non bloccante**, un promemoria stampato e non un errore. Se fermasse
+  la build, la scorciatoia sarebbe mettere `annuncia: true` per farla
+  passare, e la decisione tornerebbe automatica — esattamente quello che
+  `novita.js` rifiuta in apertura. Il messaggio chiede conferma, non
+  accusa: «0.57.0 è una minor senza annuncio: confermi?».
+
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);
 esercizi legati a notazione e lavagna; modifica gare già salvate; Crono che
