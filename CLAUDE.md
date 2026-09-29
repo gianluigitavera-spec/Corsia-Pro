@@ -243,6 +243,23 @@ della 0.56.0 non hanno affatto quella colonna, quindi reimportarne uno a
 inizio stagione azzererebbe gli override di tutta la squadra. Per
 togliere un override c'è la voce "— (dall'anno)" nella scheda Atleti.
 
+**Una sezione si destina solo a Tutti o a una specializzazione.** Non
+esiste la sezione destinata a una categoria: le categorie vivono su
+`seduta.categorie`, a livello di seduta, e dicono a chi è rivolta la
+seduta intera. Lo dicono tre posti indipendenti, e vanno tenuti
+d'accordo: l'editor offre «Tutti» più `SPECIALIZZAZIONI` senza Generale
+(`EditorSeduta.jsx`), l'analizzatore mappa solo specializzazioni
+(`DESTINATARI_TITOLO`), e `validaSeduta` segnala tutto il resto come
+«Destinatari sconosciuti».
+
+Di conseguenza `sezionePer` scarta una sezione con destinatari diversi,
+e con lei la scartano sia i volumi sia la durata. Se un giorno servisse
+davvero dividere per categoria dentro una seduta — «oggi gli Esordienti
+questo, i Ragazzi quello» — non è una correzione al calcolo: va estesa
+`sezionePer` perché conosca anche la categoria dell'atleta, e insieme a
+lei `validaSeduta`, i volumi e la durata. Farne una sola lascia il
+lavoro invisibile da qualche parte.
+
 **Chiave atleta:** `cognomenome+annonascita` normalizzato, con l'equivalente
 SQL in `squadra.chiave_atleta()`. Dalla 021 c'è un indice unico su
 `(societa_id, chiave)`: lo stesso atleta non entra due volte nella stessa
@@ -388,6 +405,19 @@ sia il registro. Due vincoli, e sono il punto:
   passare, e la decisione tornerebbe automatica — esattamente quello che
   `novita.js` rifiuta in apertura. Il messaggio chiede conferma, non
   accusa: «0.57.0 è una minor senza annuncio: confermi?».
+
+**Debito: la build elenca i `prova_*.mjs` a mano.** Lo script `build` in
+`package.json` nomina i file uno per uno, quindi una prova nuova resta
+fuori in silenzio — è già successo con `prova_riepilogo.mjs`, scritto e
+non eseguito finché non l'ho aggiunto a mano. È la stessa forma che ci
+ha già morso due volte (l'elenco dei campi da tenere in `conferma()`,
+l'azzeramento di `moltiplicatoreAttivo` in cinque rami su otto): un
+elenco chiuso che qualcuno deve ricordarsi di aggiornare.
+
+Da sostituire con qualcosa che i file li scopra — un runner che fa
+`readdirSync` su `prova_*.mjs`, o `node --test`. Patch sua, non mescolata
+ad altro: cambia come gira tutta la catena, e se sbaglia non se ne
+accorge nessuno finché una prova non smette di girare.
 
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);

@@ -20,6 +20,17 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.2',
+    data: '2026-09-29',
+    annuncia: true,
+    voci: [
+      'Corretto: la durata stimata di una seduta divisa per specializzazione sommava tutti i rami, come se un atleta nuotasse sia la parte dei velocisti sia quella dei fondisti. Ora conta la parte comune più il ramo più lungo — una seduta che risultava di 57\' ne dura 45',
+      'Il conto nuovo vale anche sul foglio di stampa e sulla seduta condivisa: se hai stampato la stessa seduta prima di questo aggiornamento, il numero non coincide',
+      'Il lavoro a secco continua a contare nella durata: occupa tempo anche se non fa metri',
+      'In testata, al posto di "N serie senza partenza non contate" ora c\'è "stima per difetto": quelle righe non hanno una ripartenza da cui dedurre un tempo, e completarle può allungare la seduta',
+    ],
+  },
+  {
     versione: '0.56.1',
     data: '2026-09-18',
     annuncia: true,

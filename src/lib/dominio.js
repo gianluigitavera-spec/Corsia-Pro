@@ -1376,49 +1376,135 @@ export function ripetizioniDa(notazione) {
   return m ? +m[1] : 1;
 }
 
-export function durataStimata(sezioni) {
-  let secondi = 0;
-  let conRipartenza = 0;
-  let senza = 0;
-  let secchi = 0;
+// "Comune" senza leggere destinatari: una sezione vale per tutti se vale
+// per OGNUNA delle specializzazioni del dominio. Così anche una sezione
+// priva del campo — che destinatariDi tratta come [TUTTI] — risulta
+// comune, e il vincolo di passare sempre da sezionePer resta rispettato.
+//
+// Qui SPECIALIZZAZIONI sta scritto per intero di proposito, e NON è
+// l'elenco che durataStimata riceve: "comune" è una proprietà della
+// sezione, non del gruppo che si sta guardando. Con un gruppo di soli
+// ['Generale'], every() sull'elenco iniettato direbbe che una sezione
+// destinata a Generale vale per tutti — ma quella è un ramo, e finirebbe
+// contata fra le comuni in "di cui Nm' comuni".
+const sezioneComune = (sez) => SPECIALIZZAZIONI.every((s) => sezionePer(sez, s));
 
-  for (const sez of sezioni || []) {
-    // Il lavoro a secco non ha tempi di partenza da cui dedurre nulla:
-    // i minuti li scrive l'allenatore e valgono come sono.
-    if (eSecco(sez)) {
-      const min = Number(sez.durataMin) || 0;
-      if (min > 0) { secondi += min * 60; secchi += 1; }
-      continue;
-    }
-    for (const s of sez.serie || []) {
-      if (!s.metri && !s.senzaMetri) continue;
-      // SUI TEMPI `moltiplicato` È UN FATTORE, non una didascalia.
-      // Sui metri è il contrario (vedi il commento dei blocchi ripetuti
-      // più sopra), e confondere i due significati costa in entrambi i
-      // versi: qui la durata restava bassa — un blocco ×3 dava lo stesso
-      // tempo della sezione piatta, 15' tanto per 2400 m quanto per 800
-      // — mentre sui metri moltiplicare di nuovo li gonfierebbe.
-      //
-      // Il tempo non deriva dai metri: è ripartenza × ripetute. E le
-      // ripetute di una figlia stanno metà nella notazione ("8x50" fa
-      // otto partenze) e metà nel blocco che la contiene (tre giri):
-      // 8 × 3 = 24 partenze da un minuto.
-      const base = secondiDaRipartenza(s.recupero);
-      if (base) {
-        secondi += base * ripetizioniDa(s.notazione) * (Number(s.moltiplicato) || 1);
-        conRipartenza += 1;
-      } else if (s.metri) {
-        // `senza` conta RIGHE da sistemare, non lavoro: alimenta
-        // l'avviso "N serie senza partenza non contate". Moltiplicarlo
-        // per il blocco lo renderebbe illeggibile (una riga dentro un
-        // ×3 diventerebbe 3, o 24 col fattore intero) senza dire niente
-        // di più. Se un giorno l'avviso dovrà dire QUANTO lavoro manca
-        // alla stima, si dice in metri o in minuti, non in righe.
-        senza += 1;
-      }
+// Quanto dura UNA sezione, da sola. Il lavoro a secco non ha tempi di
+// partenza da cui dedurre niente: i minuti li scrive l'allenatore e
+// valgono come sono. Le sue serie non entrano fra le "righe senza
+// partenza" — sono a zero per costruzione, e segnalarle vorrebbe dire
+// chiedere una ripartenza a dei piegamenti.
+function durataDiSezione(sez) {
+  if (eSecco(sez)) {
+    const min = Number(sez.durataMin) || 0;
+    return { secondi: min * 60, conPartenza: 0, senzaPartenza: 0, secca: min > 0 };
+  }
+
+  let secondi = 0;
+  let conPartenza = 0;
+  let senzaPartenza = 0;
+
+  for (const s of sez.serie || []) {
+    if (!s.metri && !s.senzaMetri) continue;
+    // SUI TEMPI `moltiplicato` È UN FATTORE, non una didascalia.
+    // Sui metri è il contrario (vedi il commento dei blocchi ripetuti
+    // più sopra), e confondere i due significati costa in entrambi i
+    // versi: qui la durata restava bassa — un blocco ×3 dava lo stesso
+    // tempo della sezione piatta, 15' tanto per 2400 m quanto per 800
+    // — mentre sui metri moltiplicare di nuovo li gonfierebbe.
+    //
+    // Il tempo non deriva dai metri: è ripartenza × ripetute. E le
+    // ripetute di una figlia stanno metà nella notazione ("8x50" fa
+    // otto partenze) e metà nel blocco che la contiene (tre giri):
+    // 8 × 3 = 24 partenze da un minuto.
+    const base = secondiDaRipartenza(s.recupero);
+    if (base) {
+      secondi += base * ripetizioniDa(s.notazione) * (Number(s.moltiplicato) || 1);
+      conPartenza += 1;
+    } else if (s.metri) {
+      // `senzaPartenza` conta RIGHE da sistemare, non lavoro: alimenta
+      // l'avviso in testa al riepilogo. Moltiplicarlo per il blocco lo
+      // renderebbe illeggibile (una riga dentro un ×3 diventerebbe 3, o
+      // 24 col fattore intero) senza dire niente di più. Se un giorno
+      // dovrà dire QUANTO lavoro manca alla stima, si dice in metri o
+      // in minuti, non in righe.
+      senzaPartenza += 1;
     }
   }
-  return { secondi, conPartenza: conRipartenza, senzaPartenza: senza, sezioniSecche: secchi };
+
+  return { secondi, conPartenza, senzaPartenza, secca: false };
+}
+
+// LA DURATA DI UN RAMO: le sezioni comuni più quelle di quella
+// specializzazione. Stessa forma di metriPerSpecializzazione, e per lo
+// stesso motivo: si filtra con sezionePer, che è l'unico posto che sa
+// cosa vuol dire "destinata a".
+//
+// `comuni` viaggia a parte perché la card lo mostra sotto il tempo ("di
+// cui Nm' comuni"): serve a capire quanto di quel tempo è lavoro fatto
+// insieme agli altri e quanto è suo.
+export function durataPerSpecializzazione(sezioni, specializzazione) {
+  let secondi = 0;
+  let comuni = 0;
+  let conPartenza = 0;
+  let senzaPartenza = 0;
+  let secche = 0;
+
+  for (const sez of sezioni || []) {
+    if (!sezionePer(sez, specializzazione)) continue;
+    const d = durataDiSezione(sez);
+    secondi += d.secondi;
+    conPartenza += d.conPartenza;
+    senzaPartenza += d.senzaPartenza;
+    if (d.secca) secche += 1;
+    if (sezioneComune(sez)) comuni += d.secondi;
+  }
+
+  return { secondi, comuni, conPartenza, senzaPartenza, sezioniSecche: secche };
+}
+
+// LA DURATA DELLA SEDUTA: comune + il ramo più lungo, NON la somma dei
+// rami. Nessun atleta fa sia il lavoro dei velocisti sia quello dei
+// fondisti — è la stessa regola che vale per i volumi, e che i tempi
+// ignoravano: una seduta con due rami dava 57' dove se ne nuotano 45.
+//
+// Il massimo si prende sulle durate per ramo, che sono già comune + ramo
+// per costruzione: ogni ramo include le sezioni comuni, il lavoro a
+// secco compreso. Niente somma da bilanciare a mano, e un ramo in più
+// domani non richiede di cambiare questo conto.
+//
+// `specializzazioni` si può restringere a quelle presenti fra gli atleti
+// del gruppo: una sezione destinata a chi non c'è non deve allungare la
+// durata di una seduta che nessuno nuoterà. Per difetto sono tutte, e un
+// elenco vuoto o nullo vale come "tutte" — altrimenti il massimo
+// resterebbe a zero e una seduta piena mostrerebbe durata zero, cosa che
+// succede davvero: il riepilogo si disegna prima che la lista degli
+// atleti sia arrivata.
+export function durataStimata(sezioni, specializzazioni = SPECIALIZZAZIONI) {
+  const lista = sezioni || [];
+  const rami = (specializzazioni || []).length ? specializzazioni : SPECIALIZZAZIONI;
+
+  let secondi = 0;
+  for (const spec of rami) {
+    const d = durataPerSpecializzazione(lista, spec);
+    if (d.secondi > secondi) secondi = d.secondi;
+  }
+
+  // I CONTATORI guardano TUTTA la seduta, non il solo ramo più lungo:
+  // sono righe da sistemare, non tempo. Una riga senza ripartenza fra i
+  // velocisti va segnalata anche quando il ramo più lungo è un altro,
+  // altrimenti l'avviso tace proprio sulle righe che nessuno ha visto.
+  let conPartenza = 0;
+  let senzaPartenza = 0;
+  let sezioniSecche = 0;
+  for (const sez of lista) {
+    const d = durataDiSezione(sez);
+    conPartenza += d.conPartenza;
+    senzaPartenza += d.senzaPartenza;
+    if (d.secca) sezioniSecche += 1;
+  }
+
+  return { secondi, conPartenza, senzaPartenza, sezioniSecche };
 }
 
 export function inOreMinuti(secondi) {

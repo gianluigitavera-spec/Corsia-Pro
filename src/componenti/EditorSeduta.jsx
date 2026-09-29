@@ -962,8 +962,15 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
             return (
               <span style={{ fontSize: 13, color: 'var(--testo-2)' }}>
                 durata stimata <b className="mono" style={{ color: 'var(--ciano)' }}>{inOreMinuti(d.secondi)}</b>
+                {/* "Per difetto" perché le serie senza ripartenza non hanno durata:
+                    dovunque stiano, completate potrebbero allungare il ramo più lungo
+                    o farne vincere un altro. Il ramo più corto invece NON è lavoro
+                    perso: nessuno nuota due rami, escluderlo è giusto (vedi
+                    durataStimata). */}
                 {d.senzaPartenza > 0 && (
-                  <span style={{ color: 'var(--testo-3)' }}> · {d.senzaPartenza} serie senza partenza non contate</span>
+                  <span style={{ color: 'var(--testo-3)' }}>
+                    {' '}· stima per difetto: {d.senzaPartenza} serie senza ripartenza
+                  </span>
                 )}
               </span>
             );
