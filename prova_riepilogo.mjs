@@ -7,6 +7,8 @@
 // durataStimata sommava tutto e una seduta da 45' ne dichiarava 57.
 import {
   durataStimata, durataPerSpecializzazione, inOreMinuti, SPECIALIZZAZIONI,
+  specializzazioniDaSezioni, specializzazioniDiAtleti, specializzazioniConLavoroDedicato,
+  metriPerSpecializzazione,
 } from './src/lib/dominio.js';
 
 let male = 0;
@@ -141,6 +143,119 @@ const MISTA = [
     durataPerSpecializzazione(conBuchi, 'Velocità').senzaPartenza, 1);
   dice('quella dei mezzofondisti no',
     durataPerSpecializzazione(conBuchi, 'Mezzofondo').senzaPartenza, 0);
+}
+
+// =====================================================================
+// QUALI CARD MOSTRARE
+//
+// Le card sono quelle degli atleti del gruppo, più il lavoro scritto che
+// non deve sparire. Finché la lista degli atleti non arriva si ricavano
+// dalle sezioni: mai partire dalle cinque del dominio per collassare a
+// una appena arriva la rete.
+// =====================================================================
+{
+  const soloVelocisti = [
+    { titolo: 'Velocisti', destinatari: ['Velocità'], serie: [{ notazione: '8x50', metri: 400, recupero: '@1:30' }] },
+  ];
+  const gruppoVeloce = [{ specializzazione: 'Velocità' }, { specializzazione: 'Velocità' }];
+
+  dice('il gruppo dà una specializzazione sola',
+    specializzazioniDiAtleti(gruppoVeloce), ['Velocità']);
+  dice('e il lavoro dedicato la conferma',
+    specializzazioniConLavoroDedicato(soloVelocisti), ['Velocità']);
+  // Senza sezioni comuni Generale non entra nello stato iniziale: chi è
+  // Generale non nuoterebbe niente, e la card sarebbe vuota davvero.
+  dice('seduta tutta dedicata: niente Generale a vuoto',
+    specializzazioniDaSezioni(soloVelocisti), ['Velocità']);
+
+  // L'eccezione del lavoro dedicato non deve riportare dentro nessun altro.
+  dice('un riscaldamento comune NON crea rami dedicati',
+    specializzazioniConLavoroDedicato([
+      { titolo: 'Riscaldamento', destinatari: ['*'], serie: [{ notazione: '400', metri: 400 }] },
+    ]), []);
+  // Un ramo appena creato, ancora a zero metri, non è "lavoro scritto"…
+  dice('ramo a zero metri fuori dall\'eccezione',
+    specializzazioniConLavoroDedicato([
+      { titolo: 'Velocisti', destinatari: ['Velocità'], serie: [{ notazione: '', metri: 0 }] },
+    ]), []);
+  // …ma nello stato iniziale la sua card c'è: mentre scrivi devi vederla.
+  dice('lo stato iniziale invece lo cita',
+    specializzazioniDaSezioni([
+      { titolo: 'Velocisti', destinatari: ['Velocità'], serie: [{ notazione: '', metri: 0 }] },
+    ]), ['Velocità']);
+
+  // Campo vuoto, nullo o sconosciuto: conta come Generale, nessuno si perde.
+  dice('specializzazioni mancanti valgono Generale',
+    specializzazioniDiAtleti([{ specializzazione: null }, { specializzazione: '' }, { specializzazione: 'Boh' }, {}]),
+    ['Generale']);
+  dice('nessun atleta, nessuna specializzazione', specializzazioniDiAtleti([]), []);
+}
+
+// =====================================================================
+// GRUPPO TUTTO GENERALE, SEDUTA DI SOLE SEZIONI COMUNI
+// Il caso più frequente: nessuno split, nessuna specializzazione. Una card
+// sola, e il suo tempo deve coincidere col totale in intestazione.
+// =====================================================================
+{
+  const comune = [
+    { titolo: 'Riscaldamento', destinatari: ['*'], serie: [{ notazione: '400', metri: 400, recupero: '@7:00' }] },
+    { titolo: 'Parte centrale', destinatari: ['*'], serie: [{ notazione: '10x100', metri: 1000, recupero: '@1:40' }] },
+    { titolo: 'Palestra', destinatari: ['*'], aSecco: true, durataMin: 15, serie: [] },
+  ];
+  const gruppo = [{ specializzazione: 'Generale' }, { specializzazione: null }, {}];
+  const atteso = 420 + 1000 + 900;
+
+  dice('una card sola', specializzazioniDiAtleti(gruppo), ['Generale']);
+  dice('nessun lavoro dedicato', specializzazioniConLavoroDedicato(comune), []);
+  dice('e lo stato iniziale dice la stessa cosa',
+    specializzazioniDaSezioni(comune), ['Generale']);
+
+  const card = durataPerSpecializzazione(comune, 'Generale');
+  dice('tutto il tempo è comune', card.comuni, card.secondi);
+  dice('e vale quanto ci si aspetta', card.secondi, atteso);
+  // Il numero nella card e quello in intestazione devono coincidere: sono
+  // la stessa seduta guardata da due punti.
+  dice('card e intestazione dicono lo stesso numero',
+    card.secondi, durataStimata(comune, ['Generale']).secondi);
+  dice('anche senza restringere il gruppo',
+    card.secondi, durataStimata(comune).secondi);
+}
+
+// =====================================================================
+// UNA CARD A ZERO METRI PUÒ AVERE MINUTI VERI
+//
+// QUESTA PROVA BLOCCA UN'IDEA SBAGLIATA: "togliamo le card a zero metri".
+// Palestra comune più un ramo dedicato ai velocisti, gruppo tutto Generale.
+// La card Generale ha zero metri — non nuota niente — ma venti minuti di
+// palestra, che sono tempo vero in cui l'allenatore è con loro. Filtrare
+// sui metri la cancellerebbe insieme al suo tempo.
+//
+// Se un filtro servirà mai, il test è "metri 0 E secondi 0".
+// =====================================================================
+{
+  const palestraPiuRamo = [
+    { titolo: 'Palestra', destinatari: ['*'], aSecco: true, durataMin: 20, serie: [{ notazione: '3x10 piegamenti', metri: 0, senzaMetri: true }] },
+    { titolo: 'Velocisti', destinatari: ['Velocità'], serie: [{ notazione: '8x50', metri: 400, recupero: '@1:30' }] },
+  ];
+
+  dice('Generale non nuota un metro',
+    metriPerSpecializzazione(palestraPiuRamo, 'Generale'), 0);
+  const g = durataPerSpecializzazione(palestraPiuRamo, 'Generale');
+  dice('ma ha i venti minuti di palestra', g.secondi, 1200);
+  dice('e sono tutti comuni', g.comuni, 1200);
+
+  dice('il velocista nuota i suoi metri',
+    metriPerSpecializzazione(palestraPiuRamo, 'Velocità'), 400);
+  const v = durataPerSpecializzazione(palestraPiuRamo, 'Velocità');
+  dice('e sta in acqua più a lungo', v.secondi, 1920);
+  dice('con la stessa parte comune', v.comuni, 1200);
+
+  // La card Generale va mostrata: il test di un eventuale filtro futuro
+  // dev'essere metri 0 E secondi 0, e qui i secondi non sono zero.
+  dice('zero metri ma non zero secondi', [
+    metriPerSpecializzazione(palestraPiuRamo, 'Generale') === 0,
+    g.secondi === 0,
+  ], [true, false]);
 }
 
 // =====================================================================

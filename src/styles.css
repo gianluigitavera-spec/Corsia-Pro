@@ -269,6 +269,20 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 
 /* ------------------------------------------------- riquadri KPI */
 .volumi { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 14px; }
+
+/* Il tempo del ramo, sotto i metri. "di cui … comuni" va a capo suo: è la
+   parte che l'atleta fa con gli altri, serve a leggere il numero sopra e
+   non a competere con lui. */
+.volume .tempo-ramo {
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  margin-top: 4px; font-size: 13px; color: var(--testo-2);
+}
+.volume .tempo-ramo small { flex-basis: 100%; font-size: 11px; color: var(--testo-3); }
+.volume .per-difetto {
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ambra); border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.1); border-radius: 999px; padding: 1px 7px;
+}
 .volume {
   position: relative; overflow: hidden;
   background: linear-gradient(180deg, rgba(22, 35, 63, 0.9), rgba(16, 27, 51, 0.9));

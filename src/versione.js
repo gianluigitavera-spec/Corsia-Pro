@@ -20,6 +20,16 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.3',
+    data: '2026-09-30',
+    voci: [
+      'Nel riepilogo della seduta compaiono solo le specializzazioni che hai davvero in acqua: se il gruppo è tutto Generale, una card sola invece di cinque. Un lavoro scritto per una specializzazione resta visibile anche se in gruppo non c\'è nessuno di quel tipo',
+      'Ogni card dice anche quanto dura quel lavoro — la parte comune più la parte sua — e sotto, in piccolo, quanto di quel tempo è comune',
+      'Se in un lavoro ci sono serie senza ripartenza, la sua card lo segnala con "per difetto": il tempo è più basso del vero solo per quella specializzazione',
+      'La durata in testata tiene conto del gruppo: una parte scritta per chi non c\'è non allunga più la seduta',
+    ],
+  },
+  {
     versione: '0.56.2',
     data: '2026-09-29',
     annuncia: true,

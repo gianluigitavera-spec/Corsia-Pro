@@ -68,14 +68,29 @@ della mappa `TINTE` in `src/lib/colori.js`: se manca, `tinta()` non lascia
 un buco visibile ma ripiega sul ciano, quindi la categoria nuova sembra
 colorata come le altre.
 
-Migrazioni: la 025 (atleti sulla seduta), la 026 (specializzazione Fondo)
-e la 028 (categoria Triathlon) sono eseguite e salvate. La **027**
-(`v_serie` esclude le sezioni a secco) è scritta ma **non ancora
-eseguita** su Supabase; in coda porta anche il
-censimento delle sedute vecchie con sezioni tipo "Palestra" che portano
-metri fantasma, da guardare prima di decidere se correggerle.
+Stato delle migrazioni. **Verificato sul database il 29/09/2026:** c'è
+l'indice `atleti_chiave_unica` (021); `v_carico_zona_reale` legge `svolto`
+e `v_fase_reale` si appoggia a lei (023); `v_serie` filtra il lavoro a
+secco (027); fra le categorie ci sono `TRI`, i `TEEN_*` e `MAS`.
 
-`schema.sql` non esiste ancora nel repo: da rigenerare e committare.
+**Non verificate direttamente**, ma presunte applicate perché l'app usa
+quello che portano: la 025 (colonna `sedute.atleti`) e la 026
+(specializzazione Fondo). E non sappiamo quale file abbia inserito i
+`TEEN_*` e `MAS` in `squadra.categorie`: la 020 mette solo Master, dei
+Teen nel repo non c'è traccia.
+
+La 021 nel repo è un file unico. Se corrisponda a quello che è stato
+eseguito davvero lo dirà `schema.sql`, non il file.
+
+**Resta aperto** il censimento delle sedute vecchie con sezioni tipo
+"Palestra" **non marcate a secco** e con metri scritti: la 027 non le
+copre, perché filtra sul campo `aSecco` e quelle sezioni non lo hanno.
+Portano metri fantasma dentro i volumi, e per trovarle serve guardare i
+titoli, non il campo.
+
+`schema.sql` da rigenerare e committare: chiude i dubbi su 021, 025, 026 e
+sull'origine dei `TEEN_*`. Il censimento Palestra no: serve una query sui
+titoli delle sezioni.
 
 ---
 
@@ -260,6 +275,23 @@ questo, i Ragazzi quello» — non è una correzione al calcolo: va estesa
 lei `validaSeduta`, i volumi e la durata. Farne una sola lascia il
 lavoro invisibile da qualche parte.
 
+**Una card a zero metri non è un difetto da filtrare.** Nel riepilogo può
+comparire una specializzazione con `0 m`, e di solito è informazione. Due
+casi diversi:
+
+- **Palestra comune più un ramo dedicato**, gruppo tutto Generale: la card
+  Generale ha zero metri e venti minuti veri, perché il lavoro a secco è
+  comune e il tempo è tempo. Toglierla per via dei metri cancellerebbe
+  anche quello.
+- **Seduta tutta divisa in rami**, gruppo che non li fa: card a zero metri
+  *e* zero secondi. Non è un errore del conto — dice che il lavoro è
+  scritto per specializzazioni che nel gruppo non ci sono, e vale la pena
+  accorgersene.
+
+Se un filtro servirà mai, il test è **metri 0 E secondi 0**, mai i soli
+metri. Il caso è fissato in `prova_riepilogo.mjs`, apposta per bloccare
+l'idea sbagliata.
+
 **Chiave atleta:** `cognomenome+annonascita` normalizzato, con l'equivalente
 SQL in `squadra.chiave_atleta()`. Dalla 021 c'è un indice unico su
 `(societa_id, chiave)`: lo stesso atleta non entra due volte nella stessa
@@ -418,6 +450,18 @@ Da sostituire con qualcosa che i file li scopra — un runner che fa
 `readdirSync` su `prova_*.mjs`, o `node --test`. Patch sua, non mescolata
 ad altro: cambia come gira tutta la catena, e se sbaglia non se ne
 accorge nessuno finché una prova non smette di girare.
+
+**Da guardare: `pannelloAtleti` non torna mai a `false`.** In
+`EditorSeduta.jsx` si accende quando apri il pannello delle doppie, e
+anche da sé quando la seduta che apri ha già una selezione di atleti
+(«non si richiude mai da sola», e per quella seduta è voluto). Ma non si
+azzera **cambiando seduta**: passando a una seduta normale il pannello
+resta aperto, e tornando all'elenco resta acceso pure lì. Non rompe
+niente — da quando la lettura degli atleti guarda `seduta` e non più lo
+stato del pannello, non provoca nemmeno più letture a vuoto — però è uno
+stato che sopravvive al suo contesto. Si chiude azzerandolo quando cambia
+`seduta?.id`, tenendo l'apertura automatica per le sedute che hanno
+davvero degli atleti scelti.
 
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);

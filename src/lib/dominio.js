@@ -1507,6 +1507,68 @@ export function durataStimata(sezioni, specializzazioni = SPECIALIZZAZIONI) {
   return { secondi, conPartenza, senzaPartenza, sezioniSecche };
 }
 
+// ---------------------------------------------------------------------
+// QUALI CARD MOSTRARE NEL RIEPILOGO
+//
+// Le card sono quelle degli atleti che hai in acqua, non le cinque del
+// dominio: un gruppo di soli Esordienti non ha bisogno di quattro
+// riquadri vuoti. Ma il lavoro scritto non deve sparire, e la lista degli
+// atleti arriva dalla rete — quindi servono tre elenchi diversi, e il
+// componente li combina.
+// ---------------------------------------------------------------------
+
+// STATO INIZIALE, senza rete: le specializzazioni che le SEZIONI citano.
+// Generale entra solo se c'è almeno una sezione comune: su una seduta
+// tutta divisa in rami, chi è Generale non nuota niente e una card sua
+// sarebbe vuota. Senza questa condizione la card compariva per l'istante
+// del caricamento e poi spariva.
+export function specializzazioniDaSezioni(sezioni) {
+  const viste = new Set();
+  let comune = false;
+  for (const sez of sezioni || []) {
+    if (sezioneComune(sez)) { comune = true; continue; }   // il comune non cita nessuno
+    for (const spec of SPECIALIZZAZIONI) {
+      if (spec !== 'Generale' && sezionePer(sez, spec)) viste.add(spec);
+    }
+  }
+  if (comune) viste.add('Generale');
+  return SPECIALIZZAZIONI.filter((s) => viste.has(s));     // ordine del dominio
+}
+
+// Le specializzazioni presenti fra ATLETI dati. Campo vuoto, o un valore
+// che il dominio non conosce, conta come Generale: è quello che fa già
+// categoriaAtleta con le categorie, e serve a non perdere nessuno.
+export function specializzazioniDiAtleti(atleti) {
+  const viste = new Set();
+  for (const a of atleti || []) {
+    const s = a?.specializzazione;
+    viste.add(SPECIALIZZAZIONI.includes(s) ? s : 'Generale');
+  }
+  return SPECIALIZZAZIONI.filter((s) => viste.has(s));
+}
+
+// Chi ha un LAVORO DEDICATO con metri: una sezione non comune, intestata a
+// lui, che porta metri. È l'eccezione all'intersezione — una sezione
+// "Velocisti" scritta e piena non sparisce dal riepilogo solo perché in
+// gruppo non c'è nessun velocista.
+//
+// NON basta metriPerSpecializzazione > 0: quello somma anche le sezioni
+// comuni, quindi con un riscaldamento per tutti sarebbe vero per tutte e
+// cinque, e l'eccezione se le riporterebbe dentro in blocco — cioè
+// l'opposto di quello che l'intersezione serve a fare.
+export function specializzazioniConLavoroDedicato(sezioni) {
+  const viste = new Set();
+  for (const sez of sezioni || []) {
+    if (sezioneComune(sez)) continue;
+    const metri = (sez.serie || []).reduce((t, s) => t + (Number(s.metri) || 0), 0);
+    if (metri <= 0) continue;                              // ramo scritto ma ancora vuoto
+    for (const spec of SPECIALIZZAZIONI) {
+      if (spec !== 'Generale' && sezionePer(sez, spec)) viste.add(spec);
+    }
+  }
+  return SPECIALIZZAZIONI.filter((s) => viste.has(s));
+}
+
 export function inOreMinuti(secondi) {
   const m = Math.round(secondi / 60);
   return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}'` : `${m}'`;

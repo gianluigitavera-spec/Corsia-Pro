@@ -8,6 +8,8 @@ import {
   TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
+  durataPerSpecializzazione, specializzazioniDaSezioni, specializzazioniDiAtleti,
+  specializzazioniConLavoroDedicato,
   eSecco, sezioneSeccaVuota,
   apertureNude, applicaAperturaBlocco, figlieDelBlocco, ricalcolaBlocchi,
   svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
@@ -85,13 +87,23 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
     if (seduta?.atleti?.length) setPannelloAtleti(true);
   }, [seduta?.id]);
 
-  // Fetch pigro: solo quando il pannello serve davvero, e una volta sola
-  // per società (stessa cache di Appello.jsx e Atleti.jsx).
+  // La lista serve a due cose: al pannello delle doppie e al riepilogo, che
+  // dagli atleti ricava quali card di specializzazione mostrare. Quindi si
+  // carica appena una seduta è aperta — era pigra finché nessuno aveva
+  // bisogno di sapere chi c'è in acqua.
+  //
+  // Basta guardare `seduta`: senza seduta c'è un return prima di tutto il
+  // JSX, quindi il pannello non è nemmeno raggiungibile. Nominare anche
+  // `pannelloAtleti` era peggio che inutile — quello stato resta acceso dopo
+  // che chiudi una doppia, e faceva partire la lettura tornando all'elenco.
+  //
+  // Resta un fetch solo per società: passa da locale.conRete, la stessa
+  // cache di Atleti.jsx e Appello.jsx.
   useEffect(() => {
-    if (!pannelloAtleti || atletiSquadra) return;
+    if (atletiSquadra || !seduta) return;
     api.leggiAtleti(societa.id).then(setAtletiSquadra)
       .catch((e) => setMessaggio({ tipo: 'errore', testo: e.message }));
-  }, [pannelloAtleti, societa.id]);
+  }, [seduta?.id, societa.id]);
 
   useEffect(() => { setAtletiSquadra(null); }, [societa.id]);
 
@@ -322,6 +334,38 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
     r.codici.forEach((c) => (pieno ? attuali.delete(c) : attuali.add(c)));
     s.categorie = [...attuali];
   });
+
+  // Il gruppo che nuoterà questa seduta: gli atleti espliciti di una doppia,
+  // altrimenti quelli delle categorie scelte, altrimenti la squadra intera.
+  // `null` vuol dire "lista non ancora arrivata", che è diverso da "gruppo
+  // vuoto" e va distinto: nel primo caso le card si ricavano dalle sezioni.
+  const atletiDelGruppo = useMemo(() => {
+    if (!atletiSquadra) return null;
+    if (seduta?.atleti?.length) {
+      const scelti = new Set(seduta.atleti);
+      return atletiSquadra.filter((a) => scelti.has(a.id));
+    }
+    if (seduta?.categorie?.length) {
+      return atletiSquadra.filter((a) => seduta.categorie.includes(categoriaAtleta(a, fasce)));
+    }
+    return atletiSquadra;
+  }, [atletiSquadra, seduta?.atleti, seduta?.categorie, fasce]);
+
+  // LE CARD SONO QUELLE DEGLI ATLETI DEL GRUPPO, più il lavoro scritto che
+  // non deve sparire (una sezione dedicata e piena resta anche se in gruppo
+  // non c'è nessuno di quella specializzazione). Finché la lista non arriva
+  // si mostrano quelle che le sezioni citano: elenco corto e già giusto, non
+  // le cinque del dominio da far collassare a una appena arriva la rete.
+  const specializzazioniCard = useMemo(() => {
+    const base = atletiDelGruppo
+      ? new Set([
+        ...specializzazioniDiAtleti(atletiDelGruppo),
+        ...specializzazioniConLavoroDedicato(seduta?.sezioni),
+      ])
+      : new Set(specializzazioniDaSezioni(seduta?.sezioni));
+    const elenco = SPECIALIZZAZIONI.filter((s) => base.has(s));
+    return elenco.length ? elenco : ['Generale'];
+  }, [seduta?.sezioni, atletiDelGruppo]);
 
   // Selezione atleti espliciti: lista corta e pertinente quando la seduta
   // ha già delle categorie (filtra su quelle); tutta la squadra quando non
@@ -957,7 +1001,9 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
           <h3 style={{ margin: 0 }}>Volume per specializzazione</h3>
           <div style={{ flex: 1 }} />
           {(() => {
-            const d = durataStimata(seduta.sezioni);
+            // Il totale è sul gruppo: una sezione destinata a chi non c'è
+            // non deve allungare una seduta che nessuno nuoterà.
+            const d = durataStimata(seduta.sezioni, specializzazioniCard);
             if (!d.secondi) return null;
             return (
               <span style={{ fontSize: 13, color: 'var(--testo-2)' }}>
@@ -977,14 +1023,30 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
           })()}
         </div>
         <div className="volumi">
-          {SPECIALIZZAZIONI.map((spec) => {
+          {specializzazioniCard.map((spec) => {
             const metri = metriPerSpecializzazione(seduta.sezioni, spec);
             const fam = caricoPerFamiglia(seduta.sezioni, spec, zone);
             const tot = Object.values(fam).reduce((a, b) => a + b, 0) || 1;
+            const d = durataPerSpecializzazione(seduta.sezioni, spec);
             return (
               <div className="volume" key={spec}>
                 <div className="etichetta">{spec}</div>
                 <div className="cifra">{metri.toLocaleString('it-IT')}<small>m</small></div>
+                {d.secondi > 0 && (
+                  <div className="tempo-ramo">
+                    <span className="mono">{inOreMinuti(d.secondi)}</span>
+                    {/* Il buco è di QUESTO ramo: una riga senza ripartenza
+                        in un'altra specializzazione non rende sottostimata
+                        questa card. */}
+                    {d.senzaPartenza > 0 && (
+                      <span className="per-difetto"
+                        title={`${d.senzaPartenza} serie senza ripartenza in questo lavoro: il tempo è più basso del vero`}>
+                        per difetto
+                      </span>
+                    )}
+                    {d.comuni > 0 && <small>di cui {inOreMinuti(d.comuni)} comuni</small>}
+                  </div>
+                )}
                 <div className="nastro">
                   {Object.entries(fam).map(([f, m]) => (m > 0 ? (
                     <i key={f} style={{ width: `${(m / tot) * 100}%`, background: TINTA_FAMIGLIA[f] }} />
