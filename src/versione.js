@@ -20,6 +20,17 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.4',
+    data: '2026-09-30',
+    voci: [
+      'Nel foglio di stampa i totali in fondo sono solo delle specializzazioni che la seduta nomina davvero: una seduta per Esordienti mostra una riga "Totale", non cinque righe uguali',
+      'Se la seduta è tutta per un gruppo solo, la riga porta il suo nome — "Velocità 1.200 m" — invece di un totale anonimo',
+      'I tag delle serie (pull, gambe, progressione) stanno sulla riga del lavoro e non più in un elenco a fondo sezione che ripeteva le notazioni',
+      'Spariscono dal foglio i promemoria di lettura come "somma letta: 200 m a giro": restano dove servono, in "Scrivi o incolla", mentre rileggi quello che l\'app ha capito',
+      'La durata in testata al foglio tiene conto delle stesse specializzazioni dei totali in fondo',
+    ],
+  },
+  {
     versione: '0.56.3',
     data: '2026-09-30',
     voci: [

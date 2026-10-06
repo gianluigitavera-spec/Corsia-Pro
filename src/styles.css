@@ -656,7 +656,10 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   .foglio-rec { width: 24mm; }
   .foglio-zona { width: 14mm; text-align: center; }
   .foglio-m { width: 20mm; text-align: right; }
-  .foglio-note { font-size: 9.5pt; color: #444; margin: 2mm 0 0; padding-left: 5mm; }
+  /* Il tag della serie: sulla stessa riga del lavoro, grigio e più piccolo,
+     così si legge dopo la notazione e non al posto suo. Ha preso il posto
+     di .foglio-note, l'elenco a fondo sezione che ripeteva le notazioni. */
+  .foglio-tag { color: #555; font-size: 9.5pt; }
   .foglio-volumi { width: 100%; border-top: 2px solid #000; margin-top: 4mm; border-collapse: collapse; }
   .foglio-volumi td { padding: 1.4mm 0; font-size: 11pt; }
   .foglio-note-finali { font-size: 10pt; margin-top: 4mm; }

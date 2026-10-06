@@ -5,11 +5,22 @@
 // con lo split non dura la somma dei rami, perché nessun atleta fa sia
 // il lavoro dei velocisti sia quello dei fondisti. Fino alla 0.56.1
 // durataStimata sommava tutto e una seduta da 45' ne dichiarava 57.
+import { readFileSync } from 'node:fs';
 import {
   durataStimata, durataPerSpecializzazione, inOreMinuti, SPECIALIZZAZIONI,
   specializzazioniDaSezioni, specializzazioniDiAtleti, specializzazioniConLavoroDedicato,
-  metriPerSpecializzazione,
+  metriPerSpecializzazione, notaLeggibile, NOTE_DA_NASCONDERE,
 } from './src/lib/dominio.js';
+import { analizzaTesto } from './src/lib/analizzatore.js';
+import { sedutaDaLettura } from './src/lib/importaTesto.js';
+
+// I sorgenti che scrivono davvero le note: l'analizzatore le compone
+// (`somma letta: …`, `misura letta …`) e importaTesto le impila con i tag
+// di modalità e attrezzi. La guardia sui prefissi cerca in entrambi.
+const SORGENTI_NOTE = [
+  './src/lib/analizzatore.js',
+  './src/lib/importaTesto.js',
+].map((f) => ({ file: f, testo: readFileSync(f, 'utf8') }));
 
 let male = 0;
 const dice = (cosa, avuto, atteso) => {
@@ -17,6 +28,7 @@ const dice = (cosa, avuto, atteso) => {
   const b = JSON.stringify(atteso);
   if (a !== b) { male++; console.error(`✗ ${cosa}:\n    atteso ${b}\n    avuto  ${a}`); }
 };
+const vero = (cosa, avuto) => dice(cosa, !!avuto, true);
 
 // La seduta mista del rapporto: un riscaldamento per tutti, due rami che
 // si escludono a vicenda, e la palestra — che è comune e conta.
@@ -256,6 +268,78 @@ const MISTA = [
     metriPerSpecializzazione(palestraPiuRamo, 'Generale') === 0,
     g.secondi === 0,
   ], [true, false]);
+}
+
+// =====================================================================
+// LE NOTE SUL FOGLIO DI STAMPA
+//
+// L'analizzatore appende alle note dei promemoria di lettura. Sul foglio
+// che finisce a bordo vasca non servono: la riga è già stata riletta, e
+// "somma letta: 200 m a giro" ripete un numero che sta nella colonna dei
+// metri. Nel revisore invece devono restare, ed è il motivo per cui
+// notaLeggibile si usa SOLO in stampa.
+// =====================================================================
+{
+  dice('togliere la somma letta',
+    notaLeggibile('somma letta: 200 m a giro · pull'), 'pull');
+  dice('togliere il promemoria di controllo',
+    notaLeggibile('misura letta in mezzo alla riga: controlla · gambe'), 'gambe');
+  dice('tenere quello che parla del lavoro',
+    notaLeggibile('una serie per stile'), 'una serie per stile');
+  dice('tenere il blocco con più andature',
+    notaLeggibile('blocco aperto dalla riga scritta con più andature'),
+    'blocco aperto dalla riga scritta con più andature');
+  dice('tenere le note scritte a mano',
+    notaLeggibile('somma letta: 400 m a giro · tenere i piedi alti'), 'tenere i piedi alti');
+  dice('se resta solo il promemoria, non resta niente',
+    notaLeggibile('somma letta: 200 m a giro'), '');
+  dice('nota vuota', notaLeggibile(''), '');
+  dice('nota assente', notaLeggibile(undefined), '');
+}
+
+// =====================================================================
+// LA GUARDIA: I PREFISSI COINCIDONO CON QUELLO CHE L'ANALIZZATORE SCRIVE
+//
+// NOTE_DA_NASCONDERE vive in dominio.js e l'analizzatore non la conosce —
+// non si tocca, continua a scrivere quello che scrive. Se un giorno
+// cambiasse una dicitura, la costante resterebbe muta e i promemoria
+// tornerebbero sul foglio stampato senza che nessuno se ne accorga.
+// Questa prova legge testo VERO e verifica che le note prodotte comincino
+// davvero per uno dei prefissi.
+// =====================================================================
+{
+  // I sorgenti devono essere stati letti per davvero, o le prove sui
+  // prefissi qui sotto passerebbero a vuoto senza controllare niente.
+  for (const s of SORGENTI_NOTE) {
+    vero(`${s.file} letto`, typeof s.testo === 'string' && s.testo.length > 0);
+  }
+
+  // IL PERCORSO VERO: testo → analizzatore → importaTesto, lo stesso che
+  // scrive le note in archivio. Provare il solo analizzatore direbbe meno,
+  // perché è importaTesto a impilare i tag di modalità e attrezzi.
+  const inArchivio = (t) => sedutaDaLettura(analizzaTesto(t).sezioni)
+    .flatMap((s) => s.serie);
+
+  // "(2x50 + 4x25)" è un gruppo: l'analizzatore ci appende la somma letta,
+  // e l'import ci aggiunge "pull" dagli attrezzi.
+  const conSomma = inArchivio('(2x50 + 4x25) pull')[0];
+  vero('in archivio la riga di un gruppo porta una nota', !!conSomma.note);
+  vero('che comincia per un prefisso che conosciamo',
+    NOTE_DA_NASCONDERE.some((p) => conSomma.note.toLowerCase().startsWith(p.toLowerCase())));
+  dice('quindi sul foglio resta solo il tag', notaLeggibile(conSomma.note), 'pull');
+
+  // Una riga senza promemoria resta intatta dall'inizio alla fine.
+  const pulita = inArchivio('8x50 progr @1:00')[0];
+  dice('una nota di solo lavoro passa intera',
+    notaLeggibile(pulita.note), pulita.note);
+
+  // Ogni prefisso deve corrispondere a una stringa che qualcuno scrive
+  // ancora: uno rimasto orfano è un filtro che non filtra più niente, e
+  // il promemoria tornerebbe sul foglio senza che nessuno se ne accorga.
+  for (const p of NOTE_DA_NASCONDERE) {
+    vero(`il prefisso "${p}" è ancora scritto in uno dei sorgenti`,
+      SORGENTI_NOTE.some((s) => s.testo.includes(p)));
+  }
 }
 
 // =====================================================================

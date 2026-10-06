@@ -1,11 +1,20 @@
-import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataItLunga, durataStimata, inOreMinuti, eSecco } from '../lib/dominio';
+import {
+  TUTTI, metriPerSpecializzazione, dataItLunga, durataStimata, inOreMinuti, eSecco,
+  specializzazioniDaSezioni, notaLeggibile,
+} from '../lib/dominio';
 
 // Foglio da stampa: invisibile a schermo, è quello che finisce nel PDF.
 // Bianco, essenziale, senza la veste grafica dell'app.
 export default function FoglioStampa({ seduta, societa, categorie }) {
   const nomeCategoria = (c) => categorie?.find((x) => x.codice === c)?.nome || c;
   const quando = dataItLunga(seduta.data);
-  const durata = durataStimata(seduta.sezioni);
+  // Le specializzazioni che la seduta nomina davvero: una seduta per
+  // Esordienti non ne ha nessuna, e stampare cinque totali identici a piè
+  // di pagina non aiuta chi legge il foglio sul bordo. Lo stesso elenco
+  // serve alla durata in testata e ai totali in fondo, o i due numeri
+  // racconterebbero sedute diverse.
+  const specializzazioni = specializzazioniDaSezioni(seduta.sezioni);
+  const durata = durataStimata(seduta.sezioni, specializzazioni);
 
   return (
     <div className="foglio" aria-hidden="true">
@@ -47,7 +56,16 @@ export default function FoglioStampa({ seduta, societa, categorie }) {
                     </tr>
                   ) : (
                     <tr key={j} className={s.moltiplicato ? 'foglio-in-blocco' : undefined}>
-                      <td className="foglio-notaz">{s.notazione}</td>
+                      {/* Il tag sta sulla riga del lavoro. Prima c'era un
+                          elenco a fondo sezione che ripeteva la notazione
+                          per intero e ci appendeva i promemoria di lettura
+                          dell'analizzatore: due righe per dire una cosa. */}
+                      <td className="foglio-notaz">
+                        {s.notazione}
+                        {notaLeggibile(s.note) && (
+                          <span className="foglio-tag"> · {notaLeggibile(s.note)}</span>
+                        )}
+                      </td>
                       <td className="foglio-rec">{s.recupero || ''}</td>
                       <td className="foglio-zona">{s.zona || ''}</td>
                       <td className="foglio-m">{s.metri ? `${s.metri} m` : ''}</td>
@@ -56,20 +74,32 @@ export default function FoglioStampa({ seduta, societa, categorie }) {
                 ))}
               </tbody>
             </table>
-            {(sez.serie || []).some((s) => s.note) && (
-              <ul className="foglio-note">
-                {(sez.serie || []).filter((s) => s.note).map((s, j) => (
-                  <li key={j}>{s.notazione}: {s.note}</li>
-                ))}
-              </ul>
-            )}
           </div>
         );
       })}
 
       <table className="foglio-volumi">
         <tbody>
-          {SPECIALIZZAZIONI.map((spec) => {
+          {/* Una specializzazione sola — il caso di ogni gruppo che non le
+              usa — non ha bisogno di una tabella: è tutta la seduta. Si
+              chiama "Totale" quando è Generale, col suo nome quando è un
+              ramo, o il foglio perderebbe l'informazione di chi sono quei
+              metri.
+
+              Il conto NON si fa confrontando i totali fra loro: due rami
+              possono valere gli stessi metri e restare due lavori diversi,
+              da stampare separati. */}
+          {specializzazioni.length === 1 ? (() => {
+            const spec = specializzazioni[0];
+            const m = metriPerSpecializzazione(seduta.sezioni, spec);
+            if (!m) return null;
+            return (
+              <tr>
+                <td>{spec === 'Generale' ? 'Totale' : spec}</td>
+                <td className="foglio-m"><b>{m.toLocaleString('it-IT')} m</b></td>
+              </tr>
+            );
+          })() : specializzazioni.map((spec) => {
             const m = metriPerSpecializzazione(seduta.sezioni, spec);
             if (!m) return null;
             return (

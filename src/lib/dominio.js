@@ -1569,6 +1569,44 @@ export function specializzazioniConLavoroDedicato(sezioni) {
   return SPECIALIZZAZIONI.filter((s) => viste.has(s));
 }
 
+// ---------------------------------------------------------------------
+// NOTE DA MOSTRARE E NOTE DA NASCONDERE
+//
+// L'analizzatore appende alle note dei promemoria suoi, utili mentre si
+// rilegge il testo appena importato e inutili su un foglio stampato:
+// "somma letta: 200 m a giro" ripete un numero che è già nella colonna
+// dei metri, e "controlla" invita a rivedere una riga che, quando il
+// foglio arriva a bordo vasca, è già stata rivista.
+//
+// I prefissi stanno qui e non nell'analizzatore, che non si tocca:
+// continua a scrivere quello che scrive, e le note in archivio non
+// cambiano di un byte. Se un giorno cambiasse una dicitura, questa
+// costante resterebbe muta — per questo prova_riepilogo.mjs verifica che
+// le stringhe prodotte dall'analizzatore comincino davvero per questi
+// prefissi.
+//
+// Restano visibili "una serie per stile" e "blocco aperto dalla riga
+// scritta con più andature": dicono qualcosa sul lavoro, non sulla
+// lettura.
+export const NOTE_DA_NASCONDERE = [
+  'somma letta:',
+  'misura letta in mezzo alla riga: controlla',
+];
+
+// La nota ripulita dai promemoria di lettura. Il separatore è " · ", lo
+// stesso con cui analizzatore e import le impilano.
+//
+// SOLO IN STAMPA. Nel revisore le note vanno lasciate intere: è
+// esattamente il posto dove "controlla" deve farsi vedere.
+export function notaLeggibile(note) {
+  return String(note || '')
+    .split(' · ')
+    .map((p) => p.trim())
+    .filter((p) => p && !NOTE_DA_NASCONDERE.some(
+      (pre) => p.toLowerCase().startsWith(pre.toLowerCase())))
+    .join(' · ');
+}
+
 export function inOreMinuti(secondi) {
   const m = Math.round(secondi / 60);
   return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}'` : `${m}'`;
