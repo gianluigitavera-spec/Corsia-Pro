@@ -108,6 +108,27 @@ const prove = [
   // Il blocco nuovo riparte da capo: 100 x2 = 200, non 100 x6.
   ['3x\n8x50 B1\nSciolto\n2x\n100', 1400, 'un blocco nuovo dopo il titolo parte pulito'],
 
+  // --- la somma a cui segue dell'altro (DIFETTO APERTO) ---
+  // Dalla seduta "Tecnica DO C3+A2" del 30/09. Una somma di tratti secchi
+  // con uno stile, una zona o un recupero in coda perde l'ULTIMO termine:
+  // il pezzo "25 DO" è un numero secco con del testo dietro, e
+  // sommaInTesta si ferma prima di contarlo. Senza la coda la stessa riga
+  // fa 250.
+  ['100+75+50+25 DO', 250, 'somma di tratti secchi con lo stile in coda'],
+  ['100+75+50+25 C3', 250, 'la stessa somma con la zona in coda'],
+  ['100+75+50+25 @2:00', 250, 'e con la ripartenza in coda'],
+  ['100+75+50+25', 250, 'senza coda invece funziona già'],
+  // La riga come sta nel foglio, con passo base, stile e descrizione.
+  ['100+75+50+25 @@40" DO aumentando velocità', 250, 'la riga vera del 30/09'],
+  // Le due guardie: un tratto secco seguito da una descrizione fatta di
+  // venticinque non deve diventare una scaletta.
+  ['100 + 25 remate 25 completo 25gb 25 ps', 100, 'tratto secco e poi descrizione a venticinque'],
+  ['200+50 gambe', 250, 'scaletta corta con la coda'],
+  ['100+75+50+25 DO al 75%', 250, 'la percentuale non è una misura'],
+  ['100+75+50+25 DO resp 3-5', 250, 'i numeri della respirazione non sono misure'],
+  ['100+75+50+25 2SL 2DO', 250, 'né le vasche per stile'],
+  ['200+50 gambe Progr 1-4', 250, 'né la progressione'],
+
   // --- una riga, una andatura ---
   ['8x50 A2 + 4x25 C1', 500, 'due andature: si spezza e i metri non si perdono'],
   ['4x(8x50 B1 + 4x50 B2)', 2400, 'blocco con due andature dentro'],

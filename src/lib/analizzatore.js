@@ -352,6 +352,25 @@ function misuraInTesta(pezzo) {
   return null;
 }
 
+// C'è una misura DA QUALCHE PARTE in questa coda? È una domanda diversa
+// da quella di trovaMisure, che chiede se la coda È una misura: qui si
+// scorre, e a ogni inizio di numero si chiede a misuraInTesta da lì in
+// avanti. Serve a distinguere "25 DO" — un tratto col suo stile — da
+// "25 remate 25 completo 25gb 25 ps", che descrive com'è fatta la
+// ripetuta e non aggiunge vasche.
+//
+// Una percentuale non è una misura: "al 75%" è un'andatura, non 75 metri.
+function codaConMisure(resto) {
+  const t = senzaTempi(resto);
+  for (const m of t.matchAll(/\d/g)) {
+    if (m.index > 0 && /\d/.test(t[m.index - 1])) continue;   // metà di un numero
+    const da = t.slice(m.index);
+    if (/^\d+\s*%/.test(da)) continue;
+    if (misuraInTesta(da)) return true;
+  }
+  return false;
+}
+
 // Somma i pezzi finché sono misure: "(3x25) + (1x75) Remate SL" = 150.
 // Si ferma al primo pezzo che misura non è, perché da lì in poi la riga
 // racconta com'è fatta la ripetuta e non aggiunge vasche.
@@ -359,14 +378,37 @@ function sommaInTesta(riga) {
   let totale = 0;
   let quanti = 0;
   let gruppo = false;
+  // Se tutti i termini contati finora sono tratti secchi, la somma è una
+  // scaletta ("100+75+50+25") e anche l'ultimo tratto con del testo dietro
+  // è un tratto. Se invece uno dei termini era un set ("6x100"), il numero
+  // secco che segue descrive la ripetuta e non aggiunge vasche.
+  let tuttiSecchi = true;
   for (const pezzo of pezziDiPrimoLivello(riga)) {
     const m = misuraInTesta(pezzo);
     if (!m) break;
     // Un numero secco con del testo dietro è quasi sempre descrizione
-    // ("+ 25 remate"), non un tratto in più.
-    if (m.secco && m.resto) break;
+    // ("+ 25 remate"), non un tratto in più. Quasi: in una scaletta di
+    // tratti secchi l'ultimo si contava via insieme al suo stile, e
+    // "100+75+50+25 DO" faceva 225 invece di 250 — mentre la stessa riga
+    // senza "DO" faceva 250.
+    //
+    // Nella scaletta l'ultimo tratto porta spesso lo stile o la zona. Se
+    // invece nel resto c'è un'ALTRA misura, quel numero apre una
+    // descrizione ("100 + 25 remate 25 completo") e non è un tratto in
+    // più: lo chiede codaConMisure, che usa lo stesso misuraInTesta e non
+    // una definizione sua di "misura".
+    //
+    // `quanti > 0` tiene fuori il primo pezzo: "300 stile" deve
+    // continuare a uscire di qui a zero e farsi leggere dalla regola
+    // della misura in testa, come ha sempre fatto.
+    if (m.secco && m.resto) {
+      // La coda si guarda solo qui: fuori da questo ramo non servirebbe.
+      const scaletta = tuttiSecchi && quanti > 0 && !codaConMisure(m.resto);
+      if (!scaletta) break;
+    }
     totale += m.metri;
     quanti++;
+    if (!m.secco) tuttiSecchi = false;
     if (m.gruppo) gruppo = true;
     if (m.resto) break;
   }

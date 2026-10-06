@@ -20,6 +20,16 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.5',
+    data: '2026-10-06',
+    annuncia: true,
+    voci: [
+      'Foglio di stampa più pulito: in fondo solo i totali delle specializzazioni usate nella seduta, e attrezzi e modalità sulla riga della serie',
+      'Corretto il conteggio delle scalette in "Scrivi o incolla": "100+75+50+25 DO" contava 225 metri invece di 250',
+      'Le sedute già salvate non vengono ricalcolate: se hai incollato scalette con lo stile o la zona in coda, controlla i metri',
+    ],
+  },
+  {
     versione: '0.56.4',
     data: '2026-09-30',
     voci: [
