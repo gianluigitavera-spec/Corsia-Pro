@@ -3,8 +3,8 @@ import Papa from 'papaparse';
 import { Search, Plus, Upload, Download, Pencil, Check, X, Archive, Users, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
 import {
-  SPECIALIZZAZIONI, CATEGORIE, categoriaAtleta, chiaveAtleta, categoriaDaCsv,
-  categoriaDi, etichettaCategoria, sospettiImport,
+  SPECIALIZZAZIONI, CATEGORIE, chiaveAtleta, categoriaDaCsv,
+  categoriaDi, etichettaCategoria, sospettiImport, atletaNelGruppo,
 } from '../lib/dominio';
 
 const VUOTO = { nome: '', cognome: '', sesso: 'M', anno_nascita: '', specializzazione: 'Generale' };
@@ -47,9 +47,7 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
   // Prima il gruppo scelto in testata, poi la ricerca. Chi allena gli
   // Esordienti A vede solo loro, e "seleziona tutti" prende loro.
   const visibili = useMemo(() => {
-    const delGruppo = codiciGruppi
-      ? atleti.filter((a) => codiciGruppi.includes(categoriaAtleta(a, fasce)))
-      : atleti;
+    const delGruppo = atleti.filter((a) => atletaNelGruppo(a, codiciGruppi, fasce));
     return cerca.trim() ? delGruppo.filter((a) => combacia(a, cerca.trim())) : delGruppo;
   }, [atleti, cerca, codiciGruppi, fasce]);
 

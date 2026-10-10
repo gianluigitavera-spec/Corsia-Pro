@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarRange } from 'lucide-react';
 import * as api from '../lib/dati';
-import { metriPerSpecializzazione } from '../lib/dominio';
+import { metriPerSpecializzazione, sedutaNelGruppo, atletaNelGruppo } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 import { BarreImpilate, BarreOrizzontali, km } from './Grafici';
 import Confronto from './Confronto';
@@ -26,7 +26,10 @@ export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGr
   const [da, setDa] = useState(giorniFa(90));
   const [a, setA] = useState(iso(new Date()));
 
-  const [righe, setRighe] = useState([]);
+  // Le righe come arrivano, e la squadra per sapere chi è nel gruppo: il
+  // filtro per atleta non sta nell'effetto ma in un useMemo qui sotto.
+  const [righeTutte, setRigheTutte] = useState([]);
+  const [squadra, setSquadra] = useState([]);
   const [sedute, setSedute] = useState([]);
   const [zone, setZone] = useState([]);
   const [errore, setErrore] = useState(null);
@@ -55,25 +58,43 @@ export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGr
     Promise.all([
       api.caricoReale(societa.id, { da: periodo.dal, a: periodo.al }),
       api.leggiSedute(societa.id, { da: periodo.dal, a: periodo.al }),
+      api.leggiAtleti(societa.id),
     ])
-      .then(([carico, s]) => {
-        // Il gruppo scelto in testata vale anche qui: le sedute per le
-        // categorie che segui, e gli atleti che ci stanno dentro.
-        const seduteViste = codiciGruppi
-          ? (s || []).filter((x) => (x.categorie || []).some((c) => codiciGruppi.includes(c)))
-          : (s || []);
-        const idViste = new Set(seduteViste.map((x) => x.id));
-        setRighe(codiciGruppi
-          ? carico.righe.filter((r) => seduteViste.some((x) => x.data === r.data))
-          : carico.righe);
+      .then(([carico, s, atleti]) => {
+        // Il gruppo scelto in testata vale anche qui, ma le due metà della
+        // scheda rispondono a due domande diverse.
+        //
+        // Le SEDUTE e le zone sono il programma: si filtrano per categoria
+        // della seduta, cioè il lavoro scritto per il gruppo che segui.
+        const seduteViste = (s || []).filter((x) => sedutaNelGruppo(x, codiciGruppi));
+
+        // Le RIGHE sono il carico di una persona: si filtrano sull'atleta,
+        // e lo fa il memo qui sotto. Qui si tiene solo quello che è
+        // arrivato — un effetto che dipendesse anche dalle fasce
+        // rileggerebbe dalla rete per un filtro che è solo lettura.
+        setRigheTutte(carico.righe || []);
+        setSquadra(atleti || []);
         setSedute(seduteViste);
-        setZone(codiciGruppi
-          ? carico.zone.filter((z) => (z.categorie || []).some((c) => codiciGruppi.includes(c)))
-          : carico.zone);
-        void idViste;
+        setZone((carico.zone || []).filter((z) => sedutaNelGruppo(z, codiciGruppi)));
       })
       .catch((e) => setErrore(e.message));
   }, [societa.id, periodo.dal, periodo.al, codiciGruppi?.join()]);
+
+  // Il carico per atleta si filtra SOLO sull'atleta: chi è nel gruppo si
+  // vede con tutto il suo carico, anche quello fatto in una seduta di un
+  // altro gruppo. Prima il filtro era sulla data della seduta, che non è
+  // né una cosa né l'altra: in un giorno con una seduta Esordienti A e
+  // una Esordienti B passavano gli atleti di tutte e due.
+  //
+  // Sta qui e non nell'effetto perché è un filtro, non una lettura: cambia
+  // il gruppo in testata e si ricalcola senza tornare sulla rete.
+  const righe = useMemo(() => {
+    if (!codiciGruppi) return righeTutte;
+    const dentro = new Set(squadra
+      .filter((a) => atletaNelGruppo(a, codiciGruppi, fasce))
+      .map((a) => a.id));
+    return righeTutte.filter((r) => dentro.has(r.atleta_id));
+  }, [righeTutte, squadra, codiciGruppi?.join(), fasce]);
 
   // ------------------------------------------------ km delle sedute
   // Il volume del programma, non moltiplicato per gli atleti: per ogni

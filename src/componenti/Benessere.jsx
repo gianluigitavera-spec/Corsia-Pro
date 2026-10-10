@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HeartPulse, Moon, BatteryLow, Activity, Smile, Check } from 'lucide-react';
 import * as api from '../lib/dati';
-import { categoriaAtleta } from '../lib/dominio';
+import { atletaNelGruppo } from '../lib/dominio';
 
 const VOCI = [
   { chiave: 'sonno',  nome: 'Sonno',  Icona: Moon,       basso: 'male',    alto: 'benissimo', inverti: false },
@@ -58,13 +58,9 @@ export default function Benessere({ societa, fasce, puoScrivere, codiciGruppi })
     } catch (e) { setMessaggio(`Non salvato: ${e.message}`); }
   }
 
-  const categoriaDi = (a) => categoriaAtleta(a, fasce);
-
 
   // La categoria arriva dalla testata: qui non si sceglie più.
-  const filtrati = !codiciGruppi
-    ? atleti
-    : atleti.filter((a) => codiciGruppi.includes(categoriaDi(a)));
+  const filtrati = atleti.filter((a) => atletaNelGruppo(a, codiciGruppi, fasce));
 
   // I meno pronti in cima: è l'ordine con cui guardi la squadra.
   const ordinati = [...filtrati].sort((a, b) => {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { HeartPulse, Check } from 'lucide-react';
 import * as api from '../lib/dati';
 import ComeAndata from './ComeAndata';
-import { categoriaAtleta, dataIt } from '../lib/dominio';
+import { categoriaAtleta, dataIt, sedutaNelGruppo, atletaNelGruppo } from '../lib/dominio';
 
 // Quattro stati. L'assenza non conta come presenza; ritardo e
 // giustificato sì — il ritardo però viene contato a parte.
@@ -47,10 +47,10 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
 
   // Solo le sedute della categoria scelta: se alleni gli Esordienti A non
   // devi scorrere quelle dei Ragazzi per trovare la tua.
-  const seduteDelGruppo = useMemo(() => {
-    if (!codiciGruppi) return sedute;
-    return sedute.filter((s) => (s.categorie || []).some((c) => codiciGruppi.includes(c)));
-  }, [sedute, codiciGruppi]);
+  const seduteDelGruppo = useMemo(
+    () => sedute.filter((s) => sedutaNelGruppo(s, codiciGruppi)),
+    [sedute, codiciGruppi],
+  );
 
   // Scelta da sola: quella di oggi se c'è, se no la più recente. Solo
   // quando quella corrente non appartiene più al gruppo scelto, così non
@@ -90,8 +90,7 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
     if (seduta?.atleti?.length) {
       return atleti.filter((a) => seduta.atleti.includes(a.id));
     }
-    if (!codiciGruppi) return atleti;
-    return atleti.filter((a) => codiciGruppi.includes(categoriaDi(a)));
+    return atleti.filter((a) => atletaNelGruppo(a, codiciGruppi, fasce));
   }, [atleti, codiciGruppi, fasce, seduta?.atleti]);
 
   async function segna(atletaId, codice) {

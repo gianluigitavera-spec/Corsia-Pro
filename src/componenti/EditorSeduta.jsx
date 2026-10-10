@@ -7,6 +7,7 @@ import CopiaSedute from './CopiaSedute';
 import {
   TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
   caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
+  sedutaNelGruppo,
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
   durataPerSpecializzazione, specializzazioniDaSezioni, specializzazioniDiAtleti,
   specializzazioniConLavoroDedicato,
@@ -44,7 +45,9 @@ const muovi = (arr, da, a) => {
   return copia;
 };
 
-export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fasce, apertura, consumaApertura }) {
+export default function EditorSeduta({
+  societa, zone, puoScrivere, categorie, fasce, apertura, consumaApertura, codiciGruppi,
+}) {
   const [elenco, setElenco] = useState([]);
   const [copia, setCopia] = useState(null);   // { seduta } oppure {} per la settimana
   const [seduta, setSeduta] = useState(null);
@@ -416,6 +419,15 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
     );
   }
 
+  // L'elenco mostra le sedute del gruppo scelto in testata. Prima le
+  // mostrava tutte: questo componente era il solo a non ricevere i codici,
+  // e con gli Esordienti A selezionati in elenco comparivano anche le
+  // sedute degli Esordienti B.
+  const elencoVisto = useMemo(
+    () => elenco.filter((s) => sedutaNelGruppo(s, codiciGruppi)),
+    [elenco, codiciGruppi],
+  );
+
   // ------------------------------------------------------------- elenco
   if (!seduta) {
     return (
@@ -425,7 +437,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
           <div style={{ flex: 1 }} />
           {puoScrivere && (
             <>
-              {elenco.length > 0 && (
+              {elencoVisto.length > 0 && (
                 <button className="azione fantasma" onClick={() => setCopia({})}>
                   <CalendarRange size={15} style={{ verticalAlign: -3 }} /> Copia settimana
                 </button>
@@ -445,7 +457,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
         {copia && puoScrivere && (
           <CopiaSedute
             societa={societa}
-            elenco={elenco}
+            elenco={elencoVisto}
             seduta={copia.seduta}
             chiudi={() => setCopia(null)}
             fatto={(quante) => {
@@ -456,7 +468,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
           />
         )}
 
-        {elenco.length === 0 ? (
+        {elencoVisto.length === 0 ? (
           <div className="scheda">
             <div className="vuoto">
               <Waves size={30} style={{ color: 'var(--testo-3)' }} />
@@ -477,7 +489,7 @@ export default function EditorSeduta({ societa, zone, puoScrivere, categorie, fa
                 <tr><th>Data</th><th>Titolo</th><th>Categorie</th><th style={{ textAlign: 'right' }}>Sezioni</th><th /></tr>
               </thead>
               <tbody>
-                {elenco.map((s) => (
+                {elencoVisto.map((s) => (
                   <tr key={s.id}>
                     <td className="mono">{dataIt(s.data)}</td>
                     <td>{s.titolo || '—'}</td>

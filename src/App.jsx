@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Sparkles, Settings2, LogOut, HelpCircle } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
-import { stagioneCorrente, stagioniProposte, fasceRisolte, RAGGRUPPAMENTI } from './lib/dominio';
+import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
 import { novitaDaMostrare, novitaDiRecupero } from './lib/novita';
 import { BUILD } from './lib/versione';
@@ -64,9 +64,7 @@ export default function App() {
   }
 
   // I codici categoria dietro la scelta. null = nessun filtro.
-  const codiciGruppi = gruppi.length
-    ? [...new Set(gruppi.flatMap((n) => RAGGRUPPAMENTI.find((r) => r.nome === n)?.codici || []))]
-    : null;
+  const codiciGruppi = codiciDelGruppo(gruppi);
   const [societa, setSocieta] = useState(null);
   const [ruolo, setRuolo] = useState(null);
   const [scheda, setScheda] = useState('dashboard');
@@ -288,6 +286,7 @@ export default function App() {
           {scheda === 'sedute' && (
             <EditorSeduta
               societa={societa} zone={zone} categorie={categorie} fasce={fasce} puoScrivere={puoScrivere}
+              codiciGruppi={codiciGruppi}
               apertura={apertura} consumaApertura={consumaApertura}
             />
           )}

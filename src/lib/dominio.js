@@ -1456,6 +1456,45 @@ export function rientraNelMacro(categorie, codici) {
 }
 
 // ---------------------------------------------------------------------
+// IL FILTRO DI TESTATA — un posto solo
+//
+// La categoria si sceglie una volta in alto, e ogni schermata deve
+// rispondere alla stessa domanda: questo sta nel gruppo scelto? La
+// risposta era riscritta a mano in sei schermate, ognuna un po' diversa,
+// e due sbagliavano: la Lista Sedute non filtrava affatto (il componente
+// non riceveva nemmeno i codici), e Carico atleti filtrava le righe per
+// DATA — così in un giorno con una seduta Esordienti A e una Esordienti
+// B passavano gli atleti di tutte e due.
+//
+// `null` vuol dire NESSUN FILTRO, non "nessuna categoria": è la testata
+// su "Tutte". Le tre funzioni lo trattano allo stesso modo, ed è metà
+// del motivo per cui stanno qui invece che in sei schermate.
+// ---------------------------------------------------------------------
+
+// I codici dietro i nomi scelti in testata. Niente scelte, niente filtro.
+export function codiciDelGruppo(nomi) {
+  const scelti = (nomi || [])
+    .flatMap((n) => RAGGRUPPAMENTI.find((r) => r.nome === n)?.codici || []);
+  return scelti.length ? [...new Set(scelti)] : null;
+}
+
+// Una seduta si vede se una delle sue categorie sta nel gruppo. Senza
+// categorie resta visibile — è una seduta appena creata, e nasconderla
+// vorrebbe dire non ritrovarla più. La regola è quella di
+// rientraNelMacro, che il calendario usa da sempre: le copie a mano la
+// scartavano, quindi la stessa seduta si vedeva sul calendario e in
+// nessun altro posto.
+export const sedutaNelGruppo = (seduta, codici) =>
+  rientraNelMacro(seduta?.categorie, codici);
+
+// Un atleta si vede se la SUA categoria sta nel gruppo: l'override se c'è,
+// altrimenti quella dell'anno. Le fasce non sono un parametro facoltativo
+// per comodità — senza di loro gli atleti senza override finiscono tutti
+// fuori, e non lo dice nessuno.
+export const atletaNelGruppo = (atleta, codici, fasce) =>
+  !codici || codici.includes(categoriaAtleta(atleta, fasce));
+
+// ---------------------------------------------------------------------
 // STAGIONI — partono a settembre. "2025/26", "2026/27", ...
 // ---------------------------------------------------------------------
 export function stagioneDa(annoIniziale) {

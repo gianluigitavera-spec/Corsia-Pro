@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI } from '../lib/dominio';
+import { SPECIALIZZAZIONI, sedutaNelGruppo } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
 import Calendario from './Calendario';
 import { BarreImpilate } from './Grafici';
@@ -36,10 +36,10 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
     // schede mostrano due numeri diversi per la stessa settimana.
     api.caricoReale(societa.id, { da: indietro(giorni), specializzazione: spec })
       .then(({ zone }) => {
-        const filtrate = codiciMacro
-          ? zone.filter((z) => (z.categorie || []).some((c) => codiciMacro.includes(c)))
-          : zone;
-        setRighe(filtrate);
+        // Le righe per zona portano le categorie della loro seduta
+        // (dati.js, caricoReale), quindi la domanda è la stessa delle
+        // sedute: questa seduta sta nel gruppo scelto?
+        setRighe(zone.filter((z) => sedutaNelGruppo(z, codiciMacro)));
         setErrore(null);
       })
       .catch((e) => setErrore(e.message))

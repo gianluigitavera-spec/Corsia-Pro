@@ -20,6 +20,14 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.7',
+    data: '2026-10-10',
+    voci: [
+      'Il gruppo scelto in alto vale ovunque: con Esordienti A selezionato la lista delle sedute e il carico atleti mostrano solo quel gruppo',
+      'In Carico atleti ogni atleta porta tutto quello che ha nuotato, anche nelle sedute fatte con un altro gruppo',
+    ],
+  },
+  {
     versione: '0.56.6',
     data: '2026-10-10',
     annuncia: true,
