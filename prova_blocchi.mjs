@@ -16,7 +16,7 @@
 import { analizzaTesto } from './src/lib/analizzatore.js';
 import {
   ricalcolaBlocchi, applicaAperturaBlocco, apertureNude, figlieDelBlocco,
-  metriDaNotazione, metriPerSpecializzazione, serieVuota, svoltoDopoTogliRiga,
+  eSecco, metriDaNotazione, metriPerSpecializzazione, serieVuota, svoltoDopoTogliRiga,
   svoltoDopoMuoviRiga, durataStimata,
 } from './src/lib/dominio.js';
 
@@ -50,6 +50,12 @@ const g = {
   scrivi(sez, j, valore) {                          // battuta nel campo notazione
     const serie = sez.serie[j];
     serie.notazione = valore;
+    // A secco la notazione resta una descrizione: l'editor azzera metri e
+    // zona e si ferma qui, senza nemmeno ricalcolare (cambiaNotazione in
+    // EditorSeduta.jsx). Il doppio lo faceva leggere come lavoro in acqua,
+    // e senza questo ramo provava un'app che non esiste — adesso che il
+    // lettore è uno, "4x12 ripetizioni" varrebbe 100 metri di palestra.
+    if (eSecco(sez)) { serie.metri = 0; serie.zona = ''; return; }
     if (!serie.metriManuali) {
       const m = metriDaNotazione(valore);
       if (m !== null) { serie.metri = m; delete serie.moltiplicato; }
@@ -261,8 +267,13 @@ Sciolto
   const dopo = JSON.stringify(letta);
   dice('aprire e salvare senza gesti non cambia niente', dopo, prima);
 
-  // E le righe del parser che il ricalcolo NON deve riscrivere: la
-  // regola della vasca porta 2x10 a 50, e metriDaNotazione direbbe 20.
+  // E le righe del parser che il ricalcolo NON deve riscrivere. Qui c'era
+  // scritto "la regola della vasca porta 2x10 a 50, e metriDaNotazione
+  // direbbe 20": la prova si appoggiava alla divergenza fra le due strade,
+  // che adesso non c'è piu' — dicono 50 tutte e due. Quello che resta da
+  // provare è l'altra metà, e non è cambiata: il ricalcolo non rilegge la
+  // notazione, riscala per rapporto, quindi una riga il cui fattore non si
+  // è mosso non la tocca nessuno.
   const centrale = letta.find((s) => s.titolo === '3x' || (s.serie || []).some((r) => /partenze/.test(r.notazione)));
   const partenze = (centrale?.serie || []).find((r) => /partenze/.test(r.notazione));
   if (partenze) {
@@ -270,6 +281,22 @@ Sciolto
     ricalcolaBlocchi(centrale);            // stesso fattore: non deve toccarla
     dice('la regola della vasca sopravvive al ricalcolo', partenze.metri, eranoI);
   }
+}
+
+// =====================================================================
+// A SECCO: LA NOTAZIONE NON FA METRI
+// =====================================================================
+// La palestra si scrive con le x e i numeri ("4x12 ripetizioni") e il
+// lettore di riga, che non sa in che sezione sta, ci legge 100 metri — 12
+// portato a 25 dalla regola della vasca, per quattro. Lo decide la
+// sezione, e l'editor la guarda prima di leggere.
+{
+  const secca = { titolo: 'Palestra', aSecco: true, serie: [serieVuota()] };
+  g.scrivi(secca, 0, '4x12 ripetizioni');
+  dice('a secco la notazione non scrive metri', secca.serie[0].metri, 0);
+  dice('e non scrive nemmeno la zona', secca.serie[0].zona, '');
+  dice('mentre il lettore di riga, da solo, ci leggerebbe cento metri',
+    metriDaNotazione('4x12 ripetizioni'), 100);
 }
 
 // =====================================================================

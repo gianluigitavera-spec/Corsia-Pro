@@ -83,112 +83,454 @@ export function serieVuota() {
   return { notazione: "", zona: "A1", metri: 0, recupero: "", note: "" };
 }
 
+// =====================================================================
+// IL LETTORE DI UNA RIGA
+//
+// Stava nell'analizzatore, e sta qui per due motivi: qui c'è già
+// metriDaNotazione, cioè l'altro posto che legge la stessa notazione, e
+// l'arco di import esiste già in questo verso — l'analizzatore importa
+// dominio, dominio non importa nessuno. Mettere il lettore in un terzo
+// file farebbe un arco nuovo e romperebbe la promessa in testa a questo
+// file, che è di non avere dipendenze.
+//
+// Quello che NON è qui è tutto ciò che vuole il contesto: sezioni,
+// titoli, destinatari, zone, lavoro a secco, blocchi, composizione,
+// note. Quello resta nell'analizzatore, e il lettore di una riga non lo
+// sa — legge una riga e basta.
+//
+// Tre funzioni restano pubbliche per l'analizzatore e per nessun altro:
+// pezziDiPrimoLivello, gruppoInTesta e valoreDelPezzo, che gli servono
+// per spezzare una riga con due andature.
+// =====================================================================
+
+// LA REGOLA DELLA VASCA
+// Partenze, virate, scivolamenti: si scrivono con la distanza a cui si
+// arriva ("2x10", "partendo dai 10m"), ma l'atleta la vasca la finisce
+// comunque. Quindi qualsiasi tratto sotto i 25 vale 25: "2x10" fa 50,
+// non 20. Deciso dal coach, agosto 2026.
+const VASCA = 25;
+const almenoUnaVasca = (d) => (d > 0 && d < VASCA ? VASCA : d);
+
+// Divide su "+" di primo livello: quello dentro le parentesi resta
+// dov'è. "4x(150 + 4x25) 150SL" è UN pezzo, non due.
+export function pezziDiPrimoLivello(t) {
+  const pezzi = [];
+  let dentro = 0;
+  let corrente = '';
+  for (const c of t) {
+    if (c === '(') dentro++;
+    else if (c === ')') dentro = Math.max(0, dentro - 1);
+    if (c === '+' && dentro === 0) { pezzi.push(corrente); corrente = ''; continue; }
+    corrente += c;
+  }
+  pezzi.push(corrente);
+  return pezzi;
+}
+
+// Legge la misura in TESTA a un pezzo e dice cosa resta dopo. Quello che
+// resta è descrizione: "1x75 Remate DO" sono 75 metri di remate, non 75
+// più qualcos'altro.
+// Trova la parentesi in testa contando le aperture, non fermandosi alla
+// prima chiusa: "3x(2x(4x25) + 100)" ha un gruppo dentro il gruppo, e con
+// la ricerca ingenua si fermava a "(2x(4x25)" leggendo cento metri.
+export function gruppoInTesta(p) {
+  const m = p.match(/^(\d{1,3})?\s*x?\s*\(/i);
+  if (!m || !p.slice(m[0].length - 1).startsWith('(')) return null;
+  const inizio = m[0].length - 1;
+  let profondita = 0;
+  for (let i = inizio; i < p.length; i++) {
+    if (p[i] === '(') profondita++;
+    else if (p[i] === ')') {
+      profondita--;
+      if (profondita === 0) {
+        return {
+          moltiplicatore: m[1] ? +m[1] : 1,
+          dentro: p.slice(inizio + 1, i),
+          resto: p.slice(i + 1).trim(),
+        };
+      }
+    }
+  }
+  return null;   // parentesi mai chiusa: non è un gruppo
+}
+
+// I tempi non sono distanze: "1'40", '45"', "@1:30" vanno tolti prima di
+// cercare le misure, o un recupero passa per una vasca. Sta qui in alto
+// perché lo usano anche le scale, poco più sotto.
+const senzaTempi = (t) => t
+  .replace(/@+\s*\d{1,2}\s*[:.']\s*\d{2}/g, ' ')
+  .replace(/@+\s*\d{1,3}\s*["']?/g, ' ')
+  .replace(/\d{1,2}\s*'\s*\d{2}/g, ' ')
+  .replace(/\d{1,3}\s*"/g, ' ');
+
+// LE SCALE
+// "12/10/8x100" sono tremila metri: dodici cento, poi dieci, poi otto.
+// "400/300/200" sono novecento. Le barre separano i pezzi della scala,
+// non sono una divisione.
+//
+// Due trappole, ed è per questo che i controlli sono così stretti:
+// · una data — "12/10/2025" — ha la stessa forma. Per questo la scala di
+//   sole distanze pretende che OGNI pezzo sia una misura vera (almeno una
+//   vasca, multiplo di 25): il 12 e il 10 di una data non lo sono.
+// · "4x50/4x25" non è una scala: dentro ci si legge "50/4x25", che come
+//   scala farebbe 1350 metri dal nulla. Per questo la scala non può
+//   cominciare subito dopo una x o una cifra.
+const SCALA_RIPETUTE = /^(\d{1,3}(?:\s*\/\s*\d{1,3}){1,9})\s*x\s*(\d{2,4})(?![\d])/i;
+const SCALA_DISTANZE = /^(\d{2,4}(?:\s*\/\s*\d{2,4}){1,9})(?![\d/])/;
+
+function scalaInTesta(pezzo) {
+  const p = senzaTempi(String(pezzo || '')).trim();
+
+  let m = p.match(SCALA_RIPETUTE);
+  if (m) {
+    const parti = m[1].split('/').map((n) => +n.trim());
+    if (parti.every((n) => n >= 1 && n <= 99)) {
+      const giri = parti.reduce((a, b) => a + b, 0);
+      return { metri: giri * almenoUnaVasca(+m[2]), resto: p.slice(m[0].length).trim() };
+    }
+  }
+
+  m = p.match(SCALA_DISTANZE);
+  if (m) {
+    const parti = m[1].split('/').map((n) => +n.trim());
+    if (parti.every((n) => n >= VASCA && n <= 1500 && n % VASCA === 0)) {
+      return { metri: parti.reduce((a, b) => a + b, 0), resto: p.slice(m[0].length).trim() };
+    }
+  }
+  return null;
+}
+
+// La stessa scala, ma cercata anche in mezzo alla riga: "PS 12/10/8x100".
+// Non può attaccarsi a una cifra o a una x che la precede — vedi sopra.
+function scalaOvunque(riga) {
+  const t = senzaTempi(String(riga || ''));
+  for (const m of t.matchAll(/(?<![\dxX,./])\d{1,4}(?:\s*\/\s*\d{1,4}){1,9}(?:\s*x\s*\d{2,4})?/g)) {
+    const letta = scalaInTesta(m[0]);
+    if (letta && letta.metri > 0 && !letta.resto) return letta;
+  }
+  return null;
+}
+
+function misuraInTesta(pezzo) {
+  const p = pezzo.trim();
+  const g = gruppoInTesta(p);
+  if (g) {
+    const s = sommaGruppo(g.dentro);
+    if (s) return { metri: g.moltiplicatore * s, resto: g.resto, gruppo: true, fattore: g.moltiplicatore };
+  }
+  const scala = scalaInTesta(p);
+  if (scala) return { metri: scala.metri, resto: scala.resto, scala: true };
+  let m;
+  m = p.match(/^(\d{1,3})\s*x\s*(\d{2,4})(?!\d)(?!\s*[x×])/i);
+  if (m) return { metri: +m[1] * almenoUnaVasca(+m[2]), resto: p.slice(m[0].length).trim(), fattore: +m[1] };
+  m = p.match(/^(\d{2,4})(?!\d)/);
+  if (m) return { metri: +m[1], resto: p.slice(m[0].length).trim(), secco: true };
+  return null;
+}
+
+// C'è una misura DA QUALCHE PARTE in questa coda? È una domanda diversa
+// da quella di trovaMisure, che chiede se la coda È una misura: qui si
+// scorre, e a ogni inizio di numero si chiede a misuraInTesta da lì in
+// avanti. Serve a distinguere "25 DO" — un tratto col suo stile — da
+// "25 remate 25 completo 25gb 25 ps", che descrive com'è fatta la
+// ripetuta e non aggiunge vasche.
+//
+// Una percentuale non è una misura: "al 75%" è un'andatura, non 75 metri.
+function codaConMisure(resto) {
+  const t = senzaTempi(resto);
+  for (const m of t.matchAll(/\d/g)) {
+    if (m.index > 0 && /\d/.test(t[m.index - 1])) continue;   // metà di un numero
+    const da = t.slice(m.index);
+    if (/^\d+\s*%/.test(da)) continue;
+    if (misuraInTesta(da)) return true;
+  }
+  return false;
+}
+
+// Somma i pezzi di primo livello: "(3x25) + (1x75) Remate SL" = 150,
+// "400 sl + 200 mix + 4x50 gambe" = 800.
+//
+// Una regola sola, uguale per ogni pezzo: un pezzo è una misura con la
+// sua coda, e la coda è descrizione. La somma NON si ferma perché un
+// pezzo ha del testo dietro — era così che il primo stile scritto
+// ("400 sl") la spegneva, e la riga valeva soltanto il suo primo numero.
+// Si ferma dove il pezzo misura non è: da lì in poi la riga racconta
+// com'è fatta la ripetuta e non aggiunge vasche.
+//
+// "300 stile" esce di qui con un pezzo solo, e un pezzo solo non è una
+// somma: a tenerlo fuori è il `quanti > 1` di trovaMisure, che lo manda
+// alla regola della misura in testa come ha sempre fatto. Prima lo
+// teneva fuori di qui una guardia sul primo pezzo, e insieme a lui
+// buttava via ogni somma che cominciasse con uno stile.
+function sommaInTesta(riga) {
+  let totale = 0;
+  let quanti = 0;
+  let gruppo = false;
+  // L'unica distinzione che resta, e non è sul posto del pezzo: è il
+  // FATTORE con cui è scritto il termine prima.
+  //
+  // Dopo un set vero il tratto secco è lavoro in più — "6x100 + 100 sl"
+  // sono settecento, e l'archivio è pieno di riscaldamenti così. Dopo un
+  // termine che vale UNA ripetuta sola, invece, il numero che segue
+  // ripete quel termine e lo descrive: in "3x25 + 1x75 Remate DO + 75 DO
+  // completo" il 75 in coda è il modo in cui si nuota l'1x75, e la riga
+  // vale 150. Lo stesso per i gruppi scritti senza moltiplicatore,
+  // "(3x25) + (1x75) Remate DO + 75 DO completo": un gruppo nudo non
+  // moltiplica niente, quindi vale uno.
+  //
+  // I tratti secchi non spostano il fattore: nella scaletta
+  // "100+75+50+25 DO" non c'è nessun set, e la somma arriva in fondo.
+  let unaSola = false;
+  // I metri del tratto scartato per il fattore 1. Non sono un errore di
+  // lettura ed è per questo che vanno detti: la riga vale meno di quanto
+  // c'è scritto sopra, e chi rilegge deve poter dare torto alla scelta.
+  let scartati = 0;
+  for (const pezzo of pezziDiPrimoLivello(riga)) {
+    const m = misuraInTesta(pezzo);
+    if (!m) break;
+    // Un tratto secco con la coda si conta se nella coda non c'è un'ALTRA
+    // misura. Se c'è, quel numero apre una descrizione ("100 + 25 remate
+    // 25 completo") e la somma finisce lì: lo chiede codaConMisure, che
+    // usa lo stesso misuraInTesta e non una definizione sua di "misura".
+    //
+    // E non si conta un numero col decimale: "2X25 12,5 Remate verticali
+    // + 12,5 RA" sono cinquanta metri, non sessantadue. Il 12,5 è mezza
+    // vasca scritta a mano, cioè il modo in cui si fa il 25 — descrizione,
+    // non un tratto in più. Si guarda qui e non in misuraInTesta, perché
+    // una riga che dice soltanto "12,5 RA" resta mezza vasca e vale 25
+    // metri per la regola della vasca.
+    const decimale = /^[,.]\d/.test(m.resto || '');
+    if (m.secco && m.resto && (unaSola || decimale || codaConMisure(m.resto))) {
+      // Degli altri due motivi non si dice niente: una coda con dentro
+      // un'altra misura e una mezza vasca col decimale sono descrizione
+      // evidente, e un avviso su ogni riga di composizione sarebbe
+      // rumore. Il fattore 1 no: quella è una convenzione, e si vede.
+      if (unaSola) scartati = m.metri;
+      break;
+    }
+    totale += m.metri;
+    quanti++;
+    if (m.fattore) unaSola = m.fattore === 1;
+    if (m.gruppo) gruppo = true;
+  }
+  return { totale, quanti, gruppo, scartati };
+}
+
+// Nel foglio del coach il set sta in fondo alla riga: la descrizione a
+// sinistra, la misura vera a destra. Quindi si cerca anche una somma che
+// arrivi FINO IN FONDO, e si prende quella che comincia più a sinistra:
+// in "100GB 50 (25 mono 25compl) 4x(100 + 2x50)" la misura è 4x(...),
+// non il 100 iniziale che descrive.
+function sommaInCoda(riga) {
+  const partenze = [...riga.matchAll(/(?:\d{1,3}\s*x\s*)?\(|\d{1,3}\s*x\s*\d{2,4}|\d{2,4}/gi)]
+    .map((m) => m.index);
+
+  for (const da of partenze) {
+    const coda = riga.slice(da);
+    const pezzi = pezziDiPrimoLivello(coda);
+    let totale = 0;
+    let quanti = 0;
+    let gruppo = false;
+    let arrivaInFondo = false;
+
+    for (let i = 0; i < pezzi.length; i++) {
+      const m = misuraInTesta(pezzi[i]);
+      if (!m) break;
+      if (m.secco && m.resto) break;
+      totale += m.metri;
+      quanti++;
+      if (m.gruppo) gruppo = true;
+      // Vale solo se l'ultimo pezzo finisce con la misura e non con
+      // altro testo: se dopo c'è ancora roba, quella non era la coda.
+      if (i === pezzi.length - 1 && !m.resto) arrivaInFondo = true;
+      if (m.resto) break;
+    }
+
+    if (arrivaInFondo && totale > 0 && (gruppo || quanti > 1)) {
+      return { totale, quanti, gruppo };
+    }
+  }
+  return { totale: 0, quanti: 0, gruppo: false };
+}
+
+
+// Dentro le parentesi: "4x25 + 1x100" = 200, "200+2x100+4x50" = 600, e
+// anche "4x50 SL + 100 B1" = 300, perché stili e zone sono etichette.
+function sommaGruppo(dentro) {
+  let somma = 0;
+  for (const pezzo of pezziDiPrimoLivello(dentro)) {
+    somma += valoreDelPezzo(pezzo.trim());
+  }
+  return somma;
+}
+
+// Le zone e gli stili sono etichette, non numeri: "100 B1" è un cento in
+// soglia, "4x50 SL" sono duecento a stile. Dopo averle tolte non deve
+// restare nessuna cifra, se no il pezzo sta descrivendo qualcosa —
+// "(50 resp 5-3 7-3)" resta una nota, non diventa mai metri.
+const ETICHETTE = /\b(A1|A2|B1|B2\+?|C1|C2|C3|D|SL|DO|RA|DE|FA|MX|PS|BN|GB|TC|CP|SUB|TAV|PINNE|PALETTE|COMPL|FFF?|PROG\w*|REGR|MONO|REMATE|SCIVOL\w*)\b/gi;
+
+function soloEtichette(resto) {
+  return !/\d/.test(resto.replace(ETICHETTE, ' '));
+}
+
+export function valoreDelPezzo(p) {
+  // Gruppo dentro il gruppo: "2x(4x25)" dentro "3x(2x(4x25) + 100)".
+  let m = p.match(/^(\d{1,3})\s*x\s*\((.+)\)\s*$/i);
+  if (m) return +m[1] * sommaGruppo(m[2]);
+  m = p.match(/^\((.+)\)\s*$/);
+  if (m) return sommaGruppo(m[1]);
+
+  // I tempi non sono distanze: 4x20" sono venti secondi, non venti metri.
+  const t = senzaTempi(p).trim();
+
+  // "2x(12/10/8x100)": la scala vive anche dentro le parentesi.
+  const scala = scalaInTesta(t);
+  if (scala && soloEtichette(scala.resto)) return scala.metri;
+
+  m = t.match(/^(\d{1,3})\s*x\s*(\d{2,4})(?!\d)(?!\s*[x\u00d7])/i);
+  if (m && soloEtichette(t.slice(m[0].length))) return +m[1] * almenoUnaVasca(+m[2]);
+
+  // La distanza attaccata allo stile: "50gb", "50sl", e con la riga sopra
+  // anche "4x50gb". Fra una cifra e una lettera non c'è confine di parola,
+  // quindi `\b` qui non scattava mai e dentro un gruppo quei cinquanta
+  // valevano zero. Basta chiedere che il numero sia finito; quello che gli
+  // sta dietro lo pesa soloEtichette, come per tutte le altre forme.
+  m = t.match(/^(\d{2,4})(?!\d)/);
+  if (m && soloEtichette(t.slice(m[0].length))) return +m[1];
+
+  return 0;
+}
+
+// Ripetizioni e distanza: "12x75", "6x100", "4x", "300", "2x50",
+// "2x(4x25 + 1x100)", e anche "PS 12x25 progr 1-4" — cioè la misura
+// scritta DOPO il lavoro, che è come scrive il coach nel foglio.
+function trovaMisure(riga) {
+  const t = riga.replace(/[×*]/g, 'x');
+
+  // 0. Le scale: "12/10/8x100" = 3000, "400/300/200" = 900. Vanno lette
+  // prima di tutto il resto, o la regola 3 legge il primo numero e basta:
+  // "12/10/8x100" diventava dodici metri, cioè una vasca.
+  const scalaTesta = scalaInTesta(t);
+  if (scalaTesta && scalaTesta.metri > 0) {
+    return { ripetizioni: 1, distanza: scalaTesta.metri, scala: true };
+  }
+
+  // 1. Somme e gruppi in testa alla riga: "3x25 + 1x75 Remate DO",
+  // "(3x25) + (1x75)", "4x(150 + 4x25) 150SL". Vale solo se i pezzi sono
+  // più d'uno o se ci sono parentesi — se no ci pensano le regole sotto,
+  // che tengono ripetizioni e distanza separate.
+  const somma = sommaInTesta(t);
+  const scartati = somma.scartati || undefined;
+  if (somma.totale > 0 && (somma.quanti > 1 || somma.gruppo)) {
+    return {
+      ripetizioni: 1, distanza: somma.totale, gruppo: somma.gruppo,
+      somma: somma.quanti > 1, scartati,
+    };
+  }
+
+  // 1b. La stessa somma, ma cercata a partire da destra: è dove il coach
+  // mette il set quando a sinistra ha scritto com'è fatto il lavoro.
+  const coda = sommaInCoda(t);
+  if (coda.totale > 0) {
+    return { ripetizioni: 1, distanza: coda.totale, gruppo: coda.gruppo, somma: coda.quanti > 1 };
+  }
+
+  // 2. La misura in testa alla riga: il caso sicuro.
+  let m = t.match(/^\s*(\d{1,3})\s*x\s*(\d{2,4})\b/i);
+  if (m) return { ripetizioni: +m[1], distanza: +m[2], scartati };
+
+  // 2. "4x", "6x (gio 4 volte)", "4 volte:", e anche "4x A2" — la zona
+  // scritta sull'apertura vale per tutto il blocco.
+  const apre = aperturaDiBlocco(t);
+  if (apre) return { moltiplicatore: apre.ripetizioni, zonaBlocco: apre.zona };
+
+  // 3. Un gruppo fra parentesi, con o senza il moltiplicatore davanti:
+  // "2x(4x25 + 1x100)" = 400, "(2x50+4x25)" da solo = 200 (il 3x della
+  // riga sopra ci si moltiplica dopo).
+  m = t.match(/^\s*(\d{2,4})(?!\d)/);              // "300 stile"
+  if (m) return { ripetizioni: 1, distanza: +m[1] };
+
+  // 4. Ultima spiaggia: NxD in mezzo alla riga. È il modo in cui scrivi
+  // tu — prima il lavoro, poi la misura — quindi va letto, ma resta
+  // giallo in revisione perché qui è più facile prendere un abbaglio.
+  // Se ce n'è più d'uno si prende l'ULTIMO: nel foglio la descrizione sta
+  // a sinistra e il set a destra, quindi la misura vera è quella in fondo.
+  // "(?!\s*x)" evita di leggere "1x 10" dentro "1x 10x100": la misura
+  // vera è quella in fondo, non la prima metà di un numero spezzato.
+  // 4a. La scala scritta dopo il lavoro: "PS 12/10/8x100".
+  const scalaDentro = scalaOvunque(t);
+  if (scalaDentro && scalaDentro.metri > 0) {
+    return { ripetizioni: 1, distanza: scalaDentro.metri, scala: true, dedotta: true };
+  }
+
+  const trovati = [...senzaTempi(t).matchAll(/(?<![\d,.])(\d{1,3})\s*x\s*(\d{2,4})(?![\d])(?!\s*[x×])/gi)];
+  if (trovati.length) {
+    const ultimo = trovati[trovati.length - 1];
+    return { ripetizioni: +ultimo[1], distanza: +ultimo[2], dedotta: true };
+  }
+
+  return null;
+}
+
 // ---------------------------------------------------------------------
-// METRI DALLA NOTAZIONE
+// LEGGI UNA RIGA — la porta pubblica del lettore.
+//
+// `trovaMisure` trova le misure, `leggiRiga` le conta applicando la
+// regola della vasca: due nomi perché sono due cose, una lettura e un
+// totale. Il totale lo faceva il ciclo del testo, ed è salito qui perché
+// la regola della vasca non è una scelta del ciclo, è della vasca.
+//
+// `null` vuol dire NON HO CAPITO, e non è zero metri: cosa farne lo
+// decide chi chiama — l'import ne fa una riga a zero da rivedere,
+// l'editor non tocca i metri che ci sono scritti.
+// ---------------------------------------------------------------------
+export function leggiRiga(riga) {
+  if (!riga) return null;
+  const m = trovaMisure(riga);
+  if (!m) return null;
+  // L'apertura di un blocco ("3x") non è un lavoro: zero metri, e il
+  // fattore lo applica chi sa in quale blocco sta la riga.
+  if (m.moltiplicatore) return { ...m, metri: 0 };
+  return { ...m, metri: (m.ripetizioni || 0) * almenoUnaVasca(m.distanza || 0) };
+}
+
+// ---------------------------------------------------------------------
+// METRI DALLA NOTAZIONE — la stessa lettura del testo, su una riga sola.
 // "1x400" = 400 · "2x200" = 400 · "4x(1x100 + 2x50)" = 800
 // "12/10/8x100" = 3000 (scaletta) · "8x50 sl" = 400 (il testo si ignora)
-// Restituisce null se non riesce a leggere: in quel caso i metri restano
-// quelli scritti a mano, senza inventare nulla.
+//
+// Qui c'era una mini-grammatica tutta sua: novanta righe che leggevano la
+// stessa notazione del lettore di testo e la leggevano diversamente, in
+// silenzio. Sulle righe della tabella di prova i due numeri erano due su
+// 37 righe di 86, e a sbagliare era sempre questa:
+//
+//   · i tempi contati come metri — 2x (4x50 SL @45" + 100 B1) @3' = 42362
+//   · le scalette — "400/300/200" = 400 invece di 900
+//   · la regola della vasca, che non aveva — "CP 2x10" = 20 invece di 50
+//   · una zona scritta da sola che diventava un metro — "B1" = 1
+//   · la x di qualunque parola, rimasta nella stringa dopo la ripulitura:
+//     "mix", "max", "mx" rompevano o troncavano l'espressione
+//
+// Ora la lettura è una, e qui resta solo la mappa dei casi — che è il
+// contratto con l'editor, non un dettaglio:
+//
+//   non ho capito        → null   i metri scritti non si toccano
+//   apertura di blocco   → null   "3x" non è un lavoro; e battendo
+//                                 "2x200" si passa per "2x", quindi
+//                                 azzerare qui cancellerebbe la riga
+//                                 che stai scrivendo
+//   capito, zero metri   → null   non c'è nessun numero da scrivere
+//   capito, N metri      → N
+//
+// Il null non è zero: "non ho capito" lascia i metri dove sono, zero
+// metri li scriverebbe. Chi tocca questa mappa tocca quella differenza.
 // ---------------------------------------------------------------------
 export function metriDaNotazione(testo) {
-  if (!testo) return null;
-
-  // Via lo stile, restano cifre e operatori. Lo spazio conta: "4x100 @1'40"
-  // deve dare 400, non attaccare il recupero alla distanza.
-  const grezzo = String(testo)
-    .toLowerCase()
-    .replace(/[×*]/g, "x")
-    .replace(/[^0-9x()+/]/g, " ");
-
-  let s = "";
-  let prof = 0;
-  for (let k = 0; k < grezzo.length; k++) {
-    const ch = grezzo[k];
-    if (ch === " ") {
-      if (prof > 0) continue;                    // dentro parentesi lo spazio non conta
-      let j = k;
-      while (j < grezzo.length && grezzo[j] === " ") j++;
-      if (j >= grezzo.length) break;
-      const dopo = grezzo[j];
-      const prima = s[s.length - 1];
-      // Lo spazio si ignora solo attorno a un operatore.
-      if ("+x/)".includes(dopo) || s === "" || "+x/(".includes(prima || "")) {
-        k = j - 1;
-        continue;
-      }
-      break;                                     // un numero staccato: l'espressione finisce qui
-    }
-    if (ch === "(") prof++;
-    if (ch === ")") prof = Math.max(0, prof - 1);
-    s += ch;
-  }
-
-  if (!s) return null;
-
-  let i = 0;
-  const fine = () => i >= s.length;
-  const guarda = () => s[i];
-
-  function numero() {
-    let n = "";
-    while (!fine() && /[0-9]/.test(guarda())) n += s[i++];
-    return n === "" ? null : parseInt(n, 10);
-  }
-
-  // fattore := numero | ( somma )
-  function fattore() {
-    if (guarda() === "(") {
-      i++;
-      const v = somma();
-      if (guarda() === ")") i++;
-      return v;
-    }
-    return numero();
-  }
-
-  // termine := [ripetizioni x] fattore   (ripetizioni anche "12/10/8")
-  function termine() {
-    const partenza = i;
-    let reps = [];
-    let n = numero();
-    if (n === null) return fattore();
-
-    reps.push(n);
-    while (guarda() === "/") {
-      i++;
-      const m = numero();
-      if (m === null) { i = partenza; return fattore(); }
-      reps.push(m);
-    }
-
-    if (guarda() === "x") {
-      i++;
-      const f = fattore();
-      if (f === null) return null;
-      return reps.reduce((t, r) => t + r * f, 0);
-    }
-
-    // Nessuna "x": era una distanza secca, e la scaletta non aveva senso.
-    if (reps.length > 1) { i = partenza; return numero(); }
-    return n;
-  }
-
-  // somma := termine { + termine }
-  function somma() {
-    let tot = termine();
-    if (tot === null) return null;
-    while (guarda() === "+") {
-      i++;
-      const t = termine();
-      if (t === null) return null;
-      tot += t;
-    }
-    return tot;
-  }
-
-  const risultato = somma();
-  if (risultato === null || !isFinite(risultato) || risultato <= 0) return null;
-  return risultato;
+  const letta = leggiRiga(testo);
+  if (!letta) return null;
+  if (letta.moltiplicatore) return null;
+  return letta.metri > 0 ? letta.metri : null;
 }
 
 // ---------------------------------------------------------------------
@@ -1591,6 +1933,11 @@ export function specializzazioniConLavoroDedicato(sezioni) {
 export const NOTE_DA_NASCONDERE = [
   'somma letta:',
   'misura letta in mezzo alla riga: controlla',
+  // "tratto non contato: 75 m dopo una ripetuta sola": dice come è stata
+  // letta la riga, non come si nuota. Nel revisore serve — è il solo
+  // posto dove si può dare torto alla lettura — sul foglio a bordo vasca
+  // no: quei metri non si fanno, e il numero giusto è già in colonna.
+  'tratto non contato:',
 ];
 
 // La nota ripulita dai promemoria di lettura. Il separatore è " · ", lo

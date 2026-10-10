@@ -6,7 +6,7 @@
 // rotto un test: hai cambiato il significato di una riga che lui usa
 // davvero.
 import { analizzaTesto } from './src/lib/analizzatore.js';
-import { metriPerSpecializzazione, durataStimata } from './src/lib/dominio.js';
+import { metriPerSpecializzazione, durataStimata, metriDaNotazione } from './src/lib/dominio.js';
 
 const prove = [
   // --- la riga che non tornava ---
@@ -133,9 +133,130 @@ const prove = [
   ['8x50 A2 + 4x25 C1', 500, 'due andature: si spezza e i metri non si perdono'],
   ['4x(8x50 B1 + 4x50 B2)', 2400, 'blocco con due andature dentro'],
   ['2x(4x50 SL + 100 B1)', 600, 'una zona sola: resta una riga'],
+  // --- il tratto secco dopo un set, dall'archivio vero ---
+  // Il riscaldamento scritto di seguito: un set, poi un tratto, poi un
+  // altro set. Il tratto dopo un set è lavoro in più, e per contarlo
+  // comanda il FATTORE del termine prima, non il posto del pezzo.
+  ['200 sl + 4x50 vv + 100 sl', 500, 'tratto secco dopo un set'],
+  ['4x100 sl + 400 gambe tav bocc', 800, 'set e poi un 400 di gambe'],
+  ['2x100sl+100 Ra+100gb do+100mx', 500, 'tutto attaccato allo stile'],
+  ['2x(3x50 sl+100gb)+100 sciolto', 600, 'gruppo col moltiplicatore, poi lo sciolto'],
+  ['6x100 + 100 sl', 700, 'il cento dopo il set è un cento in più'],
+  // Il "2x" in testa NON distribuisce sulla somma: vale sul suo 100 e
+  // basta, come nella riga qui sopra con le quattro ripetute. Se un
+  // giorno distribuisse, questa riga farebbe 600 e quella 800.
+  ['2x100 sl+100 mix+ 4x25 GB mix', 400, 'il 2x in testa non si spande sui termini dopo'],
+  // Un termine che vale UNA ripetuta sola non è un set: il numero dietro
+  // lo ripete e lo descrive. Vale col 1x scritto a mano e col gruppo
+  // nudo, che moltiplica per uno.
+  ['(3x25) + (1x75) Remate DO + 75 DO completo', 150, 'gruppi nudi: la coda descrive'],
+  ['3x25 + 75 DO completo', 150, 'dopo un set da tre, invece, il tratto conta'],
+  // La distanza attaccata allo stile: fra cifra e lettera non c'è
+  // confine di parola, e questi valevano zero.
+  ['2x(4x50gb + 100)', 600, 'NxD attaccato allo stile dentro un gruppo'],
+  ['50gb', 50, 'la distanza attaccata allo stile, da sola'],
+  // Il decimale non è un tratto in più: "12,5" è mezza vasca scritta a
+  // mano, cioè il modo in cui si fa il 25.
+  ['8x50 + 12,5 RA', 400, 'la mezza vasca in coda non aggiunge metri'],
+  ['12,5 RA', 25, 'ma da sola resta mezza vasca, e la vasca si finisce'],
 ];
 
 let male = 0;
+
+// =====================================================================
+// CASI ROSSI — le righe del riscaldamento scritte con gli stili attaccati
+// =====================================================================
+// Sette righe prese dal foglio, tutte della stessa forma: una somma di
+// tratti dove OGNI termine porta dietro lo stile, l'attrezzo o
+// l'andatura. Qui i due lettori sbagliano in punti diversi, e per
+// ragioni diverse: per questo si provano entrambi sulla stessa riga.
+//
+// I due lettori NON sono interscambiabili. `analizzaTesto` legge il testo
+// libero (import, foto) e applica la regola della vasca; `metriDaNotazione`
+// rilegge la notazione dentro l'editor e non la applica. Qui tutte le
+// distanze sono >= 25, quindi l'atteso è lo stesso per i due e le
+// differenze sono difetti, non convenzioni.
+//
+// Le tre cause, per non ricorrerci sopra una per volta:
+//
+// 1. `sommaInTesta` scarta il PRIMO termine se ha del testo dietro
+//    ("400 sl"), per via della guardia `quanti > 0` che tiene fuori
+//    "300 stile". Risultato: la somma non parte e resta il primo numero.
+// 2. `sommaInTesta` conta il termine con la coda e poi `break` (il
+//    `if (m.resto) break;` in fondo al ciclo): tutto quello che viene
+//    dopo si perde, anche quando è un set pulito.
+// 3. In `metriDaNotazione` la ripulitura tiene la "x" di QUALSIASI
+//    parola: "mix", "max", "mx" lasciano una x parassita nella stringa,
+//    e l'espressione diventa illeggibile (null) o si tronca.
+//
+// E una quarta, dentro i gruppi: `valoreDelPezzo` cerca la distanza con
+// `/^(\d{2,4})\b/`, ma fra cifra e lettera non c'è confine di parola,
+// quindi "50gb" e "50sl" valgono ZERO.
+const rossi = [
+  ['400 sl + 200 mix + 4x50 gambe', 800,
+   'stile sul primo tratto (causa 1) + coda che taglia (2) + x di "mix" (3)'],
+  ['400 sl + 4x100 mx drills + 4x50 prog interna', 1000,
+   'stile sul primo tratto (1), coda che taglia (2), x di "mx" (3)'],
+  ['200 sl + 200 pull + 4x50 mix + 4x25 prog', 700,
+   'quattro termini, ne arriva uno (1 e 2); x di "mix" (3)'],
+  ['100 sl + 100 rana', 200,
+   'la somma più corta possibile: basta lo stile sul primo (1)'],
+  ['100 sl + 4x25 Ra', 200,
+   'stile sul primo (1): il set dopo non viene nemmeno guardato'],
+  ['3x(4x25 sl max + 100 easy + pausa)', 600,
+   'analizzaTesto ci arriva; metriDaNotazione no, per la x di "max" (3)'],
+  ['2x(100 GB mix+50 do+50gb sl+50sl)', 500,
+   '"50gb" e "50sl" valgono zero nel gruppo (4); più la x di "mix" (3)'],
+];
+
+for (const [testo, atteso, cosa] of rossi) {
+  const letti = analizzaTesto(testo).metri;
+  const daNotazione = metriDaNotazione(testo);
+  if (letti !== atteso || daNotazione !== atteso) {
+    male++;
+    console.error(`✗ ROSSO: ${cosa}`);
+    console.error(`  "${testo}"`);
+    console.error(`  attesi ${atteso} m — analizzaTesto ${letti}, metriDaNotazione ${daNotazione}`);
+  }
+}
+
+// --- il tratto scartato si racconta ---
+// Quando il termine prima vale una ripetuta sola, il tratto in coda non
+// entra nei metri: "3x25 + 1x75 Remate DO + 75 DO completo" resta 150.
+// È una convenzione, non una certezza — la stessa riga con "3x25 + 75"
+// fa 150 contando il tratto — quindi la riga deve DIRLO, con i metri che
+// non sono entrati. Senza la nota quel 75 scompare e non c'è modo di
+// dare torto alla lettura rileggendo il revisore.
+const conScarto = analizzaTesto('3x25 + 1x75 Remate DO + 75 DO completo').sezioni[0].serie[0];
+if (conScarto.metri !== 150) {
+  male++;
+  console.error(`✗ il tratto dopo una ripetuta sola non va contato: 150 m attesi, ${conScarto.metri}`);
+}
+if (!/tratto non contato: 75 m/.test(conScarto.note || '')) {
+  male++;
+  console.error(`✗ la riga doveva dire i metri scartati, la nota dice "${conScarto.note || ''}"`);
+}
+
+// La stessa nota sull'altra strada: qui la somma non scatta nemmeno (un
+// termine contato solo), e la riga passa dalla regola della misura in
+// testa. Se la nota stesse in un ramo solo, metà dei casi tacerebbe.
+const scartoInTesta = analizzaTesto('1x75 Remate DO + 75 DO completo').sezioni[0].serie[0];
+if (scartoInTesta.metri !== 75 || !/tratto non contato: 75 m/.test(scartoInTesta.note || '')) {
+  male++;
+  console.error(`✗ "1x75 Remate DO + 75 DO completo": ${scartoInTesta.metri} m, nota "${scartoInTesta.note || ''}"`);
+}
+
+// E l'avviso deve restare raro, o si impara a saltarlo: una riga che non
+// scarta niente non lo porta, e nemmeno la riga di composizione, dove la
+// coda con dentro altre misure è descrizione evidente.
+for (const testo of ['6x100 + 100 sl', '100 + 25 remate 25 completo 25gb 25 ps']) {
+  const r = analizzaTesto(testo).sezioni[0].serie[0];
+  if (/tratto non contato/.test(r.note || '')) {
+    male++;
+    console.error(`✗ "${testo}" non scarta niente ma la nota dice "${r.note}"`);
+  }
+}
+
 for (const [testo, atteso, cosa] of prove) {
   const { metri } = analizzaTesto(testo);
   if (metri !== atteso) {
@@ -303,7 +424,70 @@ if (durataStimata(conMinuti).secondi !== 1800) {
   console.error('✗ i minuti della sezione a secco devono entrare nella durata stimata');
 }
 
-const quante = prove.length + 9 + 9 + 11;
+// =====================================================================
+// LE DUE STRADE, UN NUMERO SOLO
+// =====================================================================
+// analizzaTesto legge il testo, metriDaNotazione legge il campo notazione
+// dell'editor: due strade, una lettura. Dal passo del lettore unico sono
+// la stessa funzione, e questa prova lo tiene fermo riga per riga su
+// tutta la tabella — se qualcuno rimette una lettura sua da una parte,
+// qui diventa rosso.
+//
+// Le divergenze che restano sono quattro, e sono VOLUTE: nessuna riguarda
+// la notazione, tutte il contesto, che il lettore di una riga non ha e
+// non deve avere. Stanno scritte qui una per una col motivo, perché una
+// divergenza nuova deve far rumore e non nascondersi in mezzo a loro.
+const DIVERGENZE_VOLUTE = [
+  ['Partenze dal blocco',
+   'non ho capito: in lettura diventa una riga a zero da rivedere, '
+   + "nell'editor un null che lascia stare i metri scritti"],
+  ['Mx 4x(1GB max sub 1Dx 1Sx 1c)',
+   'stessa famiglia: parentesi di sola descrizione, nessuna misura dentro'],
+  ['Secco: 3x10 plank',
+   'lavoro a secco: lo decide la parola (A_SECCO) o il titolo della '
+   + "sezione, e nell'editor il campo aSecco. Il lettore di riga ci "
+   + 'legge 75 metri, ed è giusto che li legga: non sa dove sta'],
+  ['Lun 12/10/2025',
+   "la data è l'intestazione della seduta, non una serie: lo decide il "
+   + 'ciclo del testo, che ne fa un avviso e nessuna riga'],
+];
+
+{
+  const righeSingole = [...prove, ...rossi].filter(([t]) => !t.includes('\n'));
+  const volute = new Map(DIVERGENZE_VOLUTE);
+
+  for (const [testo] of righeSingole) {
+    const dalTesto = analizzaTesto(testo).metri;
+    const dallaNotazione = metriDaNotazione(testo);
+    if (volute.has(testo)) {
+      if (dalTesto === dallaNotazione) {
+        male++;
+        console.error(`✗ la divergenza voluta su "${testo}" non c'è più (${dalTesto} m da entrambe): togli la voce da DIVERGENZE_VOLUTE`);
+      }
+      continue;
+    }
+    if (dalTesto !== dallaNotazione) {
+      male++;
+      console.error(`✗ le due strade divergono su "${testo}": testo ${dalTesto} m, notazione ${dallaNotazione}`);
+      console.error('  se la divergenza è voluta va dichiarata in DIVERGENZE_VOLUTE, col motivo');
+    }
+  }
+
+  // Una voce dichiarata su una riga che non è in tabella è un filtro che
+  // non filtra niente: la prova dice tutto verde e non controlla nulla.
+  for (const [testo] of DIVERGENZE_VOLUTE) {
+    if (!righeSingole.some(([t]) => t === testo)) {
+      male++;
+      console.error(`✗ "${testo}" è dichiarata fra le divergenze volute ma non sta in tabella`);
+    }
+  }
+}
+
+// Le due strade: un confronto per riga singola, piu' le voci dichiarate e
+// il controllo che nessuna sia orfana.
+const righeSingole = [...prove, ...rossi].filter(([t]) => !t.includes('\n')).length;
+const quante = prove.length + rossi.length + 4 + 9 + 9 + 11
+  + righeSingole + DIVERGENZE_VOLUTE.length;
 if (male) {
   console.error(`\n${male} prove fallite su ${quante}. Pacchetto non costruito.`);
   process.exit(1);

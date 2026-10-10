@@ -20,6 +20,16 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.6',
+    data: '2026-10-10',
+    annuncia: true,
+    voci: [
+      'I metri vengono letti allo stesso modo ovunque: nei campi della seduta e in "Scrivi o incolla" lo stesso testo dà lo stesso numero',
+      'Corrette le somme con lo stile o la parola "mix" in mezzo: "400 sl + 200 mix + 4x50 gambe" ora conta 800 metri, prima ne contava meno',
+      'Le sedute già salvate non vengono ricalcolate: i riscaldamenti scritti come somma possono avere metri in meno. A breve uno strumento per trovarle',
+    ],
+  },
+  {
     versione: '0.56.5',
     data: '2026-10-06',
     annuncia: true,

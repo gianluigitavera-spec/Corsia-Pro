@@ -328,6 +328,15 @@ const MISTA = [
     NOTE_DA_NASCONDERE.some((p) => conSomma.note.toLowerCase().startsWith(p.toLowerCase())));
   dice('quindi sul foglio resta solo il tag', notaLeggibile(conSomma.note), 'pull');
 
+  // Il tratto scartato perché il termine prima valeva una ripetuta sola:
+  // nel revisore la nota serve — è l'unico posto dove si può dare torto
+  // alla lettura — e sul foglio a bordo vasca no. Quei metri non si
+  // nuotano, e il numero giusto è già nella colonna dei metri.
+  const conScarto = inArchivio('3x25 + 1x75 Remate DO + 75 DO completo')[0];
+  vero('in archivio la riga col tratto scartato porta la nota',
+    /tratto non contato: 75 m/.test(conScarto.note || ''));
+  dice('e sul foglio stampato non ne resta niente', notaLeggibile(conScarto.note), '');
+
   // Una riga senza promemoria resta intatta dall'inizio alla fine.
   const pulita = inArchivio('8x50 progr @1:00')[0];
   dice('una nota di solo lavoro passa intera',
