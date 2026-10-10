@@ -6,7 +6,10 @@
 // rotto un test: hai cambiato il significato di una riga che lui usa
 // davvero.
 import { analizzaTesto } from './src/lib/analizzatore.js';
-import { metriPerSpecializzazione, durataStimata, metriDaNotazione } from './src/lib/dominio.js';
+import {
+  metriPerSpecializzazione, durataStimata, metriDaNotazione,
+  normalizzaRecupero, ripartenzaDaBase,
+} from './src/lib/dominio.js';
 
 const prove = [
   // --- la riga che non tornava ---
@@ -483,11 +486,93 @@ const DIVERGENZE_VOLUTE = [
   }
 }
 
+// =====================================================================
+// GLI APICI DEL TABLET
+// =====================================================================
+// Dal campo: su tablet "@1’45" e "@5’" non vengono letti e bisogna
+// scrivere "@5.0". La tastiera non mette l'apostrofo dritto: con la
+// punteggiatura intelligente di iOS mette la virgoletta curva, e a
+// seconda del layout arrivano anche l'apice tipografico, l'accento grave
+// e quello acuto. Per chi scrive sono tutti "minuti"; per le regex no.
+//
+// Non è un difetto di un lettore: di lettori di tempo ce ne sono SETTE
+// (normalizzaRecupero, secondiDaRipartenza, inSecondi, le due
+// ripartenzaDaBase omonime, trovaRecupero, senzaTempi) e ognuno ha la sua
+// espressione. Le prove girano in ciclo sui caratteri, così la copertura
+// è l'elenco e non quattro casi scelti a mano — e l'apostrofo dritto sta
+// nel ciclo insieme agli altri, perché quello che oggi funziona deve
+// continuare a funzionare.
+//
+// I casi che fanno più male non sono quelli che non si leggono: in
+// "Scrivi o incolla" "@1’45" diventava @0:01 (un secondo) e nei metri
+// "100+75+50+25 @1’45" diventava 225, perché senzaTempi non spogliava il
+// tempo curvo e la somma si fermava prima.
+const MINUTI = ["'", '\u2019', '\u2018', '\u2032', '\u0060', '\u00b4'];
+const SECONDI = ['"', '\u201d', '\u201c', '\u2033', "''"];
+const NOMI = {
+  "'": "apostrofo dritto", '\u2019': 'virgoletta curva destra',
+  '\u2018': 'virgoletta curva sinistra', '\u2032': 'apice tipografico',
+  '\u0060': 'accento grave', '\u00b4': 'accento acuto',
+  '"': 'doppio apice dritto', '\u201d': 'doppia curva destra',
+  '\u201c': 'doppia curva sinistra', '\u2033': 'doppio apice tipografico',
+  "''": 'due apostrofi dritti',
+};
+
+let quanteTempi = 0;
+{
+  const come = (q) => `${NOMI[q]} (${JSON.stringify(q)})`;
+  const uguale = (cosa, avuto, atteso) => {
+    quanteTempi++;
+    if (JSON.stringify(avuto) !== JSON.stringify(atteso)) {
+      male++;
+      console.error(`✗ ${cosa}: atteso ${JSON.stringify(atteso)}, avuto ${JSON.stringify(avuto)}`);
+    }
+  };
+  // Otto partenze da 1:45 sono 840 secondi; da 5' sono 2400; da 45" 360.
+  const conRecupero = (rec) => [{ titolo: 'Centrale', serie: [{ notazione: '8x50', metri: 400, recupero: rec }] }];
+  const recuperoLetto = (riga) => analizzaTesto(riga).sezioni[0]?.serie[0]?.recupero || '';
+
+  for (const q of MINUTI) {
+    // --- il campo Recupero dell'editor ---
+    uguale(`campo Recupero, @1${q}45 con ${come(q)}`, normalizzaRecupero(`@1${q}45`), '@1:45');
+    uguale(`campo Recupero, @5${q} sono cinque MINUTI, con ${come(q)}`, normalizzaRecupero(`@5${q}`), '@5:00');
+    // --- la durata stimata, che da una ripartenza non letta fa zero ---
+    uguale(`durata di 8x50 @1${q}45 con ${come(q)}`, durataStimata(conRecupero(`@1${q}45`)).secondi, 840);
+    uguale(`durata di 8x50 @5${q} con ${come(q)}`, durataStimata(conRecupero(`@5${q}`)).secondi, 2400);
+    // --- "Scrivi o incolla": qui non falliva, sbagliava ---
+    uguale(`dal testo, 8x50 @1${q}45 con ${come(q)}`, recuperoLetto(`8x50 @1${q}45`), '@1:45');
+    uguale(`dal testo, 8x50 @5${q} con ${come(q)}`, recuperoLetto(`8x50 @5${q}`), '@5:00');
+    // --- il passo base @@ ---
+    uguale(`passo base @@1${q}30 su 8x150 con ${come(q)}`,
+      ripartenzaDaBase(`@@1${q}30`, '8x150')?.recupero || null, '@2:15');
+    // --- e i metri, dove il tempo non spogliato ferma la somma ---
+    uguale(`metri di "100+75+50+25 @1${q}45" con ${come(q)}`,
+      analizzaTesto(`100+75+50+25 @1${q}45`).metri, 250);
+    uguale(`metri di "200+50 gambe @1${q}30" con ${come(q)}`,
+      analizzaTesto(`200+50 gambe @1${q}30`).metri, 250);
+  }
+
+  for (const d of SECONDI) {
+    uguale(`campo Recupero, @45${d} sono quarantacinque SECONDI, con ${come(d)}`,
+      normalizzaRecupero(`@45${d}`), '@0:45');
+    uguale(`durata di 8x50 @45${d} con ${come(d)}`, durataStimata(conRecupero(`@45${d}`)).secondi, 360);
+    uguale(`dal testo, 8x50 @45${d} con ${come(d)}`, recuperoLetto(`8x50 @45${d}`), '@0:45');
+  }
+
+  // Minuti e secondi insieme, in tutte le combinazioni: è come si scrive
+  // sul foglio ("@1'45\"") e come lo scrive il tablet ("@1’45”").
+  for (const q of MINUTI) {
+    for (const d of SECONDI) {
+      uguale(`campo Recupero, @1${q}45${d}`, normalizzaRecupero(`@1${q}45${d}`), '@1:45');
+    }
+  }
+}
+
 // Le due strade: un confronto per riga singola, piu' le voci dichiarate e
 // il controllo che nessuna sia orfana.
 const righeSingole = [...prove, ...rossi].filter(([t]) => !t.includes('\n')).length;
 const quante = prove.length + rossi.length + 4 + 9 + 9 + 11
-  + righeSingole + DIVERGENZE_VOLUTE.length;
+  + righeSingole + DIVERGENZE_VOLUTE.length + quanteTempi;
 if (male) {
   console.error(`\n${male} prove fallite su ${quante}. Pacchetto non costruito.`);
   process.exit(1);

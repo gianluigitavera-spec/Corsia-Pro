@@ -20,6 +20,14 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.8',
+    data: '2026-10-10',
+    voci: [
+      'Su tablet le ripartenze si scrivono come su carta: @1’45, @5’ e @45” vengono lette anche con gli apici della tastiera del tablet, non serve più scrivere @5.0',
+      'La Dashboard si apre su Generale, il carico comune a tutta la squadra',
+    ],
+  },
+  {
     versione: '0.56.7',
     data: '2026-10-10',
     voci: [

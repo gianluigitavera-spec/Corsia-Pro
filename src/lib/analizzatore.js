@@ -3,7 +3,7 @@
 // Il lettore di una riga vive in dominio.js, insieme a metriDaNotazione:
 // l'arco di import va solo in questo verso, e di cicli non ce n'è.
 import {
-  leggiRiga, pezziDiPrimoLivello, gruppoInTesta, valoreDelPezzo,
+  leggiRiga, pezziDiPrimoLivello, gruppoInTesta, valoreDelPezzo, apiciDritti,
 } from './dominio.js';
 
 // =====================================================================
@@ -182,15 +182,16 @@ const SOLA_ZONA = /^\s*(A1|A2|B1|B2\+?|C1|C2|C3|D)\s*:?\s*$/i;
 
 // Passo base: "@@1:30" su un 150 → @2:15. Stessa regola dell'editor.
 function ripartenzaDaBase(riga, distanza) {
-  const m = riga.match(/@@\s*(\d{1,2})[:.'](\d{2})/);
+  const m = apiciDritti(riga).match(/@@\s*(\d{1,2})[:.'](\d{2})/);
   if (!m || !distanza) return null;
   const base = +m[1] * 60 + +m[2];
   const totale = Math.max(5, Math.round((base * distanza / 100) / 5) * 5);
   return `@${Math.floor(totale / 60)}:${String(totale % 60).padStart(2, '0')}`;
 }
 
-function trovaRecupero(riga) {
+function trovaRecupero(testo) {
   // @1:30 · @0:50 · @1.40 · @1'40" · @3' (tre minuti) · rec 3' · rec 5 min
+  const riga = apiciDritti(testo);
   let m = riga.match(/@\s*(\d{1,2})[:.'](\d{2})"?/);
   if (m) return `@${m[1]}:${m[2]}`;
   m = riga.match(/@\s*(\d{1,2})\s*'(?!\d)/);          // l'apice segna i minuti
@@ -262,7 +263,7 @@ function righeConAndature(riga) {
   let dentro = t;
   const g = gruppoInTesta(t);
   if (g) {
-    const dopo = g.resto.replace(/@+\s*\d{1,2}\s*[:.']\s*\d{2}"?/g, ' ')
+    const dopo = apiciDritti(g.resto).replace(/@+\s*\d{1,2}\s*[:.']\s*\d{2}"?/g, ' ')
       .replace(/@+\s*\d{1,3}\s*["']?/g, ' ')
       .trim();
     if (dopo) return null;

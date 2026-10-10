@@ -20,7 +20,12 @@ const indietro = (g) => {
 
 export default function Dashboard({ societa, zone, categorie, stagione, puoScrivere, apriSeduta, gruppi = [], codiciGruppi }) {
   const [giorni, setGiorni] = useState(28);
-  const [spec, setSpec] = useState('Mezzofondo');
+  // Si apre su Generale: è il carico comune — riscaldamento più le parti
+  // per tutti — e non il ramo di una specializzazione. Era 'Mezzofondo',
+  // e chi apriva l'app vedeva il carico di un gruppo che magari non
+  // allena credendo di guardare la squadra: è la stessa trappola del "C3
+  // dei velocisti che spariva", che era il menu fermo su Mezzofondo.
+  const [spec, setSpec] = useState('Generale');
   const [righe, setRighe] = useState([]);
   const [errore, setErrore] = useState(null);
   const [caricamento, setCaricamento] = useState(true);

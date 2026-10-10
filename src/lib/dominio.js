@@ -157,7 +157,33 @@ export function gruppoInTesta(p) {
 // I tempi non sono distanze: "1'40", '45"', "@1:30" vanno tolti prima di
 // cercare le misure, o un recupero passa per una vasca. Sta qui in alto
 // perché lo usano anche le scale, poco più sotto.
-const senzaTempi = (t) => t
+// ---------------------------------------------------------------------
+// GLI APICI, RADDRIZZATI
+//
+// Le tastiere dei tablet non scrivono ' e ": con la punteggiatura
+// intelligente di iOS mettono la virgoletta curva, e a seconda del
+// layout arrivano l'apice tipografico, l'accento grave e quello acuto.
+// Per chi scrive sono tutti minuti e secondi; per le regex no, e
+// "@1’45" non veniva letto — o peggio, leggendo il testo diventava
+// @0:01, un secondo.
+//
+// L'elenco dei caratteri sta QUI, una volta sola. I lettori di tempo
+// sono otto e ognuno ha la sua espressione: ciascuno chiama questa
+// funzione in testa, così un carattere nuovo si aggiunge in un posto e
+// non in otto. Unificare gli otto lettori è un altro lavoro.
+//
+// I due apostrofi dritti diventano un doppio apice: "@45''" è come si
+// scrivono i secondi quando sulla tastiera il doppio non si trova.
+// ---------------------------------------------------------------------
+const APICI_SINGOLI = /[\u2018\u2019\u2032\u0060\u00b4]/g;   // ‘ ’ ′ ` ´
+const APICI_DOPPI = /[\u201c\u201d\u2033]/g;                 // “ ” ″
+
+export const apiciDritti = (t) => String(t ?? '')
+  .replace(APICI_SINGOLI, "'")
+  .replace(APICI_DOPPI, '"')
+  .replace(/''/g, '"');
+
+const senzaTempi = (t) => apiciDritti(t)
   .replace(/@+\s*\d{1,2}\s*[:.']\s*\d{2}/g, ' ')
   .replace(/@+\s*\d{1,3}\s*["']?/g, ' ')
   .replace(/\d{1,2}\s*'\s*\d{2}/g, ' ')
@@ -537,7 +563,7 @@ export function metriDaNotazione(testo) {
 // RECUPERO — si scrive @1'40, e chi scrive 1'40 lo ottiene lo stesso.
 // ---------------------------------------------------------------------
 export function normalizzaRecupero(testo) {
-  let t = String(testo || "").trim();
+  let t = apiciDritti(testo).trim();
   if (!t) return "";
   // "3'" da solo sono tre MINUTI: l'apice è il segno dei minuti.
   t = t.replace(/^@?\s*(\d{1,2})\s*'\s*$/, "@$1:00");
@@ -545,6 +571,13 @@ export function normalizzaRecupero(testo) {
   t = t.replace(/(\d{1,2})\s*['.]\s*(\d{2})\s*"?/, "$1:$2");
   // "@3'" senza secondi vuol dire tre minuti, non tre secondi.
   t = t.replace(/^@?(\d{1,2})'\s*$/, "@$1:00");
+  // '45"' sono quarantacinque SECONDI: il doppio apice è il loro segno,
+  // e qui non lo leggeva nessuno — il campo si teneva '@45"' e la durata
+  // ci faceva zero. Oltre il minuto si riporta in minuti: 90" = @1:30.
+  t = t.replace(/^@?\s*(\d{1,3})\s*"\s*$/, (_, s) => {
+    const n = Number(s);
+    return `@${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+  });
   return t.startsWith("@") ? t : "@" + t;
 }
 
@@ -1692,9 +1725,10 @@ export function distanzaSingola(notazione) {
 }
 
 const inSecondi = (testo) => {
-  const m = String(testo || '').match(/(\d{1,2})[:.'](\d{2})/);
+  const t = apiciDritti(testo);
+  const m = t.match(/(\d{1,2})[:.'](\d{2})/);
   if (m) return +m[1] * 60 + +m[2];
-  const soli = String(testo || '').match(/^(\d{1,3})$/);
+  const soli = t.match(/^(\d{1,3})$/);
   return soli ? +soli[1] : null;
 };
 
@@ -1706,7 +1740,7 @@ const inTempo = (secondi) => {
 // Restituisce { recupero, base } oppure null se non è una base.
 export function ripartenzaDaBase(testo, notazione, suMetriPredefiniti = 100) {
   // "@@2:00" = base sui 100 · "@@0:35/25" = base sui 25
-  const m = String(testo || '').trim().match(/^@@\s*([^/]+?)(?:\s*\/\s*(\d{2,3}))?$/);
+  const m = apiciDritti(testo).trim().match(/^@@\s*([^/]+?)(?:\s*\/\s*(\d{2,3}))?$/);
   if (!m) return null;
   const suMetri = m[2] ? +m[2] : suMetriPredefiniti;
   const base = inSecondi(m[1]);
@@ -1742,7 +1776,7 @@ export function dataItLunga(iso) {
 // inventare un'andatura.
 // ---------------------------------------------------------------------
 const secondiDaRipartenza = (testo) => {
-  const t = String(testo || "").replace("@", "").trim();
+  const t = apiciDritti(testo).replace("@", "").trim();
   let m = t.match(/^(\d{1,2})[:.'](\d{2})/);
   if (m) return +m[1] * 60 + +m[2];
   m = t.match(/^(\d{1,2})'\s*$/);              // "3'" = tre minuti
