@@ -20,6 +20,13 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.9',
+    data: '2026-10-12',
+    voci: [
+      'Corretto lo schermo bianco aprendo "Scrivi o incolla"',
+    ],
+  },
+  {
     versione: '0.56.8',
     data: '2026-10-10',
     voci: [

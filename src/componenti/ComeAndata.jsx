@@ -28,6 +28,21 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
     setSalvato(true);
   }, [seduta?.id]);
 
+  // Rete di sicurezza: se esci con qualcosa in sospeso, parte lo stesso.
+  // Sta SOPRA il return di sotto, come ogni hook: Appello monta questa
+  // scheda solo quando c'è una seduta, quindi oggi nessun render passa
+  // davvero dal return — ma un hook sotto un return è la forma
+  // dell'errore #300, e non si tiene perché "tanto non ci arriva".
+  // Le dipendenze stanno in un ref e non nell'array: se ci fossero, la
+  // pulizia scatterebbe a ogni tasto e salverebbe di continuo, che è
+  // esattamente quello che il tasto Salva serviva a evitare.
+  const ultimo = useRef({ salvato: true, righe: {}, nota: '' });
+  ultimo.current = { salvato, righe, nota };
+  useEffect(() => () => {
+    const u = ultimo.current;
+    if (!u.salvato) salva(u.righe, u.nota);
+  }, []);
+
   if (!seduta) return null;
 
   const sezioni = seduta.sezioni || [];
@@ -37,6 +52,7 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
   const perZona = scartoPerZona(sezioni, { righe });
 
   async function salva(nuoveRighe, nuovaNota) {
+    if (!seduta?.id) return;
     setSalvato(false);
     // Una seduta andata come scritta non salva niente: svolto resta
     // vuoto invece di riempirsi di righe uguali al programma. La regola
@@ -57,17 +73,6 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
     setRighe(nuove);
     setSalvato(false);
   }
-
-  // Rete di sicurezza: se esci con qualcosa in sospeso, parte lo stesso.
-  // Le dipendenze stanno in un ref e non nell'array: se ci fossero, la
-  // pulizia scatterebbe a ogni tasto e salverebbe di continuo, che è
-  // esattamente quello che il tasto Salva serviva a evitare.
-  const ultimo = useRef({ salvato: true, righe: {}, nota: '' });
-  ultimo.current = { salvato, righe, nota };
-  useEffect(() => () => {
-    const u = ultimo.current;
-    if (!u.salvato) salva(u.righe, u.nota);
-  }, []);
 
   return (
     <div className="scheda" style={{ marginTop: 14 }}>

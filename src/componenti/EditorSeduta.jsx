@@ -394,6 +394,21 @@ export default function EditorSeduta({
 
   const svuotaAtleti = () => aggiorna((s) => { s.atleti = null; });
 
+  // L'elenco mostra le sedute del gruppo scelto in testata. Prima le
+  // mostrava tutte: questo componente era il solo a non ricevere i codici,
+  // e con gli Esordienti A selezionati in elenco comparivano anche le
+  // sedute degli Esordienti B.
+  //
+  // STA QUI, SOPRA OGNI RETURN, e non accanto all'elenco che filtra: con
+  // la 0.56.7 era sotto il return di "Scrivi o incolla", quindi aprendo
+  // quella vista React contava un hook in meno e la schermata usciva
+  // bianca con l'errore #300 — mentre l'editor a blocchi funzionava.
+  // Adesso lo dice anche eslint (react-hooks/rules-of-hooks).
+  const elencoVisto = useMemo(
+    () => elenco.filter((s) => sedutaNelGruppo(s, codiciGruppi)),
+    [elenco, codiciGruppi],
+  );
+
   // Dal testo libero all'editor: stessa seduta, stessa forma.
   if (daTesto) {
     return (
@@ -418,15 +433,6 @@ export default function EditorSeduta({
       />
     );
   }
-
-  // L'elenco mostra le sedute del gruppo scelto in testata. Prima le
-  // mostrava tutte: questo componente era il solo a non ricevere i codici,
-  // e con gli Esordienti A selezionati in elenco comparivano anche le
-  // sedute degli Esordienti B.
-  const elencoVisto = useMemo(
-    () => elenco.filter((s) => sedutaNelGruppo(s, codiciGruppi)),
-    [elenco, codiciGruppi],
-  );
 
   // ------------------------------------------------------------- elenco
   if (!seduta) {
