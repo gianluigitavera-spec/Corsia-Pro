@@ -283,6 +283,114 @@ lettore pensa, non quello che l'allenatore ha programmato. L'invariante
 metriLetti`» è fissata in `prova_blocchi.mjs`: se si rompe, ogni riga
 sembra corretta a mano.
 
+**"+ tratto" dopo un set è lavoro in più.** Convenzione dell'allenatore:
+"6x100 + 100 sl" fa 700, "4x50 @45" + 100 B1" fa 300, "4x50 @1'30 SL +
+50GB TAV Bocc + tavola" fa 250. La ripartenza, gli attrezzi e una coda
+di testo non cambiano niente. Durante la 0.56.11 quest'ultima riga era
+stata data come 200, ed era un errore di scrittura dell'atteso: la
+regola è giusta. L'ipotesi «la ripartenza nel primo termine vuol dire
+che il resto descrive» va contro "2x (4x50 SL @45" + 100 B1)", che fa
+300 a giro: non si rimette. Le
+eccezioni sono tre, e sono tutte scritte in `sommaInTesta`: il termine
+prima vale una ripetuta sola (`1x75`, gruppo senza moltiplicatore), il
+tratto ha il decimale (`12,5`), oppure la coda del tratto contiene
+un'altra misura.
+
+**La coda di un set che contiene un'altra misura lo descrive (A′, dalla
+0.56.11).** "6x(1x100 + 4x25) 100MX + 4x25 SL super sub" fa 1200, "8x50
+MX 25GB lat + 25MX 2x" fa 400: il "+" sta dentro la descrizione. Il set
+si conta, la somma finisce lì, e la riga **non** si cerca anche da
+destra con `sommaInCoda`, che troverebbe i numeri della descrizione
+("8x75 MX 50+25" diventava 75). Sulle prove esistenti non cambia niente;
+sull'archivio di prova (il CSV dei blocchi di SwimCoach, 2935 righe)
+fa sparire 153 disaccordi col foglio e ne crea uno.
+
+Quell'uno è il **limite noto**: "1x400 palette SL 400 + 2x200 + 4x100 +
+8x50" fa 1600 nel foglio, e il lettore legge 400. Il 400 in coda ripete
+la distanza invece di descriverne una parte. Distinguerlo con "la misura
+in coda è più corta della ripetuta" ne rompeva 25: non si fa. La lettura
+resta 400 e `leggiRiga` la dichiara `dubbia` quando valgono **tutte e
+due** le condizioni: la coda ripete la distanza della ripetuta, e dopo
+il "+" comincia un set. Con la prima sola scattava su 13 righe
+dell'archivio e 12 erano giuste ("8x25 25 apnea + 25 completo": dopo il
+"+" viene un tratto). `dubbia` la usa solo il controllo delle sedute;
+revisore ed editor non la mostrano. Il limite è fissato in
+`prova_analizzatore.mjs`: se un giorno la riga vale 1600, la prova
+salta per dire che il limite è stato tolto.
+
+**Controlla le sedute (0.56.11).** `metriDaRicontrollare` in `dominio.js`
+confronta i metri salvati con quello che la notazione dà oggi, fattore
+del blocco compreso; `applicaRicontrollo` e `applicaRicontrolloInBlocco`
+rifanno il controllo e scrivono solo la riga promessa. Come
+`apertureNude`: la stessa funzione trova e applica, così il numero
+promesso è quello che arriva. Prove in `prova_controllo.mjs`.
+
+Due famiglie di righe, due domande diverse:
+
+- **Con `metriLetti`.** `metri !== metriLetti` è una scelta
+  dell'allenatore e non si propone mai di cambiarla. Si guarda solo se
+  il lettore di oggi legge diverso da `metriLetti`:
+  `lettore-cambiato` (mai corretta: si propone la lettura di oggi) o
+  `corretta-a-mano` (si segnala, senza numero e senza tasto). Null e
+  zero valgono uguale: l'import scrive 0 dove l'editor scriverebbe null.
+- **Senza `metriLetti`** (prima della 0.56.10). `lettura-vecchia` si
+  propone, anche con "aggiorna tutte"; `metri-fissi` (`metriManuali` o
+  `perStile`) e `a-zero` solo una per una. Le sedute importate prima
+  della 0.56.10 hanno `metriManuali` su tutte le righe: per loro
+  "aggiorna tutte" non c'è mai, ed è voluto.
+
+Niente numero, mai: la notazione che oggi non si legge (`non-capita`)
+e la lettura `dubbia` (`lettura-dubbia`). Zero sarebbe un numero
+inventato.
+
+Si salta senza segnalare: il lavoro a secco, le aperture, `senzaMetri`,
+le composizioni (col flag o ricostruite: sotto un NxD, righe a zero la
+cui lettura somma D), la notazione che non vale metri. Torna in
+`saltate`, per contarla: la seduta da SwimCoach (scritta con le regole
+di un'altra app), la sezione che `apertureNude` segnala (prima i
+blocchi, o due avvisi propongono numeri diversi sulle stesse righe) e la
+riga col `moltiplicato` diverso dal blocco in cui sta (scrivere i metri
+lasciando il fattore sbagliato la peggiorerebbe; la sistema il primo
+ritocco nella sezione).
+
+**Mai `svolto`, mai senza Salva.** La riga con una chiave in `svolto`
+non ha tasto: il rilevato può essere stato scritto partendo dal numero
+sbagliato, e lo sa solo chi c'era. Il tasto scrive nella bozza; prima di
+Salva l'editor chiede conferma dicendo quanti metri cambiano e in quale
+settimana, perché sono date storiche e Volumi e Dashboard di quei giorni
+si muovono. Applicare scrive `metri`, e `metriLetti` accanto solo sulle
+righe che lo avevano già: nessun riempimento retroattivo.
+`metriManuali` resta dov'è. In sola lettura il riquadro si vede, i tasti
+no. In Calendario il conto è sulla stagione intera, una lettura per
+società e stagione, e sta in un `useMemo`: disegnare il calendario non
+lo rifà.
+
+**I blocchi importati prima della 0.54 si ricostruiscono.** Lì il "3x"
+è arrivato senza `apreBlocco` e le figlie senza `moltiplicato`, ma coi
+metri già moltiplicati e fissati: `apertureNude` non li vede, perché non
+manca niente, e nessun tasto li sistema. Il controllo prende il fattore
+dalla riga di apertura (`aperturaDiBlocco`) fino alla prossima apertura
+o a fine sezione, come `figlieDelBlocco`. Le figlie sono sempre
+`metri-fissi`, una per una e mai "tutte", e portano `bloccoRicostruito:
+N` perché l'editor dica «controlla che la riga fosse dentro il ×N».
+
+Il confine è dedotto, non scritto: nel testo "3x / 8x50 / (riga vuota) /
+200" la riga vuota chiudeva il blocco, ma in archivio non c'è. Quindi
+**una riga salvata esattamente a un giro di oggi chiude il blocco**, da
+lì in giù: il lettore di allora dentro il blocco moltiplicava sempre.
+Il prezzo: una figlia letta male, il cui numero sbagliato coincide per
+caso con un giro, chiude il blocco troppo presto. Si perde una
+segnalazione, non arriva un numero sbagliato. Restano non riconoscibili
+dai dati: un "3x" ritoccato a mano dopo l'import, le aperture che il
+lettore di allora leggeva diversamente, le righe spostate nel blocco
+prima della 0.55. Per quelle c'è il confronto riga per riga.
+
+Un pericolo che non è di questo controllo: un blocco importato prima
+della 0.48 **senza** `metriManuali` lo segnala `apertureNude`, e il suo
+tasto triplicherebbe righe già moltiplicate. Dalla 0.48 l'import ha
+sempre messo `metriManuali`, quindi riguarda solo sedute più vecchie del
+repo.
+
 **Cambiare la specializzazione di un atleta gli sposta anche i volumi
 storici.** `sezionePer()` in `dominio.js` confronta stringhe esatte fra la
 specializzazione dell'atleta e i `destinatari` scritti nella sezione. Chi
