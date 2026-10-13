@@ -20,6 +20,15 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.11',
+    data: '2026-10-13',
+    annuncia: true,
+    voci: [
+      'Nuovo in Calendario: "Controlla le sedute" trova le sedute già salvate con i metri letti in modo diverso da oggi. Ogni riga mostra i metri salvati e quelli che si leggono adesso: aggiorni tu, una per una, e non cambia niente finché non salvi',
+      'Corretta la lettura delle righe con una descrizione dopo il set: "8x50 MX 25GB lat + 25MX" vale 400 metri, non 425',
+    ],
+  },
+  {
     versione: '0.56.10',
     data: '2026-10-12',
     voci: [

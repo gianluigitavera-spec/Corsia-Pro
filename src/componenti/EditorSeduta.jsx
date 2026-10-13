@@ -16,6 +16,7 @@ import {
   svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
   svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
   metriSvoltiDiRiga, metriSvoltiDiSezione,
+  metriDaRicontrollare, applicaRicontrollo, applicaRicontrolloInBlocco, lunediDi,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA, TINTE } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
@@ -36,6 +37,30 @@ function coloreSezione(sezione, zone) {
   const vincente = Object.entries(conta).sort((a, b) => b[1] - a[1])[0];
   return TINTA_FAMIGLIA[vincente?.[0]] || 'var(--ciano)';
 }
+
+const metriIt = (m) => (Number(m) || 0).toLocaleString('it-IT');
+const conSegno = (m) => (m > 0 ? `+${metriIt(m)}` : m < 0 ? `−${metriIt(-m)}` : '0');
+
+// Perché una riga del controllo non ha il tasto, o perché va guardata da
+// sola. Le parole dell'allenatore, non i nomi dei casi.
+const MOTIVI = {
+  'corretta-a-mano': 'corretta a mano: resta la tua',
+  'non-capita': 'oggi la notazione non si legge: guardala tu',
+  'lettura-dubbia': 'lettura dubbia: il «+» potrebbe aggiungere lavoro, guardala tu',
+  svolto: 'già svolta: con i metri rilevati si guarda a mano',
+  'sola-lettura': 'sola lettura',
+};
+const CASI_DA_SOLI = {
+  'metri-fissi': 'metri fissati a mano o all’import: decidi tu',
+  'a-zero': 'a zero in archivio',
+};
+const motivoRicontrollo = (v) => MOTIVI[v.perche] || CASI_DA_SOLI[v.caso] || null;
+
+const SALTATE = {
+  swimcoach: 'seduta arrivata da SwimCoach, scritta con le sue regole',
+  blocchi: 'prima vanno sistemati i blocchi ripetuti',
+  fattore: 'il fattore del blocco è da correggere (si sistema da sé ritoccando una riga della sezione)',
+};
 
 const muovi = (arr, da, a) => {
   if (a < 0 || a >= arr.length) return arr;
@@ -216,6 +241,53 @@ export default function EditorSeduta({
   );
 
   // ------------------------------------------------------------------
+  // CONTROLLA LE SEDUTE: i metri salvati contro quello che la notazione
+  // dà oggi. Il tasto scrive nella bozza, come quello dei blocchi; in
+  // archivio si va solo con Salva, e prima di Salva si dice quanti metri
+  // cambiano e in quale settimana — sono date storiche, e Volumi e
+  // Dashboard di quei giorni si muovono.
+  // ------------------------------------------------------------------
+  const controllo = useMemo(
+    () => (seduta ? metriDaRicontrollare(seduta, { puoScrivere }) : { righe: [], saltate: [] }),
+    [seduta, puoScrivere]
+  );
+  const [ricontrollate, setRicontrollate] = useState([]);   // { delta, zona } per riga aggiornata
+  useEffect(() => { setRicontrollate([]); }, [seduta?.id]);
+
+  // Si lavora su una copia della seduta che si vede: il delta annotato è
+  // quello della funzione che ha scritto, non una stima fatta a parte.
+  const aggiornaRiga = (v) => {
+    const c = structuredClone(seduta);
+    const zona = c.sezioni[v.sezN]?.serie[v.serM]?.zona || '';
+    if (!applicaRicontrollo(c, v.sezN, v.serM, { puoScrivere })) return;
+    setSeduta(c);
+    setRicontrollate((r) => [...r, { delta: v.delta, zona }]);
+  };
+  const aggiornaTutte = () => {
+    const c = structuredClone(seduta);
+    const voci = metriDaRicontrollare(c, { puoScrivere }).righe
+      .filter((v) => v.tutteInsieme)
+      .map((v) => ({ delta: v.delta, zona: c.sezioni[v.sezN]?.serie[v.serM]?.zona || '' }));
+    if (!applicaRicontrolloInBlocco(c, { puoScrivere })) return;
+    setSeduta(c);
+    setRicontrollate((r) => [...r, ...voci]);
+  };
+
+  // Le righe che il controllo non ha guardato, e perché: si vedono, se no
+  // "niente da segnalare" sembrerebbe "tutto in regola".
+  const nonControllate = useMemo(() => {
+    const conta = {};
+    for (const s of controllo.saltate) {
+      const quante = s.perche === 'fattore' ? 1
+        : s.perche === 'swimcoach'
+          ? (seduta?.sezioni || []).reduce((t, z) => t + (z.serie || []).length, 0)
+          : (seduta?.sezioni?.[s.sezN]?.serie || []).length;
+      conta[s.perche] = (conta[s.perche] || 0) + quante;
+    }
+    return Object.entries(conta);
+  }, [controllo, seduta?.sezioni]);
+
+  // ------------------------------------------------------------------
   // Spostare e cancellare: le chiavi di svolto viaggiano con le righe.
   // Sempre dentro lo stesso aggiorna() che muove le righe — in due tempi
   // esisterebbe un istante in cui un salvataggio parte con le chiavi
@@ -303,6 +375,7 @@ export default function EditorSeduta({
   }, [seduta?.id]);
 
   async function salva() {
+    if (ricontrollate.length && !window.confirm(avvisoRicontrollo())) return;
     setSalvataggio(true);
     setMessaggio(null);
     try {
@@ -314,6 +387,7 @@ export default function EditorSeduta({
       api.buttaBozza(`${societa.id}:nuova`);
       api.buttaBozza(`${societa.id}:${salvata.id}`);
       setSeduta(salvata);
+      setRicontrollate([]);
       await ricarica();
       setMessaggio({ tipo: 'ok', testo: "Seduta salvata: la trovi nell'elenco e sul calendario." });
     } catch (e) {
@@ -322,6 +396,24 @@ export default function EditorSeduta({
         : e.message;
       setMessaggio({ tipo: 'errore', testo });
     } finally { setSalvataggio(false); }
+  }
+
+  // Quanti metri cambiano e dove, detto in numeri prima di scriverli.
+  function avvisoRicontrollo() {
+    const totale = ricontrollate.reduce((t, r) => t + r.delta, 0);
+    const perZona = {};
+    for (const r of ricontrollate) {
+      const z = r.zona || 'senza zona';
+      perZona[z] = (perZona[z] || 0) + r.delta;
+    }
+    const zone = Object.entries(perZona).filter(([, d]) => d !== 0);
+    const dove = zone.length === 1
+      ? `, tutti in ${zone[0][0]}`
+      : zone.length ? ` (${zone.map(([z, d]) => `${z} ${conSegno(d)}`).join(', ')})` : '';
+    const n = ricontrollate.length;
+    return `Hai aggiornato i metri di ${n === 1 ? 'una riga' : `${n} righe`}: `
+      + `${conSegno(totale)} m nella settimana del ${dataIt(lunediDi(seduta.data))}${dove}.\n\n`
+      + 'Salvando cambiano Volumi, Dashboard e carico atleti di quella settimana. Procedo?';
   }
 
   const senzaDestinatario = seduta && !(seduta.categorie || []).length;
@@ -747,6 +839,74 @@ export default function EditorSeduta({
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {(controllo.righe.length > 0 || ricontrollate.length > 0 || nonControllate.length > 0) && (
+          <div className="corpo" style={{ paddingTop: 0 }}>
+            {controllo.righe.length > 0 && (
+              <div className="avviso">
+                <AlertTriangle size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
+                <b>
+                  {controllo.righe.length === 1
+                    ? 'Una riga ha metri diversi da quelli che la notazione dà oggi.'
+                    : `${controllo.righe.length} righe hanno metri diversi da quelli che la notazione dà oggi.`}
+                </b>
+                {controllo.righe.map((v) => (
+                  <div key={`${v.sezN}-${v.serM}`} className="riga-nuda">
+                    <span>
+                      <b>{v.sezione}</b> · <span className="mono">{v.notazione}</span> ·{' '}
+                      salvati <b>{metriIt(v.metri)}</b> · oggi si legge <b>{v.oggi === null ? '—' : metriIt(v.oggi)}</b>
+                      {v.caso === 'corretta-a-mano' && (
+                        <span style={{ color: 'var(--testo-3)' }}> (letti allora {metriIt(v.metriLetti)})</span>
+                      )}
+                      {motivoRicontrollo(v) && (
+                        <span style={{ color: 'var(--testo-3)' }}> · {motivoRicontrollo(v)}</span>
+                      )}
+                      {v.bloccoRicostruito && (
+                        <span style={{ display: 'block', color: 'var(--testo-3)', fontSize: 12.5 }}>
+                          Blocco ricostruito dall'import: controlla che la riga fosse dentro il ×{v.bloccoRicostruito}.
+                        </span>
+                      )}
+                    </span>
+                    {v.applicabile && (
+                      <button className="mini" onClick={() => aggiornaRiga(v)}>
+                        Aggiorna a {metriIt(v.proposta)} m
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {controllo.righe.some((v) => v.tutteInsieme) && (
+                  <div className="riga-nuda">
+                    <span style={{ color: 'var(--testo-3)' }}>
+                      Le righe coi metri decisi a mano restano fuori: quelle si guardano una per una.
+                    </span>
+                    <button className="mini" onClick={aggiornaTutte}>
+                      Aggiorna tutte ({controllo.righe.filter((v) => v.tutteInsieme).length})
+                    </button>
+                  </div>
+                )}
+                <div style={{ color: 'var(--testo-3)', fontSize: 12.5, marginTop: 8 }}>
+                  I metri salvati li ha scritti una versione del lettore più vecchia di quella di
+                  oggi. Aggiornare cambia i metri di quella data: niente va in archivio finché non premi Salva.
+                </div>
+              </div>
+            )}
+            {ricontrollate.length > 0 && (
+              <p style={{ fontSize: 12.5, color: 'var(--testo-3)', margin: '8px 0 0' }}>
+                {ricontrollate.length === 1 ? 'Aggiornata una riga' : `Aggiornate ${ricontrollate.length} righe`},{' '}
+                {conSegno(ricontrollate.reduce((t, r) => t + r.delta, 0))} m: si scrivono con Salva.
+              </p>
+            )}
+            {nonControllate.length > 0 && (
+              <p style={{ fontSize: 12.5, color: 'var(--testo-3)', margin: '8px 0 0' }}>
+                {nonControllate.map(([perche, n]) => (
+                  <span key={perche} style={{ display: 'block' }}>
+                    {n === 1 ? 'Una riga non controllata' : `${n} righe non controllate`}: {SALTATE[perche] || perche}.
+                  </span>
+                ))}
+              </p>
+            )}
           </div>
         )}
       </div>

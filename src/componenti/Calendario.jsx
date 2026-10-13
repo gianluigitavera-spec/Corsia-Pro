@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2, ChevronRight } from 'lucide-react';
 import * as api from '../lib/dati';
-import { rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga } from '../lib/dominio';
+import {
+  rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga, dataIt,
+  metriDaRicontrollare, apertureNude, annoInizialeDi,
+} from '../lib/dominio';
 import Periodizzazione from './Periodizzazione';
 
 export const TIPI_GARA = {
@@ -46,6 +49,23 @@ export default function Calendario({
     });
   }
   const [errore, setErrore] = useState(null);
+
+  // CONTROLLA LE SEDUTE — tutta la stagione, non il mese che si guarda:
+  // una lettura vecchia di settembre conta anche se oggi è marzo. Si
+  // legge una volta per società e stagione, e il conto sta in un useMemo
+  // sulla lista: disegnare il calendario non lo rifà. Solo per chi può
+  // scrivere: chi non può correggere non ha niente da farci.
+  const [seduteStagione, setSeduteStagione] = useState(null);
+  const [controlloAperto, setControlloAperto] = useState(false);
+  useEffect(() => {
+    const anno = annoInizialeDi(stagione);
+    if (!puoScrivere || !anno) { setSeduteStagione(null); return; }
+    let vivo = true;
+    api.leggiSedute(societa.id, { da: `${anno}-09-01`, a: `${anno + 1}-08-31` })
+      .then((s) => { if (vivo) setSeduteStagione(s); })
+      .catch(() => { if (vivo) setSeduteStagione(null); });
+    return () => { vivo = false; };
+  }, [societa.id, stagione, puoScrivere]);
 
   const primo = new Date(mese.getFullYear(), mese.getMonth(), 1);
   const ultimo = new Date(mese.getFullYear(), mese.getMonth() + 1, 0);
@@ -111,6 +131,35 @@ export default function Calendario({
     .filter((r) => r.codici.length > 0);
   const nelFiltro = (x) => rientraNelMacro(x.categorie, codiciMacro);
 
+  // Due gruppi. Le sedute con almeno una riga da guardare; e quelle che
+  // il controllo non ha potuto guardare per niente, finché non si
+  // sistemano i blocchi.
+  //
+  // Nel secondo entrano solo le sedute dove l'editor offre davvero
+  // qualcosa da fare: il riquadro dei blocchi (apertureNude) o un fattore
+  // da correggere, che si sistema ritoccando una riga. Il controllo salta
+  // una sezione per i blocchi solo quando apertureNude la segnala, quindi
+  // la seconda condizione è una cintura, non un filtro: se un giorno le
+  // due regole si separassero, qui non comparirebbe una seduta da aprire
+  // per non trovarci niente. SwimCoach no: non si sistema qui.
+  const controllate = useMemo(() => (seduteStagione || [])
+    .filter((s) => rientraNelMacro(s.categorie, codiciMacro))
+    .map((s) => {
+      const { righe, saltate } = metriDaRicontrollare(s);
+      return {
+        seduta: s,
+        righe: righe.length,
+        delta: righe.reduce((t, r) => t + r.delta, 0),
+        daSistemare: righe.length === 0
+          && (saltate.some((x) => x.perche === 'fattore') || apertureNude(s).length > 0),
+      };
+    })
+    .sort((a, b) => a.seduta.data.localeCompare(b.seduta.data)),
+  [seduteStagione, codiciMacro?.join()]);
+  const daControllare = useMemo(() => controllate.filter((x) => x.righe > 0), [controllate]);
+  const daSistemarePrima = useMemo(() => controllate.filter((x) => x.daSistemare), [controllate]);
+  const [sistemareAperto, setSistemareAperto] = useState(false);
+
   const seduteDi = (d) => sedute.filter((s) => s.data === iso(d) && nelFiltro(s));
   const gareDi = (d) => gare.filter((g) =>
     nelFiltro(g) && (g.data === iso(d) || (g.data_fine && iso(d) >= g.data && iso(d) <= g.data_fine)));
@@ -144,6 +193,69 @@ export default function Calendario({
       </div>
 
       {errore && <div className="corpo"><div className="avviso errore">{errore}</div></div>}
+
+      {puoScrivere && daControllare.length + daSistemarePrima.length > 0 && (
+        <div className="corpo" style={{ paddingBottom: controlloAperto ? 0 : 14 }}>
+          <button className="riga-apribile" onClick={() => setControlloAperto((v) => !v)}
+            aria-expanded={controlloAperto}>
+            <ChevronRight size={15} className={controlloAperto ? 'freccia giu' : 'freccia'} />
+            <b>Controlla le sedute ({daControllare.length + daSistemarePrima.length})</b>
+            <span className="riassunto-fase">metri diversi da quelli che la notazione dà oggi</span>
+          </button>
+          {controlloAperto && (
+            <div style={{ marginTop: 8 }}>
+              {daControllare.map(({ seduta: s, righe, delta }) => (
+                <button key={s.id} className="voce-giorno" onClick={() => apriSeduta(s.id)}>
+                  <Waves size={15} style={{ color: 'var(--ciano)' }} />
+                  <span className="mono" style={{ fontSize: 12 }}>{dataIt(s.data)}</span>
+                  <span>{s.titolo || 'Seduta senza titolo'}</span>
+                  <span style={{ flex: 1 }} />
+                  <span style={{ color: 'var(--testo-3)', fontSize: 12 }}>
+                    {righe === 1 ? '1 riga' : `${righe} righe`}
+                    {delta !== 0 && ` · ${delta > 0 ? '+' : '−'}${Math.abs(delta).toLocaleString('it-IT')} m`}
+                  </span>
+                </button>
+              ))}
+              {daControllare.length > 0 && (
+                <p style={{ fontSize: 12, color: 'var(--testo-3)', margin: '6px 0 14px' }}>
+                  Ogni seduta si corregge nell'editor, riga per riga, e va in archivio solo con Salva.
+                  Il conto dei metri riguarda le sole righe con una proposta.
+                </p>
+              )}
+              {daSistemarePrima.length > 0 && (
+                <>
+                  <button className="riga-apribile" onClick={() => setSistemareAperto((v) => !v)}
+                    aria-expanded={sistemareAperto} style={{ marginTop: daControllare.length ? 0 : 6 }}>
+                    <ChevronRight size={15} className={sistemareAperto ? 'freccia giu' : 'freccia'} />
+                    <b>
+                      {daSistemarePrima.length === 1
+                        ? '1 seduta da sistemare prima'
+                        : `${daSistemarePrima.length} sedute da sistemare prima`}
+                    </b>
+                    <span className="riassunto-fase">blocchi da sistemare</span>
+                  </button>
+                  {sistemareAperto && (
+                    <div style={{ marginTop: 8 }}>
+                      {daSistemarePrima.map(({ seduta: s }) => (
+                        <button key={s.id} className="voce-giorno" onClick={() => apriSeduta(s.id)}>
+                          <Waves size={15} style={{ color: 'var(--ciano)' }} />
+                          <span className="mono" style={{ fontSize: 12 }}>{dataIt(s.data)}</span>
+                          <span>{s.titolo || 'Seduta senza titolo'}</span>
+                        </button>
+                      ))}
+                      <p style={{ fontSize: 12, color: 'var(--testo-3)', margin: '6px 0 14px' }}>
+                        Qui i metri non si possono controllare finché le ripetizioni non contano
+                        giuste: si sistemano nell'editor, poi la seduta torna nell'elenco sopra se
+                        c'è ancora qualcosa da guardare.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {unGruppoSolo && (
         <div className="corpo" style={{ paddingBottom: progAperta ? 0 : 14 }}>

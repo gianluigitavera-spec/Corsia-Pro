@@ -262,16 +262,18 @@ function misuraInTesta(pezzo) {
 // ripetuta e non aggiunge vasche.
 //
 // Una percentuale non è una misura: "al 75%" è un'andatura, non 75 metri.
-function codaConMisure(resto) {
+function primaMisuraInCoda(resto) {
   const t = senzaTempi(resto);
   for (const m of t.matchAll(/\d/g)) {
     if (m.index > 0 && /\d/.test(t[m.index - 1])) continue;   // metà di un numero
     const da = t.slice(m.index);
     if (/^\d+\s*%/.test(da)) continue;
-    if (misuraInTesta(da)) return true;
+    const misura = misuraInTesta(da);
+    if (misura) return misura;
   }
-  return false;
+  return null;
 }
+const codaConMisure = (resto) => primaMisuraInCoda(resto) !== null;
 
 // Somma i pezzi di primo livello: "(3x25) + (1x75) Remate SL" = 150,
 // "400 sl + 200 mix + 4x50 gambe" = 800.
@@ -311,7 +313,12 @@ function sommaInTesta(riga) {
   // lettura ed è per questo che vanno detti: la riga vale meno di quanto
   // c'è scritto sopra, e chi rilegge deve poter dare torto alla scelta.
   let scartati = 0;
-  for (const pezzo of pezziDiPrimoLivello(riga)) {
+  // La somma fermata dalla coda di un set (vedi sotto). Quando c'è, la
+  // riga NON va cercata anche da destra: sommaInCoda troverebbe i numeri
+  // della descrizione ("8x75 MX 50+25" diventava 75).
+  let fermata = null;
+  const pezzi = pezziDiPrimoLivello(riga);
+  for (const [k, pezzo] of pezzi.entries()) {
     const m = misuraInTesta(pezzo);
     if (!m) break;
     // Un tratto secco con la coda si conta se nella coda non c'è un'ALTRA
@@ -338,8 +345,34 @@ function sommaInTesta(riga) {
     quanti++;
     if (m.fattore) unaSola = m.fattore === 1;
     if (m.gruppo) gruppo = true;
+    // LA CODA DI UN SET CHE CONTIENE UN'ALTRA MISURA lo descrive, e il "+"
+    // che viene dopo sta dentro la descrizione: "6x(1x100 + 4x25) 100MX +
+    // 4x25 SL super sub" sono 1200, "8x50 MX 25GB lat + 25MX 2x" 400. Il
+    // set si conta e la somma finisce qui. Per i tratti secchi la regola
+    // c'era già, sopra; mancava per i set e i gruppi.
+    //
+    // Limite noto, fissato in prova_analizzatore.mjs: "1x400 palette SL
+    // 400 + 2x200 + ..." ripete la distanza in coda invece di descriverne
+    // una parte, e il "+" lì aggiunge lavoro. Distinguerlo con "la misura
+    // in coda è più corta della ripetuta" ne rompeva 25 su archivio vero.
+    if (!m.secco && m.resto) {
+      const inCoda = primaMisuraInCoda(m.resto);
+      if (inCoda) {
+        // `ripete`: la forma del limite noto, e chi legge deve poterlo
+        // sapere. Due condizioni, e servono tutte e due: la coda ripete la
+        // distanza della ripetuta, e dopo il "+" comincia un SET. Con la
+        // prima sola, su archivio vero scattava su 13 righe e 12 erano
+        // lette giuste ("12x25 25remate + 25MX", "8x25 25 apnea + 25
+        // completo"): lì dopo il "+" viene un tratto, che descrive.
+        const dopo = k < pezzi.length - 1 ? misuraInTesta(pezzi[k + 1]) : null;
+        fermata = {
+          ripete: inCoda.metri === m.metri / (m.fattore || 1) && Boolean(dopo) && !dopo.secco,
+        };
+        break;
+      }
+    }
   }
-  return { totale, quanti, gruppo, scartati };
+  return { totale, quanti, gruppo, scartati, fermata };
 }
 
 // Nel foglio del coach il set sta in fondo alla riga: la descrizione a
@@ -448,23 +481,29 @@ function trovaMisure(riga) {
   // che tengono ripetizioni e distanza separate.
   const somma = sommaInTesta(t);
   const scartati = somma.scartati || undefined;
+  // La somma fermata da una coda che ripete la distanza ("1x400 palette
+  // SL 400 + 2x200 ..."): il limite noto. Lo dice la lettura, così il
+  // controllo delle sedute non ci propone sopra un numero.
+  const dubbia = somma.fermata?.ripete || undefined;
   if (somma.totale > 0 && (somma.quanti > 1 || somma.gruppo)) {
     return {
       ripetizioni: 1, distanza: somma.totale, gruppo: somma.gruppo,
-      somma: somma.quanti > 1, scartati,
+      somma: somma.quanti > 1, scartati, dubbia,
     };
   }
 
   // 1b. La stessa somma, ma cercata a partire da destra: è dove il coach
-  // mette il set quando a sinistra ha scritto com'è fatto il lavoro.
-  const coda = sommaInCoda(t);
+  // mette il set quando a sinistra ha scritto com'è fatto il lavoro. Non
+  // se la somma in testa l'ha fermata la coda di un set: da destra si
+  // leggerebbero i numeri della descrizione.
+  const coda = somma.fermata ? { totale: 0 } : sommaInCoda(t);
   if (coda.totale > 0) {
     return { ripetizioni: 1, distanza: coda.totale, gruppo: coda.gruppo, somma: coda.quanti > 1 };
   }
 
   // 2. La misura in testa alla riga: il caso sicuro.
   let m = t.match(/^\s*(\d{1,3})\s*x\s*(\d{2,4})\b/i);
-  if (m) return { ripetizioni: +m[1], distanza: +m[2], scartati };
+  if (m) return { ripetizioni: +m[1], distanza: +m[2], scartati, dubbia };
 
   // 2. "4x", "6x (gio 4 volte)", "4 volte:", e anche "4x A2" — la zona
   // scritta sull'apertura vale per tutto il blocco.
@@ -1031,6 +1070,234 @@ export function apertureNude(seduta, { puoScrivere = true } = {}) {
   });
 
   return trovate;
+}
+
+// ---------------------------------------------------------------------
+// I METRI DA RICONTROLLARE
+//
+// Il lettore della notazione cambia, i metri in archivio no. Questa
+// funzione cerca le righe dove i due non tornano e dice, riga per riga,
+// cosa si può proporre e cosa no. Come apertureNude: trova E applica,
+// così il numero promesso è per costruzione quello che arriva. Il tasto
+// scrive nella bozza; in archivio va solo con Salva.
+//
+// Due famiglie di righe, e due domande diverse.
+//
+// CON `metriLetti` (importate o ritoccate dalla 0.56.10): `metri !==
+// metriLetti` è una scelta dell'allenatore, e non si propone di
+// cambiarla. Si guarda solo se il lettore di OGGI legge diverso da
+// quello che c'era quando la riga è stata scritta:
+//   lettore-cambiato   metri = metriLetti, oggi si legge altro → si
+//                      propone la lettura di oggi
+//   corretta-a-mano    metri ≠ metriLetti, e il lettore è cambiato
+//                      sotto: si segnala, senza proposta
+//
+// SENZA `metriLetti` (prima della 0.56.10): l'unico confronto possibile
+// è coi metri che la notazione dà oggi, fattore del blocco compreso.
+//   lettura-vecchia    metri scritti da un lettore vecchio: si propone,
+//                      anche tutte insieme
+//   metri-fissi        `metriManuali` o `perStile`: corretta a mano o
+//                      letta male, dai dati non si sa. Riga per riga
+//   a-zero             zero in archivio e oggi si legge un numero: riga
+//                      non capita all'import, o composizione che non si
+//                      riconosce più. Riga per riga
+// Sulle sedute importate prima della 0.56.10 `metriManuali` sta su tutte
+// le righe: per loro "aggiorna tutte" non c'è mai, ed è voluto.
+//
+// Si salta, senza segnalare:
+//   - la seduta di SwimCoach: notazione scritta con le regole di un'altra
+//     app (torna in `saltate`, per contarla)
+//   - il lavoro a secco, le aperture di blocco, `senzaMetri`
+//   - le righe di composizione: col flag, o ricostruite (un NxD seguito
+//     da righe a zero la cui lettura somma D — le vecchie il flag non
+//     ce l'hanno)
+//   - la notazione che il lettore non capisce, o che vale zero
+//   - le sezioni che apertureNude segnala: prima i blocchi, se no due
+//     avvisi propongono numeri diversi sulle stesse righe; e le righe col
+//     `moltiplicato` diverso dal blocco in cui stanno (tornano in
+//     `saltate`)
+//
+// Il fattore del blocco si deriva dall'alto come in ricalcolaBlocchi, non
+// dal campo `moltiplicato`: fino alla 0.55.1 all'import si perdeva.
+//
+// I BLOCCHI IMPORTATI PRIMA DELLA 0.54 non si saltano. Lì il "3x" è
+// arrivato senza `apreBlocco` e le figlie senza `moltiplicato`, ma coi
+// metri già moltiplicati dal lettore e fissati: apertureNude non li vede,
+// perché non manca niente, e nessun tasto li sistema. Il fattore si
+// prende dalla riga di apertura (aperturaDiBlocco), fino alla prossima
+// apertura o a fine sezione come in figlieDelBlocco, e le figlie sono
+// sempre metri-fissi: riga per riga, mai "aggiorna tutte". Il confine
+// del blocco è una ricostruzione: le righe vuote che lo chiudevano nel
+// testo non sono state salvate. Una riga salvata esattamente a un giro
+// chiude il blocco (vedi sotto), e le righe proposte dentro portano
+// `bloccoRicostruito: N`, perché l'editor lo dica accanto alla proposta.
+//
+// `svolto` non si tocca mai, e la riga che ci ha una chiave non ha tasto:
+// il valore rilevato può essere stato scritto partendo dal numero
+// sbagliato, e quello lo sa solo chi c'era.
+// ---------------------------------------------------------------------
+
+// Null e zero, qui, dicono la stessa cosa: nessun metro letto. L'import
+// scrive 0 dove annotaLettura scriverebbe null, e non è un cambio di
+// lettore.
+const comeLetto = (v) => (typeof v === 'number' ? v : 0);
+
+// Le righe a zero che descrivono la ripetuta sopra, in una seduta che il
+// flag non ce l'ha. È la regola di chiudiGruppo dell'analizzatore, alla
+// rovescia: sotto un NxD, righe a zero la cui lettura somma D.
+function composizioniRicostruite(serie) {
+  const trovate = new Set();
+  serie.forEach((padre, i) => {
+    if (padre?.apreBlocco || !(Number(padre?.metri) > 0)) return;
+    const letto = leggiRiga(padre.notazione);
+    if (!letto || letto.moltiplicatore || !(letto.ripetizioni > 1)) return;
+    let somma = 0;
+    const figlie = [];
+    for (let k = i + 1; k < serie.length; k++) {
+      const r = serie[k];
+      if (r?.apreBlocco || (Number(r?.metri) || 0) !== 0) break;
+      const l = leggiRiga(r.notazione);
+      if (!l || l.moltiplicatore) break;
+      somma += l.metri;
+      figlie.push(k);
+      if (somma >= letto.distanza) break;
+    }
+    if (somma === letto.distanza) figlie.forEach((k) => trovate.add(k));
+  });
+  return trovate;
+}
+
+export function metriDaRicontrollare(seduta, { puoScrivere = true } = {}) {
+  const righe = [];
+  const saltate = [];
+  if (seduta?.origine === 'swimcoach') {
+    saltate.push({ sezN: null, perche: 'swimcoach' });
+    return { righe, saltate };
+  }
+
+  const daSistemare = new Set(apertureNude(seduta).map((n) => n.sezN));
+
+  (seduta?.sezioni || []).forEach((sezione, sezN) => {
+    if (eSecco(sezione)) return;
+    const serie = sezione.serie || [];
+    if (daSistemare.has(sezN)) {
+      saltate.push({ sezN, perche: 'blocchi' });
+      return;
+    }
+    const ricostruite = composizioniRicostruite(serie);
+
+    let attivo = 1;
+    let nudo = false;        // il blocco attivo viene da un "3x" senza apreBlocco
+    serie.forEach((riga, serM) => {
+      if (!riga) return;
+      if (riga.apreBlocco > 1) { attivo = riga.apreBlocco; nudo = false; return; }
+      if (riga.apreBlocco !== undefined) { attivo = 1; nudo = false; }
+      const aperta = riga.apreBlocco ? null : aperturaDiBlocco(riga.notazione);
+      if (aperta?.ripetizioni > 1) { attivo = aperta.ripetizioni; nudo = true; return; }
+      if (riga.senzaMetri || riga.composizione) return;
+      // LA RIGA VUOTA CHE NON C'È PIÙ. Nel testo "3x / 8x50 / (vuota) /
+      // 200" il lettore chiudeva il blocco alla riga vuota e salvava il 200
+      // a un giro. La riga vuota non è stata salvata: senza questa guardia
+      // il 200 sembrerebbe dentro il ×3 e verrebbe proposto a 600. Il
+      // lettore di allora dentro il blocco moltiplicava sempre, quindi una
+      // riga salvata esattamente a un giro di oggi vuol dire "ero fuori":
+      // il blocco si chiude lì, e da lì in giù.
+      if (nudo && !riga.moltiplicato) {
+        const unGiro = metriDaNotazione(riga.notazione);
+        if (unGiro !== null && (Number(riga.metri) || 0) === unGiro) { attivo = 1; nudo = false; }
+      }
+      // `moltiplicato` rimasto indietro rispetto al blocco in cui la riga
+      // sta (un ×4 sotto un ×3, che apertureNude non vede perché lì i
+      // metri calerebbero). Scrivere i metri e lasciare il fattore
+      // sbagliato peggiorerebbe la riga: la sistema il primo gesto nella
+      // sezione, col ricalcolo.
+      // Sotto un "3x" nudo `moltiplicato` manca per costruzione: è proprio
+      // quello che l'import di allora perdeva.
+      if (!(nudo && !riga.moltiplicato) && (Number(riga.moltiplicato) || 1) !== attivo) {
+        saltate.push({ sezN, serM, perche: 'fattore' });
+        return;
+      }
+
+      const metri = Number(riga.metri) || 0;
+      const giro = metriDaNotazione(riga.notazione);
+      const oggi = giro === null ? null : giro * attivo;
+      let voce;
+
+      if ('metriLetti' in riga) {
+        if (comeLetto(riga.metriLetti) === comeLetto(oggi)) return;
+        const corretta = metri !== comeLetto(riga.metriLetti);
+        voce = {
+          caso: corretta ? 'corretta-a-mano' : 'lettore-cambiato',
+          metriLetti: riga.metriLetti,
+          proposta: corretta ? null : oggi,
+          tutteInsieme: !corretta && !riga.metriManuali && !nudo,
+        };
+      } else {
+        if (oggi === null || oggi === metri || ricostruite.has(serM)) return;
+        const fissa = riga.metriManuali || riga.perStile || nudo;
+        voce = {
+          caso: metri === 0 ? 'a-zero' : (fissa ? 'metri-fissi' : 'lettura-vecchia'),
+          proposta: oggi,
+          tutteInsieme: metri !== 0 && !fissa,
+        };
+      }
+
+      // La lettura che il lettore stesso dichiara dubbia (il limite noto
+      // in sommaInTesta): si segnala, ma un numero sopra non si propone.
+      if (voce.proposta !== null && leggiRiga(riga.notazione)?.dubbia) {
+        voce = { ...voce, proposta: null, tutteInsieme: false, dubbia: true };
+      }
+
+      const svolta = metriSvoltiDiRiga(seduta.svolto, sezN, serM) !== null;
+      // Senza proposta: la correzione dell'allenatore, una lettura dubbia,
+      // oppure un lettore che oggi non capisce più quello che prima capiva
+      // — e lì zero sarebbe un numero inventato.
+      const perche = voce.proposta === null
+        ? (voce.caso === 'corretta-a-mano' ? 'corretta-a-mano'
+          : voce.dubbia ? 'lettura-dubbia' : 'non-capita')
+        : svolta ? 'svolto'
+          : (puoScrivere ? null : 'sola-lettura');
+      righe.push({
+        sezN,
+        serM,
+        sezione: sezione.titolo || `Sezione ${sezN + 1}`,
+        notazione: riga.notazione,
+        metri,
+        oggi,
+        ...voce,
+        delta: voce.proposta === null ? 0 : voce.proposta - metri,
+        applicabile: perche === null,
+        tutteInsieme: perche === null && voce.tutteInsieme,
+        perche,
+        // Il confine del blocco è dedotto, non scritto: chi decide la riga
+        // deve saperlo. Il numero è il fattore che la proposta ha usato.
+        ...(nudo ? { bloccoRicostruito: attivo } : {}),
+      });
+    });
+  });
+
+  return { righe, saltate };
+}
+
+// Il tasto di una riga. Rifà il controllo e scrive solo se la riga è
+// ancora quella promessa: i metri, e la lettura di oggi accanto quando
+// la riga ne aveva una. `metriManuali`, `svolto` e il resto non si
+// toccano. Lavora sulla bozza, come applicaAperturaBlocco.
+export function applicaRicontrollo(seduta, sezN, serM, opzioni) {
+  const voce = metriDaRicontrollare(seduta, opzioni).righe
+    .find((r) => r.sezN === sezN && r.serM === serM);
+  if (!voce?.applicabile) return false;
+  const riga = seduta.sezioni[sezN].serie[serM];
+  riga.metri = voce.proposta;
+  if ('metriLetti' in riga) riga.metriLetti = voce.oggi;
+  return true;
+}
+
+// "Aggiorna tutte": solo le righe dove nessuno ha deciso a mano.
+export function applicaRicontrolloInBlocco(seduta, opzioni) {
+  const voci = metriDaRicontrollare(seduta, opzioni).righe.filter((r) => r.tutteInsieme);
+  for (const v of voci) applicaRicontrollo(seduta, v.sezN, v.serM, opzioni);
+  return voci.length;
 }
 
 // ---------------------------------------------------------------------

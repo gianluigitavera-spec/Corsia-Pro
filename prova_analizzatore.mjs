@@ -8,7 +8,7 @@
 import { analizzaTesto } from './src/lib/analizzatore.js';
 import {
   metriPerSpecializzazione, durataStimata, metriDaNotazione,
-  normalizzaRecupero, ripartenzaDaBase,
+  normalizzaRecupero, ripartenzaDaBase, leggiRiga,
 } from './src/lib/dominio.js';
 
 const prove = [
@@ -162,6 +162,26 @@ const prove = [
   // mano, cioè il modo in cui si fa il 25.
   ['8x50 + 12,5 RA', 400, 'la mezza vasca in coda non aggiunge metri'],
   ['12,5 RA', 25, 'ma da sola resta mezza vasca, e la vasca si finisce'],
+
+  // --- la descrizione dopo il set, scritta con il "+" ---
+  // Dall'archivio vero, anche sedute nuove. Quando la coda del set
+  // contiene un'altra misura, lo descrive, e il "+" che segue sta dentro
+  // la descrizione. Fino alla 0.56.10 leggevano 1300 e 425.
+  ['6x(1x100 + 4x25) 100MX + 4x25 SL super sub', 1200,
+   'la coda del gruppo descrive il gruppo: il 4x25 dopo il "+" non si aggiunge'],
+  ["8x50 @1'45 MX 25GB lat + 25MX 2x", 400,
+   'la coda del set descrive la ripetuta: il 25MX dopo il "+" non si aggiunge'],
+  // Fermata la somma, la riga non si cerca anche da destra: lì ci sono i
+  // numeri della descrizione, e "8x75 MX 50+25" valeva 75.
+  ['8x75 MX 50+25', 600, 'la descrizione in coda non diventa la misura'],
+  // La ripartenza non è una misura, e non cambia la regola del tratto
+  // dopo un set: è lavoro in più. Senza la @ fa lo stesso ("6x100 + 100
+  // sl"), e fra parentesi pure ("2x (4x50 SL @45" + 100 B1)").
+  ['4x50 @45" + 100 B1', 300, 'il tratto dopo un set con la ripartenza è lavoro in più'],
+  ["4x50 @1'30 SL + 50GB TAV Bocc + tavola", 250, 'anche con l\'attrezzo e una coda di testo'],
+  // Della stessa famiglia, e già giuste: devono restarci.
+  ["8x50 @1'15 1(25RAfff 25SL) 1(25SL 25RAfff)", 400, 'la composizione fra parentesi senza "+"'],
+  ['4x(1x100 + 1x50) SL 100 resp 3 50 resp 5', 600, 'la coda del gruppo senza "+"'],
 ];
 
 let male = 0;
@@ -247,6 +267,35 @@ const scartoInTesta = analizzaTesto('1x75 Remate DO + 75 DO completo').sezioni[0
 if (scartoInTesta.metri !== 75 || !/tratto non contato: 75 m/.test(scartoInTesta.note || '')) {
   male++;
   console.error(`✗ "1x75 Remate DO + 75 DO completo": ${scartoInTesta.metri} m, nota "${scartoInTesta.note || ''}"`);
+}
+
+// --- limite noto: la coda che RIPETE la distanza ---
+// "1x400 palette SL 400 + 2x200 + 4x100 + 8x50" nel foglio vale 1600: il
+// 400 in coda ripete la distanza invece di descriverne una parte, e il
+// "+" aggiunge lavoro. Il lettore ferma la somma come per "8x50 MX 25GB
+// lat + 25MX 2x" e legge 400. Distinguere i due casi con "la misura in
+// coda è più corta della ripetuta" ne rompeva 25 su archivio vero, quindi
+// la lettura resta questa ma si dichiara `dubbia`: il controllo delle
+// sedute non ci propone sopra un numero. Se questa prova salta perché la
+// riga ora vale 1600, il limite è stato tolto: aggiorna la prova.
+{
+  const limite = leggiRiga('1x400 palette SL 400 + 2x200 + 4x100 + 8x50');
+  if (limite?.metri !== 400 || limite?.dubbia !== true) {
+    male++;
+    console.error(`✗ limite noto cambiato: "1x400 palette SL 400 + ..." letta ${limite?.metri}, dubbia ${limite?.dubbia}`);
+  }
+  // La dubbia resta rara: le righe che la coda ferma descrivendo una
+  // parte non lo sono, e nemmeno quelle che finiscono col set. E nemmeno
+  // quelle dove la coda ripete la distanza ma dopo il "+" viene un tratto
+  // e non un set: su archivio vero erano 12 righe, tutte lette giuste.
+  for (const testo of ['6x(1x100 + 4x25) 100MX + 4x25 SL super sub', "8x50 @1'45 MX 25GB lat + 25MX 2x",
+    '8x75 MX 50+25', '1x400 palette SL 400', '6x100 + 100 sl',
+    '8x25 25 apnea + 25 completo', '12x25 25remate + 25MX poche bracciate']) {
+    if (leggiRiga(testo)?.dubbia) {
+      male++;
+      console.error(`✗ "${testo}" non è una lettura dubbia`);
+    }
+  }
 }
 
 // E l'avviso deve restare raro, o si impara a saltarlo: una riga che non
