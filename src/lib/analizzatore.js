@@ -4,6 +4,7 @@
 // l'arco di import va solo in questo verso, e di cicli non ce n'è.
 import {
   leggiRiga, pezziDiPrimoLivello, gruppoInTesta, valoreDelPezzo, apiciDritti,
+  rigaFineBlocco,
 } from './dominio.js';
 
 // =====================================================================
@@ -322,7 +323,26 @@ export function analizzaTesto(testo) {
   // Qui ci passano tutti e otto, compreso il ramo che apre la sezione
   // implicita a inizio testo. Un ramo aggiunto domani non può
   // dimenticarsene.
+  // LA FINE DEL BLOCCO SI SCRIVE. Dove il lettore chiude un blocco a
+  // metà sezione — la riga vuota, una riga con più andature — in
+  // archivio prima non restava niente: il confine era solo l'ASSENZA di
+  // moltiplicato sulla riga dopo, e al primo gesto nell'editor il
+  // ricalcolo lo cancellava ("3x / 8x50 / (vuota) / 200": il 200
+  // diventava 600). Ora lì c'è la riga di fine, come la fa l'editor.
+  //
+  // Si scrive subito e si toglie dove non serve: in fondo alla sezione
+  // (finisce da sé) e prima di un'altra apertura (che chiude da sé).
+  const fineLetta = () => ({ ...rigaFineBlocco(), fiducia: 'verde' });
+  const chiudiBlocco = () => {
+    if (moltiplicatoreAttivo > 1 && sezione) sezione.serie.push(fineLetta());
+    moltiplicatoreAttivo = 1;
+  };
+  const togliFineInCoda = () => {
+    if (sezione?.serie[sezione.serie.length - 1]?.chiudeBlocco) sezione.serie.pop();
+  };
+
   const nuovaSezione = (titolo, destinatari = ['*'], aSecco = false) => {
+    togliFineInCoda();
     moltiplicatoreAttivo = 1;
     sezione = { titolo, destinatari, serie: [] };
     if (aSecco) { sezione.aSecco = true; sezione.durataMin = 20; }
@@ -349,7 +369,7 @@ export function analizzaTesto(testo) {
   for (const grezza of righe) {
     let riga = pulisci(grezza);
 
-    if (!riga) { chiudiGruppo(); moltiplicatoreAttivo = 1; continue; }
+    if (!riga) { chiudiGruppo(); chiudiBlocco(); continue; }
 
     // "C3" da solo: da qui in avanti il lavoro è C3, finché non cambia.
     const soloZona = riga.match(SOLA_ZONA);
@@ -447,9 +467,10 @@ export function analizzaTesto(testo) {
     const spezzata = righeConAndature(riga);
     if (spezzata) {
       chiudiGruppo();
-      moltiplicatoreAttivo = 1;      // la parentesi chiude il blocco qui
+      chiudiBlocco();                // la riga con più andature chiude il blocco sopra
       const molt = spezzata.moltiplicatore;
       if (molt > 1) {
+        togliFineInCoda();
         sezione.serie.push({
           notazione: `${molt}x`,
           metri: 0,
@@ -481,6 +502,8 @@ export function analizzaTesto(testo) {
           fiducia: sicura ? 'verde' : 'gialla',
         });
       }
+      // E la parentesi chiude il suo: quello che segue è fuori.
+      if (molt > 1) sezione.serie.push(fineLetta());
       continue;
     }
 
@@ -494,6 +517,7 @@ export function analizzaTesto(testo) {
       if (zonaBlocco.zona) zonaCorrente = zonaBlocco.zona;
       if (misure.zonaBlocco) zonaCorrente = misure.zonaBlocco;
       gruppo = { moltiplicatore: misure.moltiplicatore, figli: [], padre: null };
+      togliFineInCoda();
       sezione.serie.push({
         notazione: riga, metri: 0, zona: misure.zonaBlocco || '', senzaMetri: true,
         apreBlocco: misure.moltiplicatore, fiducia: 'verde',
@@ -572,6 +596,7 @@ export function analizzaTesto(testo) {
     }
   }
   chiudiGruppo();
+  togliFineInCoda();
 
   const metri = sezioni.reduce((t, s) => t + s.serie.reduce((x, r) => x + (r.metri || 0), 0), 0);
 

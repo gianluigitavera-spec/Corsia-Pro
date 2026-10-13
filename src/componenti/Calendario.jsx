@@ -151,7 +151,8 @@ export default function Calendario({
         righe: righe.length,
         delta: righe.reduce((t, r) => t + r.delta, 0),
         daSistemare: righe.length === 0
-          && (saltate.some((x) => x.perche === 'fattore') || apertureNude(s).length > 0),
+          && (saltate.some((x) => x.perche === 'fattore' || x.perche === 'blocco-da-chiudere')
+            || apertureNude(s).length > 0),
       };
     })
     .sort((a, b) => a.seduta.data.localeCompare(b.seduta.data)),

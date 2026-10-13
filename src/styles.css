@@ -241,6 +241,14 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
   color: var(--ciano); background: transparent; border: var(--riga);
 }
 .dice-blocco { color: var(--testo-3); font-size: 12.5px; min-width: 0; }
+/* La fine della ripetizione: la stessa tinta dell'apertura, più sottile.
+   Chiude il riquadro tratteggiato, e sotto le righe non rientrano più. */
+.chiude-blocco {
+  display: flex; align-items: center; gap: 9px; margin: 4px 0 6px;
+  padding: 3px 11px; border-radius: var(--raggio-p);
+  border: 1px dashed rgba(34, 211, 238, 0.35); border-top-width: 0;
+}
+.chiude-blocco .togli { margin-left: auto; }
 .metri-blocco { margin-left: auto; color: var(--testo-2); font-size: 13px; flex: none; }
 
 /* Le figlie: rientrate, col filetto che dice fin dove arriva il blocco. */

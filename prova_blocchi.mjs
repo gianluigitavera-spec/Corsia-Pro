@@ -20,6 +20,7 @@ import {
   eSecco, metriDaNotazione, metriPerSpecializzazione, serieVuota, svoltoDopoTogliRiga,
   svoltoDopoMuoviRiga, durataStimata, annotaLettura, aperturaDiBlocco,
 } from './src/lib/dominio.js';
+import * as D from './src/lib/dominio.js';
 
 let male = 0;
 const dice = (cosa, avuto, atteso) => {
@@ -85,7 +86,12 @@ const g = {
     sez.serie[j].apreBlocco = n > 1 ? n : 1;
     ricalcolaBlocchi(sez);
   },
-  sciogli(sez, j) { g.cambiaN(sez, j, 1); },
+  // "Sciogli" toglie la riga di apertura (e la sua fine, se c'è): una
+  // "3x" rimasta lì era un'apertura nuda, e l'avviso dei blocchi
+  // proponeva subito di rimetterla. Passa dalla seduta per lo svolto.
+  sciogli(sez, j) { D.sciogliBlocco({ sezioni: [sez] }, 0, j); },
+  // Il tasto "fine ripetizione" accanto a "+ serie": in coda.
+  fine(sez) { D.inserisciFineBlocco({ sezioni: [sez] }, 0, sez.serie.length); return sez.serie.length - 1; },
   scriviRecupero(sez, j, valore) {                  // battuta nel campo recupero
     sez.serie[j].recupero = valore;                 // non è un gesto strutturale
   },
@@ -193,10 +199,107 @@ for (const [n, righe] of [
   dice('da ×4 a ×2 i metri si dimezzano', sez.serie.slice(1).map((s) => s.metri), [600, 600]);
 
   g.sciogli(sez, 0);
-  dice('sciolto, l\'apertura non apre più', sez.serie[0].apreBlocco, undefined);
-  dice('e le figlie tornano a un giro', sez.serie.slice(1).map((s) => s.metri), [300, 300]);
-  dice('senza fattore addosso', sez.serie.slice(1).map((s) => s.moltiplicato), [undefined, undefined]);
+  dice('sciolto, la riga di apertura non c\'è più', sez.serie.map((s) => s.notazione), ['3x100', '6x50']);
+  dice('e le figlie tornano a un giro', sez.serie.map((s) => s.metri), [300, 300]);
+  dice('senza fattore addosso', sez.serie.map((s) => s.moltiplicato), [undefined, undefined]);
+  dice('e l\'avviso dei blocchi non propone di rimetterlo', apertureNude({ sezioni: [sez] }), []);
 }
+// =====================================================================
+// LA FINE DELLA RIPETIZIONE — dove il blocco smette
+// Prima il blocco andava fino a fine sezione: "3x / 1x100 / 4x50 /
+// 8x25" moltiplicava anche gli 8x25, e una riga con ×1 in mezzo lo
+// chiudeva una volta sola (al ricalcolo dopo tornava dentro).
+// =====================================================================
+const prova = (cosa, fn) => {
+  try { fn(); } catch (e) { male++; console.error(`✗ ${cosa}: ${e.message}`); }
+};
+const forma = (sez) => sez.serie.map((s) =>
+  `${s.chiudeBlocco ? 'FINE' : s.notazione}=${s.metri}${s.moltiplicato ? `(×${s.moltiplicato})` : ''}`);
+
+prova('la fine dai gesti', () => {
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  g.scrivi(sez, g.piuSerie(sez), '1x100');
+  g.scrivi(sez, g.piuSerie(sez), '4x50');
+  const f = g.fine(sez);
+  g.scrivi(sez, g.piuSerie(sez), '8x25');
+  dice('×3, 1x100, 4x50, fine, 8x25', forma(sez),
+    ['3x=0', '1x100=300(×3)', '4x50=600(×3)', 'FINE=0', '8x25=200']);
+  dice('vale 1100', totale(sez), 1100);
+  dice('l\'intestazione conta solo le righe del blocco',
+    figlieDelBlocco(sez, 0).reduce((t, k) => t + sez.serie[k].metri, 0), 900);
+
+  // Un ricalcolo qualsiasi (un altro gesto) non sposta il confine.
+  g.cambiaN(sez, 0, 4);
+  dice('cambiate le volte, gli 8x25 restano fuori', forma(sez),
+    ['3x=0', '1x100=400(×4)', '4x50=800(×4)', 'FINE=0', '8x25=200']);
+  g.cambiaN(sez, 0, 3);
+
+  g.muovi(sez, f, f - 1);                     // la fine sale di una riga
+  dice('fine su di una: il 4x50 esce e torna a un giro', forma(sez),
+    ['3x=0', '1x100=300(×3)', 'FINE=0', '4x50=200', '8x25=200']);
+  g.muovi(sez, f - 1, f);                     // e torna giù
+  dice('rimessa giù: il 4x50 rientra', totale(sez), 1100);
+
+  g.togli(sez, f);                            // il cestino sulla fine
+  dice('tolta la fine: gli 8x25 rientrano nel blocco', forma(sez),
+    ['3x=0', '1x100=300(×3)', '4x50=600(×3)', '8x25=600(×3)']);
+});
+
+prova('la fine e i metri fissi', () => {
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  const j = g.piuSerie(sez); g.scrivi(sez, j, '8x50');
+  g.scriviMetri(sez, j, 1000);
+  const f = g.fine(sez);
+  g.muovi(sez, f, j);                         // la fine sopra la riga a mano
+  dice('i metri scritti a mano non si riscalano uscendo', sez.serie[f].metri, 1000);
+  dice('ma la riga è fuori dal blocco', sez.serie[f].moltiplicato, undefined);
+});
+
+prova('la fine e la lettura', () => {
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  g.scrivi(sez, g.piuSerie(sez), '2x50 pull');
+  const f = g.fine(sez);
+  g.scrivi(sez, g.piuSerie(sez), '4x25 gambe');
+  g.muovi(sez, f, f - 1);
+  g.muovi(sez, f - 1, f);
+  dice('dopo i gesti sulla fine metri e lettura coincidono', true,
+    sez.serie.filter((s) => !s.apreBlocco && !s.chiudeBlocco).every((s) => s.metri === s.metriLetti));
+  dice('la fine non porta lettura', 'metriLetti' in sez.serie[f], false);
+});
+
+prova('la fine e la durata', () => {
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '8x50'); g.scriviRecupero(sez, a, '@1:00');
+  g.fine(sez);
+  const b = g.piuSerie(sez); g.scrivi(sez, b, '4x100'); g.scriviRecupero(sez, b, '@2:00');
+  // 8 × 60 × 3 + 4 × 120 = 1440 + 480. Senza la fine sarebbero 1440 + 1440.
+  dice('dopo la fine la durata non è ×3', durataStimata([sez]).secondi, 1920);
+});
+
+prova('sciogliere un blocco con la sua fine', () => {
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  g.scrivi(sez, g.piuSerie(sez), '8x50');
+  g.fine(sez);
+  g.scrivi(sez, g.piuSerie(sez), '200');
+  g.sciogli(sez, 0);
+  dice('se ne vanno apertura e fine, le righe restano', forma(sez), ['8x50=400', '200=200']);
+});
+
+prova('la fine chiude anche per figlieDelBlocco e apertureNude', () => {
+  const sez = nuovaSezione();
+  g.piuRipetizione(sez, 3);
+  g.scrivi(sez, g.piuSerie(sez), '8x50');
+  g.fine(sez);
+  g.scrivi(sez, g.piuSerie(sez), '200');
+  dice('le figlie sono solo quelle sopra la fine', figlieDelBlocco(sez, 0), [1]);
+  dice('nessun blocco da sistemare', apertureNude({ sezioni: [sez] }), []);
+});
+
 {
   const sez = nuovaSezione();
   g.piuRipetizione(sez, 3);

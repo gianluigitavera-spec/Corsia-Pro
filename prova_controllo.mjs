@@ -247,6 +247,7 @@ Sciolto
 const prima054 = (testo) => {
   const s = importa(testo);
   for (const sez of s.sezioni) {
+    sez.serie = sez.serie.filter((r) => !r.chiudeBlocco);   // la fine non esisteva
     for (const r of sez.serie) {
       delete r.apreBlocco; delete r.moltiplicato; delete r.senzaMetri;
       delete r.metriLetti; delete r.composizione;
@@ -324,6 +325,69 @@ const prima054 = (testo) => {
     a.sezioni[0].serie.map((r) => [r.notazione, r.metri, r.moltiplicato, r.apreBlocco]),
     [['3x', 0, undefined, undefined], ['2x50 pull', 300, undefined, undefined],
       ['100+75+50+25 DO', 750, undefined, undefined]]);
+}
+
+// =====================================================================
+// IL BLOCCO CHE FINIVA A UNA RIGA VUOTA, già in archivio
+// Importate fra la 0.54 e la 0.56.11: "3x / 8x50 / (vuota) / 200" è
+// arrivato senza riga di fine, col confine scritto solo come ASSENZA di
+// moltiplicato sul 200. Lì sotto righe con moltiplicato c'è una riga
+// senza: l'avviso propone di chiudere il blocco, e il controllo non
+// propone metri su quelle righe finché non è chiuso.
+// =====================================================================
+{
+  const D = await import('./src/lib/dominio.js');
+  const prova = (cosa, fn) => {
+    try { fn(); } catch (e) { male++; console.error(`✗ ${cosa}: ${e.message}`); }
+  };
+  // Com'era in archivio: l'import di oggi, senza la riga di fine.
+  const dArchivio = (testo) => {
+    const s = importa(testo);
+    for (const sez of s.sezioni) sez.serie = sez.serie.filter((r) => !r.chiudeBlocco);
+    return s;
+  };
+  prova('blocco da chiudere: l\'avviso', () => {
+    const s = dArchivio('Parte centrale\n3x\n8x50\n\n200');
+    dice('dove finiva il blocco', D.blocchiDaChiudere(s).map((b) => [b.sezN, b.serM, b.ripetizioni, b.applicabile]),
+      [[0, 2, 3, true]]);
+    dice('in sola lettura niente tasto', D.blocchiDaChiudere(s, { puoScrivere: false }).map((b) => b.applicabile), [false]);
+    // Anche con svolto: chiudere non cambia metri, sposta solo le chiavi.
+    s.svolto = { righe: { '0-2': 200 } };
+    dice('con svolto il tasto c\'è', D.blocchiDaChiudere(s).map((b) => b.applicabile), [true]);
+    // L'altro avviso vedeva il 200 senza fattore come un blocco "a metà"
+    // e proponeva di moltiplicarlo: +400 m col suo tasto, sulle sedute
+    // importate dalla 0.56.10 (senza metriManuali).
+    dice('e l\'avviso dei blocchi non propone di triplicare il 200', D.apertureNude(s), []);
+    // Il blocco "a metà" vero resta suo: nessuna figlia ha il fattore.
+    const meta = dArchivio('Parte centrale\n3x\n8x50\n200');
+    for (const r of meta.sezioni[0].serie) if (r.moltiplicato) { r.metri /= r.moltiplicato; delete r.moltiplicato; }
+    dice('a metà vero: lo vede apertureNude', D.apertureNude(meta).map((n) => n.forma), ['a-meta']);
+    dice('e non è un blocco da chiudere', D.blocchiDaChiudere(meta), []);
+  });
+  prova('blocco da chiudere: il controllo', () => {
+    const s = dArchivio('Parte centrale\n3x\n8x50\n\n200');
+    s.sezioni[0].serie[2].metri = 100;                   // letta male, da proporre
+    dice('niente proposta finché il blocco non è chiuso', controlla(s),
+      { righe: [], saltate: [{ sezN: 0, serM: 2, perche: 'blocco-da-chiudere' }] });
+  });
+  prova('blocco da chiudere: il tasto', () => {
+    const s = dArchivio('Parte centrale\n3x\n8x50\n\n200');
+    s.svolto = { righe: { '0-2': 200 } };
+    const b = D.blocchiDaChiudere(s)[0];
+    D.inserisciFineBlocco(s, b.sezN, b.serM);
+    dice('chiuso: la fine al suo posto, i metri non si muovono',
+      s.sezioni[0].serie.map((r) => [r.chiudeBlocco ? 'FINE' : r.notazione, r.metri]),
+      [['3x', 0], ['8x50', 1200], ['FINE', 0], ['200', 200]]);
+    dice('lo svolto segue il 200', s.svolto, { righe: { '0-3': 200 } });
+    dice('l\'avviso non c\'è più', D.blocchiDaChiudere(s), []);
+    dice('e il controllo è pulito', controlla(s), { righe: [], saltate: [] });
+  });
+  prova('blocco da chiudere: non è un blocco aperto in fondo', () => {
+    // La riga appena aggiunta col "+ serie" prende il fattore subito:
+    // non è una riga "senza" sotto righe "con".
+    const s = importa('Parte centrale\n3x\n8x50\n200');
+    dice('blocco che arriva a fine sezione: niente da chiudere', D.blocchiDaChiudere(s), []);
+  });
 }
 
 // =====================================================================

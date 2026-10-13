@@ -17,6 +17,7 @@ import {
   svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
   metriSvoltiDiRiga, metriSvoltiDiSezione,
   metriDaRicontrollare, applicaRicontrollo, applicaRicontrolloInBlocco, lunediDi,
+  inserisciFineBlocco, sciogliBlocco, blocchiDaChiudere, bloccoApertoInFondo, fattoreChiuso,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA, TINTE } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
@@ -59,6 +60,7 @@ const motivoRicontrollo = (v) => MOTIVI[v.perche] || CASI_DA_SOLI[v.caso] || nul
 const SALTATE = {
   swimcoach: 'seduta arrivata da SwimCoach, scritta con le sue regole',
   blocchi: 'prima vanno sistemati i blocchi ripetuti',
+  'blocco-da-chiudere': 'il blocco sopra va chiuso (avviso in alto)',
   fattore: 'il fattore del blocco è da correggere (si sistema da sé ritoccando una riga della sezione)',
 };
 
@@ -221,13 +223,24 @@ export default function EditorSeduta({
   // applicaAperturaBlocco.
   // ------------------------------------------------------------------
   function ripetiBlocco(i, j, n) {
+    // Sotto il 2 il campo non fa niente: per sciogliere c'è il tasto.
+    // Prima "1" scioglieva, e battendo "12" si passava per "1": il
+    // blocco spariva al primo tasto.
+    if (!(n > 1)) return;
     aggiorna((s) => {
-      // "×1" scioglie: ci pensa il ricalcolo, che sull'apertura senza
-      // fattore toglie apreBlocco e libera le figlie.
-      s.sezioni[i].serie[j].apreBlocco = n > 1 ? n : 1;
+      s.sezioni[i].serie[j].apreBlocco = n;
       ricalcolaBlocchi(s.sezioni[i]);
     });
   }
+
+  // "Sciogli" e il cestino dell'intestazione: via l'apertura, e la sua
+  // fine se c'è, con svolto rimappato (sciogliBlocco in dominio.js).
+  const sciogli = (i, j) => aggiorna((s) => { sciogliBlocco(s, i, j); });
+
+  // "fine ripetizione": in coda, sotto l'ultima riga del blocco aperto.
+  const fineInCoda = (i) => aggiorna((s) => {
+    inserisciFineBlocco(s, i, (s.sezioni[i].serie || []).length);
+  });
 
   // Il tasto dell'avviso: applica una singola apertura nuda. È una
   // modifica alla bozza come tutte le altre, non un salvataggio — se te
@@ -239,6 +252,14 @@ export default function EditorSeduta({
     () => (seduta ? apertureNude(seduta, { puoScrivere }) : []),
     [seduta, puoScrivere]
   );
+
+  // I blocchi che in archivio non hanno la loro fine: vanno chiusi
+  // PRIMA di toccare la sezione, o il ricalcolo li allunga fino in fondo.
+  const daChiudere = useMemo(
+    () => (seduta ? blocchiDaChiudere(seduta, { puoScrivere }) : []),
+    [seduta, puoScrivere]
+  );
+  const chiudiQui = (sezN, serM) => aggiorna((s) => { inserisciFineBlocco(s, sezN, serM); });
 
   // ------------------------------------------------------------------
   // CONTROLLA LE SEDUTE: i metri salvati contro quello che la notazione
@@ -782,6 +803,38 @@ export default function EditorSeduta({
           </div>
         )}
 
+        {daChiudere.length > 0 && (
+          <div className="corpo" style={{ paddingTop: 0 }}>
+            <div className="avviso">
+              <AlertTriangle size={15} style={{ verticalAlign: -3, marginRight: 6 }} />
+              <b>
+                {daChiudere.length === 1
+                  ? 'Una ripetizione non ha la sua fine.'
+                  : `${daChiudere.length} ripetizioni non hanno la loro fine.`}
+              </b>
+              {daChiudere.map((b) => (
+                <div key={`${b.sezN}-${b.serM}`} className="riga-nuda">
+                  <span>
+                    <b>{b.sezione}</b> · il blocco ×{b.ripetizioni} finiva prima di{' '}
+                    <span className="mono">{b.notazione || 'questa riga'}</span>
+                  </span>
+                  {b.applicabile && (
+                    <button className="mini" onClick={() => chiudiQui(b.sezN, b.serM)}>
+                      Chiudi qui
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div style={{ color: 'var(--testo-3)', fontSize: 12.5, marginTop: 8 }}>
+                Nel testo incollato una riga vuota chiudeva la ripetizione, ma nella seduta
+                salvata non è arrivata. <b>Chiudila prima di ritoccare la sezione</b>: al primo
+                ritocco le righe sotto verrebbero moltiplicate anche loro. Chiudere non cambia
+                nessun metro.
+              </div>
+            </div>
+          </div>
+        )}
+
         {nude.length > 0 && (
           <div className="corpo" style={{ paddingTop: 0 }}>
             <div className="avviso">
@@ -1028,10 +1081,34 @@ export default function EditorSeduta({
                           .reduce((t, k) => t + (Number(sez.serie[k].metri) || 0), 0)
                           .toLocaleString('it-IT')} m
                       </span>
-                      <button className="mini" onClick={() => ripetiBlocco(i, j, 1)} title="Sciogli il blocco">
+                      <button className="mini" onClick={() => sciogli(i, j)} title="Sciogli il blocco">
                         Sciogli
                       </button>
-                      <button className="togli" aria-label="Togli blocco" onClick={() => togliRiga(i, j)}>
+                      <button className="togli" aria-label="Togli blocco" onClick={() => sciogli(i, j)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ) : s.chiudeBlocco ? (
+                    // La fine della ripetizione: una riga come le altre, che
+                    // si sposta con le frecce e si toglie col cestino. Sotto
+                    // di lei le righe non rientrano più.
+                    <div className="chiude-blocco" key={j}>
+                      <span className="maniglie">
+                        <button disabled={j === 0} aria-label="Sposta la fine su"
+                          onClick={() => muoviRiga(i, j, j - 1)}>
+                          <ChevronUp size={13} />
+                        </button>
+                        <button disabled={j === sez.serie.length - 1} aria-label="Sposta la fine giù"
+                          onClick={() => muoviRiga(i, j, j + 1)}>
+                          <ChevronDown size={13} />
+                        </button>
+                      </span>
+                      <span className="dice-blocco">
+                        {fattoreChiuso(sez, j)
+                          ? <>fine della ripetizione <b className="mono">×{fattoreChiuso(sez, j)}</b></>
+                          : 'fine di una ripetizione che qui sopra non c’è'}
+                      </span>
+                      <button className="togli" aria-label="Togli la fine" onClick={() => togliRiga(i, j)}>
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1146,6 +1223,18 @@ export default function EditorSeduta({
                     })}
                   >
                     <Plus size={13} style={{ verticalAlign: -2 }} /> ripetizione
+                  </button>
+                )}
+
+                {/* La sezione finisce dentro un blocco: da qui lo si chiude,
+                    e il "+ serie" dopo aggiunge fuori. */}
+                {!secca && bloccoApertoInFondo(sez) > 0 && (
+                  <button
+                    className="mini"
+                    style={{ marginTop: 9, marginLeft: 8 }}
+                    onClick={() => fineInCoda(i)}
+                  >
+                    fine ripetizione ×{bloccoApertoInFondo(sez)}
                   </button>
                 )}
               </div>

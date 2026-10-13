@@ -49,8 +49,9 @@ export default function FoglioStampa({ seduta, societa, categorie }) {
               <tbody>
                 {(sez.serie || []).map((s, j) => (
                   // L'apertura di blocco prende la riga per sé: "×3" e le
-                  // righe che seguono rientrate sotto.
-                  s.apreBlocco > 1 ? (
+                  // righe che seguono rientrate sotto. La fine non si
+                  // stampa: lo dice il rientro, che lì smette.
+                  s.chiudeBlocco ? null : s.apreBlocco > 1 ? (
                     <tr key={j} className="foglio-apre">
                       <td colSpan={4}>×{s.apreBlocco}</td>
                     </tr>

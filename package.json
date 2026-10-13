@@ -1,7 +1,7 @@
 {
   "name": "corsiapro",
   "private": true,
-  "version": "0.56.11",
+  "version": "0.56.12",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -18,6 +18,8 @@ export function sedutaInTesto(seduta, { nomeSquadra } = {}) {
       : `${metri} m`;
     r.push(`${(sez.titolo || 'Sezione').toUpperCase()}${chi} — ${quanto}`);
     for (const s of sez.serie || []) {
+      // Nel testo il rientro non c'è: la fine della ripetizione si scrive.
+      if (s.chiudeBlocco) { r.push('  · (fine ripetizione)'); continue; }
       const pezzi = [s.notazione];
       if (s.recupero) pezzi.push(s.recupero);
       if (s.zona) pezzi.push(`(${s.zona})`);

@@ -48,7 +48,7 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
       };
       tocca(j);
       if (apre) {
-        for (let k = j + 1; k < serie.length && !serie[k].apreBlocco; k++) tocca(k);
+        for (let k = j + 1; k < serie.length && !serie[k].apreBlocco && !serie[k].chiudeBlocco; k++) tocca(k);
       }
       return nuove;
     });
@@ -143,6 +143,19 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
                   </div>
 
                   {sez.serie.map((s, j) => {
+                    // La riga vuota che chiudeva un blocco: si vede, ma
+                    // non ha metri né zona da correggere — un numero
+                    // scritto qui finirebbe in archivio su una riga che
+                    // non è lavoro.
+                    if (s.chiudeBlocco) {
+                      return (
+                        <div className="riga-letta" key={j} style={{ '--tinta': 'var(--testo-3)' }}>
+                          <span className="testo-letto" style={{ color: 'var(--testo-3)' }}>
+                            fine della ripetizione
+                          </span>
+                        </div>
+                      );
+                    }
                     const stato = SEMAFORO[s.fiducia] || SEMAFORO.gialla;
                     const { Icona } = stato;
                     return (

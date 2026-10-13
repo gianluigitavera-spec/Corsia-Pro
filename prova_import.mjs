@@ -252,6 +252,62 @@ const importa = (testo, correzioni) =>
 // =====================================================================
 // LE RIGHE E LE SEZIONI VUOTE NON PASSANO
 // =====================================================================
+// =====================================================================
+// LA RIGA VUOTA CHIUDE IL BLOCCO, anche in archivio
+// Il difetto, in produzione dalla 0.56.10: nel testo "3x / 8x50 / (riga
+// vuota) / 200" il blocco finiva alla riga vuota, ma in archivio la riga
+// vuota non c'era. Il confine restava solo come ASSENZA di moltiplicato
+// sul 200, e al primo gesto nella sezione il ricalcolo estendeva il ×3
+// fino in fondo: 200 diventava 600, +400 m senza un avviso.
+// =====================================================================
+const struttura = (sez) => sez.serie.map((r) =>
+  [r.notazione, r.metri, r.apreBlocco || 0, r.chiudeBlocco ? 'fine' : '']);
+const ritocca = (sez, j, valore) => {          // cambiaNotazione, ridotto ai metri
+  const r = sez.serie[j];
+  r.notazione = valore;
+  ricalcolaBlocchi(sez);
+  return sez;
+};
+const prova = (cosa, fn) => {
+  try { fn(); } catch (e) { male++; console.error(`✗ ${cosa}: ${e.message}`); }
+};
+prova('riga vuota', () => {
+  const [sez] = importa('Parte centrale\n3x\n8x50\n\n200');
+  dice('la riga vuota dentro un blocco diventa la sua fine', struttura(sez), [
+    ['3x', 0, 3, ''], ['8x50', 1200, 0, ''], ['', 0, 0, 'fine'], ['200', 200, 0, ''],
+  ]);
+  ritocca(sez, 1, '8x50 B1');
+  const duecento = sez.serie.find((r) => r.notazione === '200');
+  dice('dopo un gesto nella sezione il 200 resta 200', duecento.metri, 200);
+  dice('…e fuori dal blocco', duecento.moltiplicato, undefined);
+  dice('la fine non porta lettura', sez.serie.filter((r) => r.chiudeBlocco).some((r) => 'metriLetti' in r), false);
+  dice('e la fine non è una riga senza notazione',
+    validaSeduta({ categorie: ['X'], sezioni: [sez] }).filter((p) => p.msg === 'Manca la notazione'), []);
+});
+prova('la riga con più andature chiude anche lei', () => {
+  // Il suo blocco finisce con la parentesi: il 200 dopo è fuori.
+  const [a] = importa('Parte centrale\n4x(8x50 B1 + 4x50 B2)\n200');
+  ritocca(a, 1, '8x50 B1 forte');
+  dice('"4x(8x50 B1 + 4x50 B2)" e poi 200: dopo un gesto il 200 resta 200',
+    a.serie.find((r) => r.notazione === '200').metri, 200);
+  // E chiude quello sopra: le sue righe valgono un giro.
+  const [b] = importa('Parte centrale\n3x\n8x50\n2x50 A2 + 4x25 C1\n200');
+  ritocca(b, 1, '8x50 B1');
+  dice('"3x / 8x50 / 2x50 A2 + 4x25 C1": dopo un gesto le righe sotto restano a un giro',
+    b.serie.filter((r) => !r.apreBlocco && !r.chiudeBlocco).map((r) => r.metri), [1200, 100, 100, 200]);
+});
+prova('dove la fine non serve', () => {
+  dice('un titolo chiude da sé, senza riga di fine',
+    importa('Parte centrale\n3x\n8x50\nSciolto\n200').flatMap((z) => z.serie).some((r) => r.chiudeBlocco), false);
+  dice('nemmeno la riga vuota prima del titolo',
+    importa('Parte centrale\n3x\n8x50\n\nSciolto\n200').flatMap((z) => z.serie).some((r) => r.chiudeBlocco), false);
+  dice('una riga vuota senza blocco non produce niente',
+    struttura(importa('Parte centrale\n400\n\n200')[0]), [['400', 400, 0, ''], ['200', 200, 0, '']]);
+  dice('fra due blocchi basta l\'apertura del secondo',
+    struttura(importa('Parte centrale\n3x\n8x50\n\n2x\n100')[0]),
+    [['3x', 0, 3, ''], ['8x50', 1200, 0, ''], ['2x', 0, 2, ''], ['100', 200, 0, '']]);
+});
+
 {
   dice('testo vuoto, nessuna sezione', importa('').length, 0);
   dice('solo un giorno in testa, nessuna sezione', importa('Lunedì 8 settembre').length, 0);

@@ -835,12 +835,32 @@ export function aperturaDiBlocco(testo) {
 // blocco va dall'apertura alla prossima apertura o a fine sezione.
 // ---------------------------------------------------------------------
 
+// ---------------------------------------------------------------------
+// LA FINE DELLA RIPETIZIONE — dove il blocco smette
+//
+// Una riga a sé, simmetrica all'apertura: niente metri, niente zona,
+// niente lettura. Prima il blocco andava fino a fine sezione, e nel
+// testo lo chiudeva una riga vuota che in archivio non arrivava: il
+// confine restava solo come ASSENZA di `moltiplicato` sulla riga dopo, e
+// al primo gesto il ricalcolo lo cancellava ("3x / 8x50 / (vuota) /
+// 200": il 200 diventava 600, dalla 0.56.10 in produzione).
+//
+// È una riga e non un campo sull'ultima figlia: spostando quella riga il
+// confine viaggerebbe con lei, e cancellandola sparirebbe. Ha un suo
+// indice, quindi inserirla, spostarla e toglierla passano dagli stessi
+// involucri di svolto di ogni altra riga.
+// ---------------------------------------------------------------------
+export const rigaFineBlocco = () => ({
+  notazione: '', metri: 0, zona: '', recupero: '', note: '', senzaMetri: true, chiudeBlocco: true,
+});
+
 // Le figlie del blocco aperto alla posizione `m`, in scrittura.
 export function figlieDelBlocco(sezione, m) {
   const serie = sezione?.serie || [];
   const fuori = [];
   for (let k = m + 1; k < serie.length; k++) {
     if (serie[k]?.apreBlocco) break;            // un altro blocco: qui il nostro finisce
+    if (serie[k]?.chiudeBlocco) break;          // la sua fine
     // Anche un'apertura NUDA chiude il blocco: se non la contassimo,
     // applicando il primo blocco ci si mangerebbe il secondo e le sue
     // righe si moltiplicherebbero per il numero sbagliato.
@@ -902,7 +922,20 @@ export function ricalcolaBlocchi(sezione) {
       delete riga.metriLetti;
       continue;
     }
-    // "×1" non ripete niente: il blocco è stato sciolto.
+    // La fine: da qui in giù non si ripete più niente. Come l'apertura,
+    // non è un lavoro, e si rimette in forma a ogni ricalcolo.
+    if (riga.chiudeBlocco) {
+      attivo = 1;
+      riga.metri = 0;
+      riga.senzaMetri = true;
+      delete riga.moltiplicato;
+      delete riga.metriManuali;
+      delete riga.metriLetti;
+      continue;
+    }
+    // "×1" non ripete niente: il blocco è stato sciolto. Dalla 0.56.12
+    // "Sciogli" toglie la riga (sciogliBlocco) e qui non ci si arriva più
+    // dall'editor; il ramo resta per i dati salvati prima.
     if (riga.apreBlocco !== undefined) {
       delete riga.apreBlocco;
       delete riga.senzaMetri;
@@ -963,7 +996,7 @@ export function ricalcolaBlocchi(sezione) {
 // ---------------------------------------------------------------------
 export function annotaLettura(sezione, riga) {
   if (!riga) return riga;
-  if (eSecco(sezione) || riga.apreBlocco > 1) {
+  if (eSecco(sezione) || riga.apreBlocco > 1 || riga.chiudeBlocco) {
     delete riga.metriLetti;
     return riga;
   }
@@ -993,6 +1026,74 @@ export function applicaAperturaBlocco(sezione, m, ripetizioni) {
   if (zona) riga.zona = zona;
   ricalcolaBlocchi(sezione);
   return true;
+}
+
+// Il fattore del blocco che resta aperto in fondo alla sezione, o 0:
+// dice all'editor quando offrire "fine ripetizione" accanto a "+ serie".
+export function bloccoApertoInFondo(sezione) {
+  let attivo = 0;
+  for (const riga of sezione?.serie || []) {
+    if (riga?.apreBlocco > 1) attivo = riga.apreBlocco;
+    else if (riga?.chiudeBlocco || riga?.apreBlocco !== undefined) attivo = 0;
+  }
+  return attivo;
+}
+
+// Il fattore del blocco che una riga di fine chiude, o 0 se sopra non
+// c'è niente da chiudere (una fine spostata sopra la sua apertura).
+export function fattoreChiuso(sezione, j) {
+  const serie = sezione?.serie || [];
+  for (let k = j - 1; k >= 0; k--) {
+    if (serie[k]?.chiudeBlocco) return 0;
+    if (serie[k]?.apreBlocco > 1) return serie[k].apreBlocco;
+  }
+  return 0;
+}
+
+// ---------------------------------------------------------------------
+// I BLOCCHI DA CHIUDERE — le sedute importate prima della 0.56.12
+//
+// "3x / 8x50 / (riga vuota) / 200" è arrivato in archivio senza la
+// fine: il confine c'è solo come ASSENZA di `moltiplicato` sul 200. Il
+// segno è questo, e solo questo: sotto righe col fattore del blocco, una
+// riga senza. Il tasto inserisce la fine lì; i metri non si muovono, e
+// svolto si rimappa — per questo il tasto c'è anche con lo svolto.
+//
+// Finché non si chiude, il primo gesto nella sezione estende il blocco
+// fino in fondo (il ricalcolo non può distinguere la riga appena
+// aggiunta, che il fattore lo deve prendere, da quella dopo una riga
+// vuota che non c'è più). Dopo quel gesto la riga ha `moltiplicato` e il
+// segno è perso: per questo l'avviso sta in testa alla seduta.
+// ---------------------------------------------------------------------
+export function blocchiDaChiudere(seduta, { puoScrivere = true } = {}) {
+  const trovati = [];
+  (seduta?.sezioni || []).forEach((sezione, sezN) => {
+    if (eSecco(sezione)) return;
+    let attivo = 1;
+    let apertura = -1;
+    let conFattore = false;
+    (sezione.serie || []).forEach((riga, serM) => {
+      if (!riga) return;
+      if (riga.apreBlocco > 1) { attivo = riga.apreBlocco; apertura = serM; conFattore = false; return; }
+      if (riga.apreBlocco !== undefined || riga.chiudeBlocco) { attivo = 1; return; }
+      if (attivo === 1) return;
+      if (Number(riga.moltiplicato) === attivo) { conFattore = true; return; }
+      if (!riga.moltiplicato && conFattore) {
+        trovati.push({
+          sezN,
+          serM,
+          apertura,
+          sezione: sezione.titolo || `Sezione ${sezN + 1}`,
+          notazione: riga.notazione,
+          ripetizioni: attivo,
+          applicabile: puoScrivere,
+          perche: puoScrivere ? null : 'sola-lettura',
+        });
+        attivo = 1;                 // da qui il blocco è già finito
+      }
+    });
+  });
+  return trovati;
 }
 
 // ---------------------------------------------------------------------
@@ -1026,7 +1127,14 @@ export function apertureNude(seduta, { puoScrivere = true } = {}) {
         : aperturaDiBlocco(riga?.notazione)?.ripetizioni;   // apertura nuda
       if (!(n > 1)) return;
 
-      const figlie = figlieDelBlocco(sezione, serM)
+      // Sotto righe che il fattore ce l'hanno, una che non ce l'ha non è
+      // un blocco "a metà": è dove il blocco finiva, con una riga vuota
+      // che in archivio non è arrivata (blocchiDaChiudere). Da lì in giù
+      // non è roba di questo avviso: moltiplicarla aggiungeva metri finti.
+      const tutte = figlieDelBlocco(sezione, serM);
+      const taglio = tutte.findIndex((k, x) => !sezione.serie[k]?.moltiplicato
+        && tutte.slice(0, x).some((q) => Number(sezione.serie[q]?.moltiplicato) === n));
+      const figlie = (taglio >= 0 ? tutte.slice(0, taglio) : tutte)
         .filter((k) => (Number(sezione.serie[k]?.moltiplicato) || 1) !== n);
       if (!figlie.length) return;
 
@@ -1176,6 +1284,9 @@ export function metriDaRicontrollare(seduta, { puoScrivere = true } = {}) {
   }
 
   const daSistemare = new Set(apertureNude(seduta).map((n) => n.sezN));
+  // Dove finiva un blocco che in archivio non ha la sua fine: da lì in
+  // giù fino alla prossima apertura o fine, niente proposte di metri.
+  const daChiudere = new Set(blocchiDaChiudere(seduta).map((b) => `${b.sezN}-${b.serM}`));
 
   (seduta?.sezioni || []).forEach((sezione, sezN) => {
     if (eSecco(sezione)) return;
@@ -1188,10 +1299,17 @@ export function metriDaRicontrollare(seduta, { puoScrivere = true } = {}) {
 
     let attivo = 1;
     let nudo = false;        // il blocco attivo viene da un "3x" senza apreBlocco
+    let senzaFine = false;   // sotto un blocco che andava chiuso qui sopra
     serie.forEach((riga, serM) => {
       if (!riga) return;
-      if (riga.apreBlocco > 1) { attivo = riga.apreBlocco; nudo = false; return; }
+      if (riga.apreBlocco > 1) { attivo = riga.apreBlocco; nudo = false; senzaFine = false; return; }
+      if (riga.chiudeBlocco) { attivo = 1; nudo = false; senzaFine = false; return; }
       if (riga.apreBlocco !== undefined) { attivo = 1; nudo = false; }
+      if (daChiudere.has(`${sezN}-${serM}`)) senzaFine = true;
+      if (senzaFine) {
+        saltate.push({ sezN, serM, perche: 'blocco-da-chiudere' });
+        return;
+      }
       const aperta = riga.apreBlocco ? null : aperturaDiBlocco(riga.notazione);
       if (aperta?.ripetizioni > 1) { attivo = aperta.ripetizioni; nudo = true; return; }
       if (riga.senzaMetri || riga.composizione) return;
@@ -1381,6 +1499,45 @@ export const svoltoDopoInserisciRiga = (svolto, i, j) => rimappaSvolto(svolto, (
 
 export const svoltoDopoInserisciSezione = (svolto, i) => rimappaSvolto(svolto, (si, sj) =>
   [si >= i ? si + 1 : si, sj]);
+
+// I gesti della fine della ripetizione stanno qui, dopo gli involucri
+// di svolto che usano: inserire e sciogliere spostano righe.
+// Il tasto "fine ripetizione", e il tasto dell'avviso sulle sedute
+// vecchie: la fine entra alla posizione `j` della sezione `i`. Inserita
+// in mezzo sposta di uno tutte le righe sotto, quindi svolto si rimappa
+// nello stesso passaggio. Lavora sulla bozza; in archivio va con Salva.
+export function inserisciFineBlocco(seduta, i, j) {
+  const sezione = seduta?.sezioni?.[i];
+  if (!sezione || eSecco(sezione)) return false;
+  const serie = sezione.serie || [];
+  const dove = Math.max(0, Math.min(j, serie.length));
+  sezione.serie = [...serie.slice(0, dove), rigaFineBlocco(), ...serie.slice(dove)];
+  if (seduta.svolto) seduta.svolto = svoltoDopoInserisciRiga(seduta.svolto, i, dove);
+  ricalcolaBlocchi(sezione);
+  return true;
+}
+
+// "Sciogli": via la riga di apertura, e la sua fine se c'è. Prima
+// l'apertura restava lì con apreBlocco tolto, una "3x" qualunque: al
+// ricalcolo dopo non chiudeva più niente, e l'avviso dei blocchi la
+// vedeva come un'apertura nuda e proponeva subito di rimetterla.
+export function sciogliBlocco(seduta, i, j) {
+  const sezione = seduta?.sezioni?.[i];
+  const serie = sezione?.serie || [];
+  if (!(serie[j]?.apreBlocco > 1)) return false;
+  let fine = -1;
+  for (let k = j + 1; k < serie.length; k++) {
+    if (serie[k]?.apreBlocco > 1) break;
+    if (serie[k]?.chiudeBlocco) { fine = k; break; }
+  }
+  // Prima la più in basso: così l'indice dell'altra non si sposta.
+  for (const k of [fine, j].filter((x) => x >= 0)) {
+    sezione.serie = sezione.serie.filter((_, x) => x !== k);
+    if (seduta.svolto) seduta.svolto = svoltoDopoTogliRiga(seduta.svolto, i, k);
+  }
+  ricalcolaBlocchi(sezione);
+  return true;
+}
 
 // I metri nuotati che si perderebbero cancellando. Servono all'avviso:
 // una riga rilevata non deve sparire in silenzio.
@@ -1723,6 +1880,7 @@ export function validaSeduta(seduta, zoneValide = ZONE.map((z) => z.codice)) {
 
     (sez.serie || []).forEach((s, j) => {
       const dove = `${sez.titolo || "sezione " + (i + 1)} → serie ${j + 1}`;
+      if (s.chiudeBlocco) return;          // la fine di una ripetizione non è una riga di lavoro
       if (!s.notazione) problemi.push({ campo: dove, msg: "Manca la notazione" });
       // Partenze, virate, lavoro a secco: stanno nella seduta senza fare metri.
       if (s.senzaMetri) return;

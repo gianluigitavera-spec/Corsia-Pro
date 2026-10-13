@@ -77,7 +77,7 @@ const SCARTA_SEZIONE = ['zonaEreditata', 'particolare'];
 // notazione: le composizioni a zero e i blocchi già moltiplicati sono
 // lettura anche loro.
 const lettura = (sez, s) => {
-  if (sez.aSecco === true || s.apreBlocco > 1) return {};
+  if (sez.aSecco === true || s.apreBlocco > 1 || s.chiudeBlocco) return {};
   if (s.fiducia === 'rossa') return { metriLetti: null };
   return { metriLetti: Number(s.metri) || 0 };
 };
@@ -139,6 +139,9 @@ export function sedutaDaLettura(sezioniLette, correzioni = {}) {
         delete riga.composizione;
       }
       return riga;
-    }).filter((s) => s.notazione),
+    // La fine di un blocco non ha notazione per costruzione: è il segno
+    // della riga vuota che chiudeva il blocco, e se cadesse qui il
+    // confine tornerebbe a essere solo un'assenza di `moltiplicato`.
+    }).filter((s) => s.notazione || s.chiudeBlocco),
   })).filter((sez) => sez.serie.length > 0);
 }

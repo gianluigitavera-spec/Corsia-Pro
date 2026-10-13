@@ -133,6 +133,41 @@ dice('metri della sezione che sto per cancellare',
   metriSvoltiDiSezione(SVOLTO, 0), { metri: 1250, righe: 3 });
 dice('sezione senza rilevazioni: niente avviso', metriSvoltiDiSezione(SVOLTO, 9), null);
 
+// ------------------------------------------- la fine della ripetizione
+// La fine è una riga: inserirla in mezzo sposta di uno tutte quelle
+// sotto, e i loro metri rilevati devono seguirle. Sciogliere toglie
+// l'apertura (e la fine), e le chiavi risalgono.
+{
+  const D = await import('./src/lib/dominio.js');
+  const prova = (cosa, fn) => {
+    try { fn(); } catch (e) { male++; console.error(`✗ ${cosa}: ${e.message}`); }
+  };
+  const blocco = () => ({
+    sezioni: [{ titolo: 'C', destinatari: ['*'], serie: [
+      { notazione: '3x', metri: 0, senzaMetri: true, apreBlocco: 3 },
+      { notazione: '8x50', metri: 1200, moltiplicato: 3 },
+      { notazione: '200', metri: 200 },
+    ] }],
+    svolto: { righe: { '0-1': 1100, '0-2': 200 } },
+  });
+  prova('fine inserita in mezzo', () => {
+    const s = blocco();
+    D.inserisciFineBlocco(s, 0, 2);
+    dice('la fine in mezzo: il 200 si porta dietro i suoi metri', s.svolto, { righe: { '0-1': 1100, '0-3': 200 } });
+    dice('e la fine è al suo posto', s.sezioni[0].serie[2].chiudeBlocco, true);
+  });
+  prova('sciogliere', () => {
+    const s = blocco();
+    D.sciogliBlocco(s, 0, 0);
+    dice('sciolto: le chiavi risalgono con le righe', s.svolto, { righe: { '0-0': 1100, '0-1': 200 } });
+    const f = blocco();
+    D.inserisciFineBlocco(f, 0, 2);
+    D.sciogliBlocco(f, 0, 0);
+    dice('sciolto con la fine: via due righe, le chiavi seguono', f.svolto, { righe: { '0-0': 1100, '0-1': 200 } });
+    dice('e le righe sono le due di lavoro', f.sezioni[0].serie.map((r) => r.notazione), ['8x50', '200']);
+  });
+}
+
 // ------------------------------------------------- l'import da testo
 // Sostituire in blocco le sezioni azzera le posizioni: nessuna
 // rimappatura può salvare svolto, perché le righe vecchie non esistono

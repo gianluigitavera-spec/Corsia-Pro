@@ -65,7 +65,8 @@ export default function Lavagna({ seduta, zone, chiudi }) {
           {(sez.serie || []).map((s, j) => (
             // L'apertura di blocco è un'intestazione, non un lavoro: a
             // bordo vasca "3x — 0 m" non vuol dire niente, "×3" sì.
-            s.apreBlocco > 1 ? (
+            // La fine non ha una riga sua: lo dice il rientro, che smette.
+            s.chiudeBlocco ? null : s.apreBlocco > 1 ? (
               <li key={j} className="apre-lavagna">×{s.apreBlocco}</li>
             ) : (
             <li key={j} className={s.moltiplicato ? 'in-blocco' : undefined}>

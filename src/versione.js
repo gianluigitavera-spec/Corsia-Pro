@@ -20,6 +20,17 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.12',
+    data: '2026-10-14',
+    annuncia: true,
+    voci: [
+      'Nuovo nell’editor: il tasto «fine ripetizione» chiude un blocco dove vuoi, come la riga vuota nel testo. Le righe sotto non si moltiplicano più',
+      'Corretto: nelle sedute incollate da testo, ritoccando una sezione, le righe dopo una ripetizione chiusa da una riga vuota venivano moltiplicate anche loro. Se una seduta ne ha una, un avviso in alto propone «Chiudi qui»: premilo prima di ritoccarla',
+      'Se il 12 o 13 ottobre avete incollato e poi modificato una seduta con una riga vuota dentro una ripetizione, controllate i metri delle righe sotto: l’app non può più riconoscerle',
+      '«Sciogli» toglie la riga della ripetizione, e l’avviso dei blocchi non propone più di rimetterla',
+    ],
+  },
+  {
     versione: '0.56.11',
     data: '2026-10-13',
     annuncia: true,
