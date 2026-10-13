@@ -11,7 +11,7 @@
 // a mano proverebbe solo che so copiare i campi che ho appena scritto.
 import { analizzaTesto } from './src/lib/analizzatore.js';
 import { sedutaDaLettura } from './src/lib/importaTesto.js';
-import { eSecco, apertureNude, ricalcolaBlocchi } from './src/lib/dominio.js';
+import { eSecco, apertureNude, ricalcolaBlocchi, validaSeduta } from './src/lib/dominio.js';
 
 let male = 0;
 const dice = (cosa, avuto, atteso) => {
@@ -91,6 +91,11 @@ const importa = (testo, correzioni) =>
 //
 // Quindi qui le righe vengono spogliate di metriManuali prima di
 // guardarle: a reggere deve restare solo `moltiplicato`.
+//
+// Dalla 0.56.10 l'import il campo non lo mette più sulle righe non
+// corrette, e la spoliazione è diventata la norma. Resta lo stesso: se
+// un giorno qualcuno lo rimettesse "per prudenza", questa prova deve
+// continuare a non appoggiarcisi.
 // =====================================================================
 {
   const sezioni = importa('3x\n2x50 pull @0:50\n4x25 gambe @0:35');
@@ -118,7 +123,7 @@ const importa = (testo, correzioni) =>
   const sezioni = importa('Velocisti C3\n8x50 pinne sprint @1:30');
   const riga = sezioni[0].serie[0];
 
-  for (const campo of ['fiducia', 'stile', 'attrezzi', 'modalita', 'composizione', 'descrizione']) {
+  for (const campo of ['fiducia', 'stile', 'attrezzi', 'modalita', 'descrizione']) {
     dice(`la riga non porta "${campo}"`, riga[campo], undefined);
   }
   for (const campo of ['zonaEreditata', 'particolare']) {
@@ -127,7 +132,7 @@ const importa = (testo, correzioni) =>
 
   // Attrezzi e modalità non spariscono: confluiscono nelle note.
   vero('gli attrezzi finiscono nelle note', /pinne/i.test(riga.note));
-  vero('i metri vengono dal testo', riga.metriManuali === true);
+  vero('riga non corretta: non è a metri fissi', riga.metriManuali === undefined);
   vero('la sezione tiene i suoi destinatari', sezioni[0].destinatari.length > 0);
 }
 
@@ -141,6 +146,107 @@ const importa = (testo, correzioni) =>
   const sezioni = sedutaDaLettura(letto.sezioni, { '0:0': { zona: 'C3', metri: 500 } });
   dice('la zona corretta a mano vince', sezioni[0].serie[0].zona, 'C3');
   dice('e i metri pure', sezioni[0].serie[0].metri, 500);
+}
+
+// =====================================================================
+// IL NUMERO DEL LETTORE ARRIVA ACCANTO AI METRI (0.56.10)
+//
+// `metriLetti` è quello che ha letto l'analizzatore, PRIMA delle
+// correzioni del revisore. Senza, il controllo delle sedute non saprebbe
+// dire se un numero l'ha scelto l'allenatore sulle sedute salvate prima
+// della 0.56.10, dove metriManuali sta su tutte le righe importate.
+// =====================================================================
+{
+  const sezioni = importa('Riscaldamento\n400 stile\n8x50 sprint @1:00');
+  dice('riga non corretta: lettura e metri coincidono',
+    sezioni[0].serie.map((s) => [s.metri, s.metriLetti]), [[400, 400], [400, 400]]);
+}
+{
+  const letto = analizzaTesto('8x50 sprint @1:30');
+  const sezioni = sedutaDaLettura(letto.sezioni, { '0:0': { metri: 500 } });
+  dice('corretta nel revisore: metri dell\'allenatore', sezioni[0].serie[0].metri, 500);
+  dice('e accanto resta il numero del lettore', sezioni[0].serie[0].metriLetti, 400);
+}
+
+// =====================================================================
+// metriManuali SOLO SULLE RIGHE CORRETTE NEL REVISORE (0.56.10)
+//
+// Prima stava su tutte: serviva a non far riscrivere i metri dal vecchio
+// metriDaNotazione, che leggeva diversamente dal lettore del testo. Dalla
+// 0.56.6 il lettore è uno, e il tappo teneva fermi i metri di qualunque
+// riga importata ritoccata nell'editor. Il seguito — notazione ritoccata
+// dopo l'import — sta in prova_blocchi.mjs, dove ci sono i gesti.
+// =====================================================================
+{
+  const letto = analizzaTesto('Riscaldamento\n400 stile\n8x50 sprint @1:00\n6x100 @1:40');
+  const sezioni = sedutaDaLettura(letto.sezioni, {
+    '0:0': { zona: 'A1' },              // corretta la zona, non i metri
+    '0:1': { metri: 500 },              // corretti i metri
+    '0:2': { metri: '600' },            // riportati al numero letto (l'input è testo)
+  });
+  const serie = sezioni[0].serie;
+  dice('a metri fissi solo la riga coi metri cambiati',
+    serie.map((s) => s.metriManuali === true), [false, true, false]);
+  dice('la non corretta: metri e lettura coincidono', [serie[0].metri, serie[0].metriLetti], [400, 400]);
+  dice('la corretta: lo scarto si vede', [serie[1].metri, serie[1].metriLetti], [500, 400]);
+  dice('riportata al numero letto: nessuno scarto', [serie[2].metri, serie[2].metriLetti], [600, 600]);
+}
+{
+  // Il blocco: la lettura è nella stessa unità dei metri, già moltiplicata.
+  const serie = importa('3x\n2x50 pull @0:50\n4x25 gambe @0:35')[0].serie;
+  vero('l\'apertura non porta lettura', !('metriLetti' in serie[0]));
+  dice('le figlie sì, già moltiplicate come i metri',
+    serie.slice(1).map((s) => s.metriLetti), [300, 300]);
+}
+{
+  // La composizione vale zero apposta: anche quello è lettura, non
+  // una correzione — se no il controllo la scambierebbe per una scelta.
+  const serie = importa('4x100 @1:40\n50 sl\n50 do')[0].serie;
+  dice('composizione: metri e lettura coincidono anche a zero',
+    serie.map((s) => s.metri === s.metriLetti), [true, true, true]);
+}
+
+// =====================================================================
+// LA COMPOSIZIONE ARRIVA IN ARCHIVIO (0.56.10)
+// Prima `composizione` si scartava: lo zero restava, ma senza il perché,
+// e ritoccando la riga nell'editor diventava lavoro. Il seguito col
+// ritocco sta in prova_blocchi.mjs.
+// =====================================================================
+{
+  const serie = importa('4x100 @1:40\n50 sl\n50 do')[0].serie;
+  dice('le sotto-righe sono marcate composizione, la ripetuta no',
+    serie.map((s) => s.composizione === true), [false, true, true]);
+  dice('e valgono zero', serie.map((s) => s.metri), [400, 0, 0]);
+}
+{
+  // Lo zero di una composizione non è un "Metri a zero" da segnalare.
+  const sezioni = importa('4x100 @1:40\n50 sl\n50 do');
+  const avvisi = validaSeduta({ data: '2026-10-13', categorie: ['X'], sezioni });
+  dice('composizione: nessun avviso sui metri',
+    avvisi.filter((p) => p.msg === 'Metri a zero'), []);
+}
+{
+  // Metri scritti a mano nel revisore: non è più la descrizione di
+  // un'altra riga, è un lavoro deciso dall'allenatore.
+  const letto = analizzaTesto('4x100 @1:40\n50 sl\n50 do');
+  const serie = sedutaDaLettura(letto.sezioni, { '0:1': { metri: 50 } })[0].serie;
+  dice('corretta nel revisore: smette di essere composizione',
+    [serie[1].composizione, serie[1].metriManuali, serie[1].metri], [undefined, true, 50]);
+  vero('l\'altra resta composizione', serie[2].composizione === true);
+}
+{
+  const sezioni = importa('Palestra\n3x10 piegamenti\n4x12 addominali');
+  vero('a secco nessuna lettura', sezioni[0].serie.every((s) => !('metriLetti' in s)));
+}
+{
+  // La riga che il lettore non ha capito arriva a zero, ma zero non è
+  // quello che ha letto: null, e la correzione si vede come tale.
+  const letto = analizzaTesto('Riscaldamento\nnuotata libera');
+  const rossa = letto.sezioni[0]?.serie[0];
+  vero('(premessa) l\'analizzatore la segna rossa', rossa?.fiducia === 'rossa');
+  const sezioni = sedutaDaLettura(letto.sezioni, { '0:0': { metri: 300 } });
+  dice('non capita: lettura null, metri dell\'allenatore',
+    [sezioni[0].serie[0].metriLetti, sezioni[0].serie[0].metri], [null, 300]);
 }
 
 // =====================================================================

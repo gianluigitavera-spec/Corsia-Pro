@@ -20,6 +20,15 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.10',
+    data: '2026-10-12',
+    voci: [
+      'In una seduta incollata da testo, se ritocchi la notazione di una riga i metri si aggiornano come nelle sedute scritte a mano, e cambiando le volte di una ripetizione si aggiornano le righe del blocco. Restano fermi solo i metri che hai corretto tu prima di confermare',
+      'Ogni riga ricorda quanti metri l’app aveva letto dalla notazione, accanto a quelli che tieni tu: servirà a ritrovare le sedute da ricontrollare',
+      'Le righe che descrivono una ripetuta ("50 sl" sotto un "4x100") non danno più l’avviso "Metri a zero"',
+    ],
+  },
+  {
     versione: '0.56.9',
     data: '2026-10-12',
     voci: [

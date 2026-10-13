@@ -37,9 +37,6 @@ import { TUTTI } from './dominio.js';
 //                           dopo la conferma non significa più niente.
 //   stile, attrezzi,        il modello della riga non li ha come campi:
 //   modalita                confluiscono in `note` qui sotto.
-//   composizione            i sotto-tratti che sommano la distanza sopra
-//                           valgono 0 apposta, e quello lo dice già
-//                           `metri`. Il perché è roba del lettore.
 //   descrizione             il riassunto della composizione che il lettore
 //                           appende alla riga padre. Oggi nessuno la
 //                           mostra nell'editor: passarla vorrebbe dire
@@ -50,7 +47,15 @@ import { TUTTI } from './dominio.js';
 //
 // Quello che NON è qui dentro passa, ed è voluto: `senzaMetri`,
 // `apreBlocco` e `moltiplicato` sono dominio, non lettura.
-const SCARTA_RIGA = ['fiducia', 'stile', 'attrezzi', 'modalita', 'composizione', 'descrizione'];
+//
+// Anche `composizione`, dalla 0.56.10. Prima si scartava: "i sotto-tratti
+// valgono 0 e quello lo dice già `metri`". Lo diceva finché nessuno
+// toccava la riga — `metriManuali` su tutte le righe importate teneva
+// fermi i metri per combinazione. Tolto quel tappo, ritoccare "50 sl" in
+// "50 sl forte" la rileggeva come lavoro suo e gonfiava la seduta di 50.
+// Lo zero di una composizione non è un'assenza di metri: è una scelta, e
+// la scelta va scritta.
+const SCARTA_RIGA = ['fiducia', 'stile', 'attrezzi', 'modalita', 'descrizione'];
 
 // Come sopra, per la sezione.
 //
@@ -62,6 +67,20 @@ const SCARTA_RIGA = ['fiducia', 'stile', 'attrezzi', 'modalita', 'composizione',
 //                           particolari": serve al lettore per non
 //                           confonderla con una sezione vera.
 const SCARTA_SEZIONE = ['zonaEreditata', 'particolare'];
+
+// Il numero del lettore, PRIMA delle correzioni del revisore: è lui che
+// permette di dire, dopo, se `metri` l'ha scelto l'allenatore. Stesse
+// regole di annotaLettura in dominio.js — assente su aperture e lavoro a
+// secco, null sulla riga che il lettore non ha capito (la rossa, che
+// arriva a zero perché un numero non l'ha trovato, non perché valga zero).
+// Qui però il numero è quello dell'analizzatore e non si rilegge dalla
+// notazione: le composizioni a zero e i blocchi già moltiplicati sono
+// lettura anche loro.
+const lettura = (sez, s) => {
+  if (sez.aSecco === true || s.apreBlocco > 1) return {};
+  if (s.fiducia === 'rossa') return { metriLetti: null };
+  return { metriLetti: Number(s.metri) || 0 };
+};
 
 const senza = (oggetto, nomi) => {
   const copia = { ...oggetto };
@@ -76,6 +95,26 @@ const corretto = (correzioni, i, j, campo, difetto) => {
   return c && c[campo] !== undefined ? c[campo] : difetto;
 };
 
+// `metriManuali` solo sulle righe coi metri corretti nel revisore: sono
+// le uniche dove il numero l'ha deciso l'allenatore, ed è lo stesso
+// significato che il campo ha nell'editor ("da qui in poi decidi tu").
+//
+// Fino alla 0.56.10 stava su TUTTE le righe importate, perché il vecchio
+// metriDaNotazione leggeva la notazione diversamente dal lettore del
+// testo e, ritoccando una riga, l'avrebbe riscritta male. Dalla 0.56.6
+// il lettore è uno, e quel tappo faceva solo danni: una riga importata
+// ritoccata nell'editor teneva i metri vecchi, e un blocco importato non
+// si riscalava cambiando le volte.
+//
+// Una correzione uguale al numero letto non è una correzione: l'input
+// del revisore resta in `correzioni` anche quando lo si riporta al
+// valore di partenza, e marcarla bloccherebbe la riga senza motivo.
+const metriCorretti = (correzioni, i, j, s) => {
+  const c = correzioni?.[`${i}:${j}`];
+  if (!c || c.metri === undefined) return false;
+  return (Number(c.metri) || 0) !== (Number(s.metri) || 0);
+};
+
 export function sedutaDaLettura(sezioniLette, correzioni = {}) {
   return (sezioniLette || []).map((sez, i) => ({
     ...senza(sez, [...SCARTA_SEZIONE, 'serie']),
@@ -83,23 +122,23 @@ export function sedutaDaLettura(sezioniLette, correzioni = {}) {
     // sezione che arrivasse senza destinatari: [] non filtra nessuno e
     // farebbe sparire la sezione dai volumi di chiunque.
     destinatari: sez.destinatari?.length ? sez.destinatari : [TUTTI],
-    serie: (sez.serie || []).map((s, j) => ({
-      ...senza(s, SCARTA_RIGA),
-      metri: Number(corretto(correzioni, i, j, 'metri', s.metri)) || 0,
-      zona: corretto(correzioni, i, j, 'zona', s.zona) || '',
-      recupero: s.recupero || '',
-      note: [s.note, (s.modalita || []).join(', '), (s.attrezzi || []).join(', ')]
-        .filter(Boolean).join(' · '),
-      // I metri vengono dal testo, dove la regola della vasca è già stata
-      // applicata ("2x10" fa 50, non 20) e le figlie di un blocco sono
-      // già moltiplicate. Ricalcolarli dalla notazione li rovinerebbe.
-      //
-      // NON è questo campo a impedire che un blocco importato venga
-      // moltiplicato una seconda volta: a quello pensa `moltiplicato`,
-      // che ora passa. Finché si perdeva, il raddoppio restava tappato
-      // da qui per combinazione — prova_import.mjs lo verifica proprio
-      // con le righe spogliate di `metriManuali`.
-      metriManuali: true,
-    })).filter((s) => s.notazione),
+    serie: (sez.serie || []).map((s, j) => {
+      const riga = {
+        ...senza(s, SCARTA_RIGA),
+        ...lettura(sez, s),
+        metri: Number(corretto(correzioni, i, j, 'metri', s.metri)) || 0,
+        zona: corretto(correzioni, i, j, 'zona', s.zona) || '',
+        recupero: s.recupero || '',
+        note: [s.note, (s.modalita || []).join(', '), (s.attrezzi || []).join(', ')]
+          .filter(Boolean).join(' · '),
+      };
+      // Metri scritti a mano nel revisore: la riga smette di essere
+      // composizione, come quando li si batte nell'editor (cambiaMetri).
+      if (metriCorretti(correzioni, i, j, s)) {
+        riga.metriManuali = true;
+        delete riga.composizione;
+      }
+      return riga;
+    }).filter((s) => s.notazione),
   })).filter((sez) => sez.serie.length > 0);
 }

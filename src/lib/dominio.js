@@ -860,6 +860,7 @@ export function ricalcolaBlocchi(sezione) {
       riga.senzaMetri = true;
       delete riga.moltiplicato;
       delete riga.metriManuali;
+      delete riga.metriLetti;
       continue;
     }
     // "×1" non ripete niente: il blocco è stato sciolto.
@@ -872,6 +873,16 @@ export function ricalcolaBlocchi(sezione) {
     const vecchio = Number(riga.moltiplicato) || 1;
     if (attivo > 1) riga.moltiplicato = attivo; else delete riga.moltiplicato;
     if (attivo === vecchio) continue;                // niente da fare, e non si tocca
+
+    // Il numero del lettore segue il blocco anche sulle righe coi metri
+    // scritti a mano: è quello che il lettore scriverebbe ORA in questa
+    // posizione, ed è proprio lo scarto da `metri` che deve restare
+    // visibile. Stessa prudenza dei metri: se la divisione non torna non
+    // si inventa, si dimentica.
+    if (typeof riga.metriLetti === 'number') {
+      if (riga.metriLetti % vecchio === 0) riga.metriLetti = (riga.metriLetti / vecchio) * attivo;
+      else delete riga.metriLetti;
+    }
 
     // I metri scritti a mano restano quelli: solo l'allenatore sa se
     // quel numero è il totale o il giro.
@@ -886,6 +897,48 @@ export function ricalcolaBlocchi(sezione) {
   }
 
   return sezione;
+}
+
+// ---------------------------------------------------------------------
+// I METRI DEL LETTORE, accanto a quelli in archivio
+//
+// `metri` è il numero che conta. `metriLetti` è quello che il lettore ci
+// avrebbe scritto, nella stessa unità — già moltiplicato per il blocco —
+// così che `metri !== metriLetti` voglia dire una cosa sola: qualcuno
+// l'ha cambiato a mano. `metriManuali` dice la stessa cosa solo dalla
+// 0.56.10: prima stava su tutte le righe importate, corrette o no, e
+// sulle sedute vecchie non distingue niente.
+//
+// Tre stati, e la differenza conta:
+//   numero    il lettore ha letto questo
+//   null      il lettore c'è passato e non ha trovato metri
+//   assente   riga salvata prima della 0.56.10, o che non si legge
+//             (aperture di blocco, lavoro a secco)
+//
+// NESSUNO LO SOMMA: volumi, carico e viste leggono `metri` e basta.
+//
+// Si scrive quando cambia la notazione (qui, chiamata DOPO il ricalcolo,
+// che ha appena messo il fattore giusto su `moltiplicato`) e si riscala
+// quando cambia il blocco (ricalcolaBlocchi). Mai in lettura.
+// All'import lo scrive sedutaDaLettura, col numero dell'analizzatore.
+// ---------------------------------------------------------------------
+export function annotaLettura(sezione, riga) {
+  if (!riga) return riga;
+  if (eSecco(sezione) || riga.apreBlocco > 1) {
+    delete riga.metriLetti;
+    return riga;
+  }
+  // Una riga di composizione descrive la ripetuta sopra: vale zero, e
+  // il lettore — che la composizione la conosce — zero ci scriverebbe.
+  // Rileggerla da sola ("50 sl forte" = 50) farebbe sembrare lo zero
+  // una correzione a mano.
+  if (riga.composizione) {
+    riga.metriLetti = 0;
+    return riga;
+  }
+  const giro = metriDaNotazione(riga.notazione);
+  riga.metriLetti = giro === null ? null : giro * (Number(riga.moltiplicato) || 1);
+  return riga;
 }
 
 // Metti l'apertura su una riga e lascia che il ricalcolo faccia il resto.
@@ -1406,7 +1459,8 @@ export function validaSeduta(seduta, zoneValide = ZONE.map((z) => z.codice)) {
       if (!s.notazione) problemi.push({ campo: dove, msg: "Manca la notazione" });
       // Partenze, virate, lavoro a secco: stanno nella seduta senza fare metri.
       if (s.senzaMetri) return;
-      if (!Number(s.metri)) problemi.push({ campo: dove, msg: "Metri a zero" });
+      // La composizione descrive la ripetuta sopra: il suo zero è una scelta.
+      if (!Number(s.metri) && !s.composizione) problemi.push({ campo: dove, msg: "Metri a zero" });
       if (!s.zona) problemi.push({ campo: dove, msg: "Zona non indicata" });
       else if (!zoneValide.includes(s.zona))
         problemi.push({ campo: dove, msg: `Zona "${s.zona}" non riconosciuta` });

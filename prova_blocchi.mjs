@@ -14,10 +14,11 @@
 // gestori del componente ridotti a una riga che chiama dominio.js —
 // tutta la logica che conta sta lì, e lì è provata davvero.
 import { analizzaTesto } from './src/lib/analizzatore.js';
+import { sedutaDaLettura } from './src/lib/importaTesto.js';
 import {
   ricalcolaBlocchi, applicaAperturaBlocco, apertureNude, figlieDelBlocco,
   eSecco, metriDaNotazione, metriPerSpecializzazione, serieVuota, svoltoDopoTogliRiga,
-  svoltoDopoMuoviRiga, durataStimata,
+  svoltoDopoMuoviRiga, durataStimata, annotaLettura, aperturaDiBlocco,
 } from './src/lib/dominio.js';
 
 let male = 0;
@@ -55,16 +56,18 @@ const g = {
     // EditorSeduta.jsx). Il doppio lo faceva leggere come lavoro in acqua,
     // e senza questo ramo provava un'app che non esiste — adesso che il
     // lettore è uno, "4x12 ripetizioni" varrebbe 100 metri di palestra.
-    if (eSecco(sez)) { serie.metri = 0; serie.zona = ''; return; }
-    if (!serie.metriManuali) {
+    if (eSecco(sez)) { serie.metri = 0; serie.zona = ''; annotaLettura(sez, serie); return; }
+    if (!serie.metriManuali && !serie.composizione) {
       const m = metriDaNotazione(valore);
       if (m !== null) { serie.metri = m; delete serie.moltiplicato; }
     }
     ricalcolaBlocchi(sez);
+    annotaLettura(sez, serie);
   },
   scriviMetri(sez, j, valore) {                     // metri battuti a mano
     sez.serie[j].metri = Number(valore) || 0;
     sez.serie[j].metriManuali = true;
+    delete sez.serie[j].composizione;
   },
   muovi(sez, da, a) {                               // le frecce su/giù
     if (a < 0 || a >= sez.serie.length) return;
@@ -485,6 +488,137 @@ Sciolto
     svoltoDopoTogliRiga(svolto, 0, 1), { righe: { '0-1': 400 }, nota: undefined });
   dice('spostandola pure',
     svoltoDopoMuoviRiga(svolto, 0, 1, 2), { righe: { '0-2': 350, '0-1': 400 }, nota: undefined });
+}
+
+// =====================================================================
+// IL NUMERO DEL LETTORE SEGUE I GESTI (0.56.10)
+//
+// `metriLetti` è quello che il lettore scriverebbe in `metri`, nella
+// stessa unità. Finché nessuno batte i metri a mano i due coincidono
+// dopo QUALSIASI gesto: è l'invariante su cui si regge il controllo
+// delle sedute, e se si rompe ogni riga sembra corretta a mano.
+// =====================================================================
+const vero = (cosa, avuto) => dice(cosa, !!avuto, true);
+const coppie = (sez) => sez.serie.map((s) => [s.metri, s.metriLetti]);
+// Le aperture non sono lavoro, e nemmeno la "3x" rimasta dopo uno
+// scioglimento: lì il lettore non scrive metri e non c'è niente da
+// confrontare.
+const nessunoScarto = (sez) => sez.serie
+  .filter((s) => !(s.apreBlocco > 1) && !aperturaDiBlocco(s.notazione))
+  .every((s) => s.metri === s.metriLetti);
+
+{
+  // Una sequenza lunga di gesti, senza metri battuti a mano.
+  const sez = nuovaSezione();
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '400 stile');
+  vero('scritta una riga: lettura uguale ai metri', nessunoScarto(sez));
+  const r = g.piuRipetizione(sez, 3);
+  const b = g.piuSerie(sez); g.scrivi(sez, b, '2x50 pull');
+  const c = g.piuSerie(sez); g.scrivi(sez, c, '4x25 gambe');
+  dice('dentro il ×3 la lettura è già moltiplicata', coppie(sez).slice(2), [[300, 300], [300, 300]]);
+  vero('l\'apertura non porta lettura', !('metriLetti' in sez.serie[r]));
+  g.cambiaN(sez, r, 4);
+  vero('cambiato il fattore, ancora nessuno scarto', nessunoScarto(sez));
+  g.muovi(sez, c, 0);
+  vero('spostata fuori dal blocco, nessuno scarto', nessunoScarto(sez));
+  dice('e la riga spostata torna a un giro', coppie(sez)[0], [100, 100]);
+  g.togli(sez, 0);                       // l'apertura risale al posto di r
+  g.sciogli(sez, r);
+  vero('sciolto il blocco, nessuno scarto', nessunoScarto(sez));
+  dice('e le righe tornano a un giro', coppie(sez).slice(-1), [[100, 100]]);
+}
+
+{
+  // I metri battuti a mano: lo scarto deve comparire e restare.
+  const sez = nuovaSezione();
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '8x50');
+  g.scriviMetri(sez, a, 500);
+  dice('metri a mano, lettura invariata', coppie(sez)[0], [500, 400]);
+  g.scrivi(sez, a, '6x50');
+  dice('cambiata la notazione: i metri restano, la lettura segue', coppie(sez)[0], [500, 300]);
+
+  // Spostata dentro un ×2 la lettura raddoppia, i metri scelti no.
+  const r = g.piuRipetizione(sez, 2);
+  g.muovi(sez, a, r);
+  dice('dentro il ×2 la lettura raddoppia e i metri restano', coppie(sez)[1], [500, 600]);
+}
+
+{
+  // Non capita: null, e i metri che c'erano non si toccano.
+  const sez = nuovaSezione();
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '8x50');
+  g.scrivi(sez, a, 'gambe libere');
+  dice('non capita: metri di prima, lettura null', coppie(sez)[0], [400, null]);
+}
+
+{
+  // A secco non si legge niente, nemmeno "4x12 trazioni".
+  const sez = { ...nuovaSezione('Palestra'), aSecco: true };
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '4x12 trazioni');
+  vero('a secco nessuna lettura', !('metriLetti' in sez.serie[a]));
+}
+
+// ---------------------------------------------------------------------
+// Dal testo all'editor, poi un ritocco. Le righe partono dall'import
+// vero (analizzaTesto + sedutaDaLettura), non da strutture montate a mano.
+// ---------------------------------------------------------------------
+{
+  // Importata e non corretta: ritoccando la notazione metri e lettura
+  // si muovono insieme. Fino alla 0.56.10 i metri restavano 400.
+  const sez = sedutaDaLettura(analizzaTesto('8x50 sprint @1:00').sezioni)[0];
+  g.scrivi(sez, 0, '10x50 sprint @1:00');
+  dice('importata e ritoccata: metri e lettura insieme', coppie(sez)[0], [500, 500]);
+  vero('nessuno scarto', nessunoScarto(sez));
+}
+
+{
+  // Corretta nel revisore: i metri sono dell'allenatore e restano, la
+  // lettura segue la notazione, lo scarto si vede.
+  const sez = sedutaDaLettura(analizzaTesto('8x50 sprint @1:00').sezioni,
+    { '0:0': { metri: 450 } })[0];
+  g.scrivi(sez, 0, '10x50 sprint @1:00');
+  dice('corretta e ritoccata: metri fermi, lettura che segue', coppie(sez)[0], [450, 500]);
+}
+
+{
+  // Il blocco importato si riscala cambiando le volte, come quello fatto
+  // coi tasti. La riga corretta nel revisore resta dov'è.
+  const sez = sedutaDaLettura(analizzaTesto('3x\n2x50 pull\n4x25 gambe').sezioni,
+    { '0:2': { metri: 360 } })[0];
+  g.cambiaN(sez, 0, 4);
+  dice('blocco importato da ×3 a ×4: la figlia non corretta si riscala',
+    coppie(sez)[1], [400, 400]);
+  dice('quella corretta tiene i suoi metri, la lettura segue',
+    coppie(sez)[2], [360, 400]);
+}
+
+{
+  // La composizione importata: ritoccare la descrizione non la fa
+  // diventare lavoro. Prima della 0.56.10 lo impediva metriManuali per
+  // combinazione; tolto quel tappo, "50 sl forte" valeva 50 metri suoi.
+  const sez = sedutaDaLettura(analizzaTesto('4x100 @1:40\n50 sl\n50 do').sezioni)[0];
+  const prima = totale(sez);
+  g.scrivi(sez, 1, '50 sl forte');
+  dice('composizione ritoccata: resta a zero, e la lettura con lei',
+    coppie(sez)[1], [0, 0]);
+  dice('il totale non cambia', totale(sez), prima);
+  dice('ed è quello della ripetuta sola', prima, 400);
+  vero('nessuno scarto', nessunoScarto(sez));
+
+  // Metri battuti a mano: da lì è un lavoro suo, e la notazione torna
+  // a essere letta (per metriLetti; i metri restano quelli scelti).
+  g.scriviMetri(sez, 1, 50);
+  vero('scritti i metri, non è più composizione', sez.serie[1].composizione === undefined);
+  g.scrivi(sez, 1, '100 sl forte');
+  dice('e la lettura torna a leggere la notazione', coppie(sez)[1], [50, 100]);
+}
+
+{
+  // Nessuno lo somma: i volumi leggono `metri` e basta.
+  const sez = nuovaSezione();
+  const a = g.piuSerie(sez); g.scrivi(sez, a, '8x50');
+  g.scriviMetri(sez, a, 500);
+  dice('il volume è quello dei metri, non della lettura', totale(sez), 500);
 }
 
 if (male) {

@@ -216,15 +216,72 @@ dentro `RevisioneTesto`, per poterla provare senza montare React:
 `prova_import.mjs`, che parte dal testo e non da strutture montate a
 mano.
 
-Attenzione a `metriManuali`: sta sulle righe importate perché i metri
-vengono dal testo e non si rileggono dalla notazione (la regola della
-vasca è già applicata, le figlie di un blocco sono già moltiplicate).
-Finché `moltiplicato` si perdeva era però lui, per combinazione, a
-impedire che un blocco importato venisse moltiplicato due volte —
-`apertureNude` scarta le figlie coi metri fissi e `ricalcolaBlocchi` le
-salta. La prova che questo non succeda spoglia le righe di
-`metriManuali` apposta: deve fallire se qualcuno lo toglie, non passare
-per coincidenza.
+**`metriManuali` vuol dire una cosa sola: i metri li ha decisi
+l'allenatore.** Lo mette `cambiaMetri` nell'editor e, dalla 0.56.10,
+l'import solo sulle righe coi metri **corretti nel revisore** (una
+correzione uguale al numero letto non conta). Fino alla 0.56.9 stava su
+tutte le righe importate: serviva a non far riscrivere i metri al
+vecchio `metriDaNotazione`, che leggeva diversamente dal lettore del
+testo. Dalla 0.56.6 il lettore è uno, e il tappo teneva fermi i metri di
+qualunque riga importata ritoccata nell'editor, e quelli delle figlie di
+un blocco importato cambiando le volte. **Sulle sedute importate prima
+della 0.56.10 il campo non distingue niente.**
+
+Finché `moltiplicato` si perdeva era stato lui, per combinazione, a
+impedire che un blocco importato venisse moltiplicato due volte. La
+prova in `prova_import.mjs` spoglia le righe di `metriManuali` apposta,
+e così resta: a reggere deve essere `moltiplicato`, non lui.
+
+**Una riga di composizione resta composizione anche dopo un ritocco.**
+"4x100" seguito da "50 sl" e "50 do": le sotto-righe sommano la
+ripetuta sopra, la descrivono, e valgono 0 apposta. Fino alla 0.56.9
+l'import scartava il flag `composizione` (stava in `SCARTA_RIGA`, con
+l'idea che lo zero lo dicesse già `metri`), e a tenerle a zero era di
+nuovo `metriManuali`, per combinazione. Tolto quel tappo, ritoccare "50
+sl" in "50 sl forte" la rileggeva come lavoro suo: +50 metri in
+silenzio. Dalla 0.56.10 il flag arriva in archivio, `cambiaNotazione`
+non riscrive i metri di una riga di composizione e `annotaLettura` le
+mette `metriLetti: 0`, coerente coi metri. Lo zero di una composizione
+non è un'assenza di metri, è una scelta.
+
+Si smette di essere composizione **scrivendo i metri a mano**: con
+`cambiaMetri` nell'editor e con una correzione dei metri nel revisore.
+Da lì la riga è un lavoro deciso dall'allenatore e `metriLetti` torna a
+leggere la notazione. Il caso è fissato in `prova_import.mjs` e
+`prova_blocchi.mjs`.
+
+Il flag lo scrive solo l'analizzatore (`chiudiGruppo`). Nell'editor non
+si crea una composizione: una riga battuta lì sotto una ripetuta è un
+lavoro, finché non esiste un gesto per dire il contrario. E le sedute
+importate prima della 0.56.10 il flag non ce l'hanno — le loro righe a
+zero si riconoscono solo ricostruendo la somma, come fa il censimento.
+
+**`metriLetti` è il numero del lettore, accanto a `metri`.** Stessa
+unità — dentro un blocco già moltiplicato — così che `metri !==
+metriLetti` voglia dire una cosa sola: qualcuno l'ha cambiato a mano.
+Serve al controllo delle sedute, per non scambiare una scelta
+dell'allenatore per una lettura sbagliata. Tre stati, e la differenza
+conta: un **numero** (letto questo), **`null`** (il lettore c'è passato e
+non ha trovato metri: la riga «rossa» all'import, una notazione non
+capita nell'editor), **assente** (riga salvata prima della 0.56.10, oppure
+apertura di blocco o lavoro a secco, dove non c'è niente da leggere).
+
+Chi lo scrive: `sedutaDaLettura` all'import, col numero dell'analizzatore
+**prima** delle correzioni del revisore (le composizioni a zero e le
+figlie già moltiplicate sono lettura anche loro); `annotaLettura` in
+`dominio.js` quando cambia la notazione, chiamata **dopo**
+`ricalcolaBlocchi` perché legge il fattore da `moltiplicato`;
+`ricalcolaBlocchi` lo riscala per rapporto quando cambia il blocco,
+**anche sulle righe a metri fissi** — è proprio lì che lo scarto deve
+restare visibile — e se la divisione non torna lo toglie. Mai in lettura,
+mai all'apertura di una seduta, nessun riempimento retroattivo.
+
+**Nessuno lo somma.** Volumi, carico, viste e svolto leggono `metri`. Chi
+un giorno lo trovasse comodo per un totale sta contando quello che il
+lettore pensa, non quello che l'allenatore ha programmato. L'invariante
+«senza metri battuti a mano, dopo qualsiasi gesto, `metri ===
+metriLetti`» è fissata in `prova_blocchi.mjs`: se si rompe, ogni riga
+sembra corretta a mano.
 
 **Cambiare la specializzazione di un atleta gli sposta anche i volumi
 storici.** `sezionePer()` in `dominio.js` confronta stringhe esatte fra la

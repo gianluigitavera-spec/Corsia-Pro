@@ -12,7 +12,7 @@ import {
   durataPerSpecializzazione, specializzazioniDaSezioni, specializzazioniDiAtleti,
   specializzazioniConLavoroDedicato,
   eSecco, sezioneSeccaVuota,
-  apertureNude, applicaAperturaBlocco, figlieDelBlocco, ricalcolaBlocchi,
+  apertureNude, applicaAperturaBlocco, figlieDelBlocco, ricalcolaBlocchi, annotaLettura,
   svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
   svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
   metriSvoltiDiRiga, metriSvoltiDiSezione,
@@ -128,6 +128,7 @@ export default function EditorSeduta({
       if (eSecco(s.sezioni[i])) {
         serie.metri = 0;
         serie.zona = '';
+        annotaLettura(s.sezioni[i], serie);
         return;
       }
       // Nell'editor la notazione NON crea blocchi: le ripetizioni si
@@ -136,13 +137,18 @@ export default function EditorSeduta({
       // un'apertura valida: per un attimo la riga apriva un blocco, si
       // prendeva le righe sotto, e al tasto dopo le lasciava staccate da
       // quello vero coi metri divisi. Nel testo il riconoscimento resta.
-      if (!serie.metriManuali) {
+      // La riga di composizione vale zero apposta: ritoccarne la
+      // descrizione non la fa diventare un lavoro suo.
+      if (!serie.metriManuali && !serie.composizione) {
         // Si scrive la lettura A GIRO: il fattore lo applica il ricalcolo,
         // che è l'unico posto che sa in quale blocco sta questa riga.
         const m = metriDaNotazione(valore);
         if (m !== null) { serie.metri = m; delete serie.moltiplicato; }
       }
       ricalcolaBlocchi(s.sezioni[i]);
+      // Il numero del lettore accanto ai metri, anche quando i metri sono
+      // scritti a mano: è lo scarto fra i due che dice chi ha deciso.
+      annotaLettura(s.sezioni[i], serie);
       // Se la partenza nasce da un passo base, cambiando la distanza si rifà.
       if (serie.base) {
         try {
@@ -178,6 +184,7 @@ export default function EditorSeduta({
       const serie = s.sezioni[i].serie[j];
       serie.metri = Number(valore) || 0;
       serie.metriManuali = true;   // da qui in poi decidi tu
+      delete serie.composizione;   // e non è più la descrizione di un'altra riga
     });
   }
 
