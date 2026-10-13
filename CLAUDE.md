@@ -286,9 +286,10 @@ sembra corretta a mano.
 **"+ tratto" dopo un set è lavoro in più.** Convenzione dell'allenatore:
 "6x100 + 100 sl" fa 700, "4x50 @45" + 100 B1" fa 300, "4x50 @1'30 SL +
 50GB TAV Bocc + tavola" fa 250. La ripartenza, gli attrezzi e una coda
-di testo non cambiano niente. Durante la 0.56.11 quest'ultima riga era
-stata data come 200, ed era un errore di scrittura dell'atteso: la
-regola è giusta. L'ipotesi «la ripartenza nel primo termine vuol dire
+di testo non cambiano niente. L'allenatore intendeva 200 metri ma ha
+scritto la riga male: per la sua convenzione "+ tratto dopo un set =
+lavoro in più" quella notazione vale 250, ed è giusto che il lettore la
+legga così. Si corregge la notazione, non il lettore. L'ipotesi «la ripartenza nel primo termine vuol dire
 che il resto descrive» va contro "2x (4x50 SL @45" + 100 B1)", che fa
 300 a giro: non si rimette. Le
 eccezioni sono tre, e sono tutte scritte in `sommaInTesta`: il termine
