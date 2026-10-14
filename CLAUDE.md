@@ -56,7 +56,30 @@ anche quando l'SQL è stato lanciato a mano dal pannello: la catena deve essere
 ripetibile su un ambiente pulito. È già successo di perdere la 025.
 
 Dopo ogni migrazione, rigenerare `schema.sql` e committarlo. È l'unico modo
-perché chi legge il repo sappia com'è fatto davvero il database.
+perché chi legge il repo sappia com'è fatto davvero il database. Si genera
+nel pannello SQL con `query_schema.sql`, che sta nella cartella del
+progetto ma fuori dal repo (`.gitignore`): restituisce una cella sola, da
+copiarne il contenuto. Se arriva come tabella Markdown (`| schema_sql |`,
+`<br>`, `\|`) va riconvertita prima di committarla.
+
+**Ogni vista nasce con `security_invoker = true`.** Senza, la vista gira
+coi permessi del suo proprietario, salta le RLS e mostra le righe di tutte
+le società a chiunque abbia fatto l'accesso: è successo con
+`v_atleti_doppioni`, che esponeva gli atleti — minori — di ogni squadra
+(chiusa con la 029). Vale anche per le viste ricreate con `drop` e
+`create`: l'opzione non sopravvive al `drop`, va riscritta.
+
+**Il controllo si rifà a ogni migrazione**, non solo quando si tocca una
+vista. In `schema.sql` la sezione delle viste comincia con l'elenco di
+quelle scoperte; dal pannello, questa deve restituire zero righe:
+
+```sql
+select c.relname, c.reloptions
+  from pg_class c
+ where c.relnamespace = 'squadra'::regnamespace
+   and c.relkind = 'v'
+   and not coalesce(c.reloptions @> array['security_invoker=true'], false);
+```
 
 Le categorie **non** sono un enum: sono la tabella `squadra.categorie`
 (`codice`, `nome`, `ordine`, `colore` NOT NULL), e `atleti.categoria_override`
