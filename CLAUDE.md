@@ -467,6 +467,18 @@ società, ma può esistere in società diverse (è normale, es. account di prova
 
 ## Come si lavora qui
 
+**Tutto il lavoro va su `sviluppo`.** Commit e push si fanno lì. `main`
+si aggiorna **solo quando lo dice l'allenatore**, con un rilascio unico
+che porta dentro tutto quello che è maturato su `sviluppo`: non si
+fondono pezzi alla spicciolata, non si fa push su `main` di propria
+iniziativa, nemmeno per una patch che sembra innocua.
+
+L'unica eccezione sono i difetti che **scrivono dati sbagliati** o
+**bloccano l'app**: lì la correzione può andare su `main` subito, e poi
+si riporta su `sviluppo` perché i due rami non divergano. Un difetto
+che si vede male, o un numero mostrato storto ma salvato giusto, non è
+un'eccezione: aspetta il rilascio.
+
 **Il registro delle novità è obbligatorio.** Ogni cambio di versione vuole la
 sua voce in `src/versione.js`, o `sincronizza_versione.mjs` ferma la build.
 Le voci si scrivono per un allenatore, non per uno sviluppatore: cosa cambia
