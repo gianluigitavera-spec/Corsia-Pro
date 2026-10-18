@@ -2626,9 +2626,26 @@ export function etichettaCalendario(seduta) {
   return { titolo, metri, intero: titolo ? `${titolo} · ${metri}` : metri };
 }
 
-// Le sedute di un giorno, nell'ordine in cui arrivano: lo stesso del
+// Le sedute di un giorno, nell'ordine in cui arrivano: il Calendario le
+// passa già in ordine di creazione (inOrdineDiCreazione), lo stesso del
 // pannello del giorno, così casella e pannello si leggono uguali.
 export const etichetteDelGiorno = (sedute) => (sedute || []).map(etichettaCalendario);
+
+// L'ordine delle sedute dello stesso giorno: quello di creazione. In
+// archivio non c'è un orario, e la lettura dal database non garantisce
+// niente fra due sedute della stessa data — la mattina poteva finire
+// sotto il pomeriggio. Senza created_at (una copia salvata nel
+// dispositivo prima che la lettura lo portasse) si va in fondo, e fra
+// loro per id: l'ordine non deve cambiare a ogni disegno. Non tocca la
+// lista che riceve.
+export function inOrdineDiCreazione(sedute) {
+  const quando = (s) => {
+    const t = Date.parse(s?.created_at ?? '');
+    return Number.isFinite(t) ? t : Infinity;
+  };
+  return [...(sedute || [])].sort((a, b) =>
+    (quando(a) - quando(b)) || String(a?.id ?? '').localeCompare(String(b?.id ?? '')));
+}
 
 // ---------------------------------------------------------------------
 // NOTE DA MOSTRARE E NOTE DA NASCONDERE

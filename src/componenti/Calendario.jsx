@@ -3,7 +3,7 @@ import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2, Chevron
 import * as api from '../lib/dati';
 import {
   rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga, dataIt,
-  metriDaRicontrollare, apertureNude, annoInizialeDi, etichetteDelGiorno,
+  metriDaRicontrollare, apertureNude, annoInizialeDi, etichetteDelGiorno, inOrdineDiCreazione,
 } from '../lib/dominio';
 import Periodizzazione from './Periodizzazione';
 
@@ -178,7 +178,9 @@ export default function Calendario({
   const daSistemarePrima = useMemo(() => controllate.filter((x) => x.daSistemare), [controllate]);
   const [sistemareAperto, setSistemareAperto] = useState(false);
 
-  const seduteDi = (d) => sedute.filter((s) => s.data === iso(d) && nelFiltro(s));
+  // In ordine di creazione: la casella e il pannello del giorno passano
+  // tutti e due di qui, e devono dire le sedute nello stesso ordine.
+  const seduteDi = (d) => inOrdineDiCreazione(sedute.filter((s) => s.data === iso(d) && nelFiltro(s)));
   const gareDi = (d) => gare.filter((g) =>
     nelFiltro(g) && (g.data === iso(d) || (g.data_fine && iso(d) >= g.data && iso(d) <= g.data_fine)));
 

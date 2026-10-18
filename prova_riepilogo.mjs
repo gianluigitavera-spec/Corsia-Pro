@@ -415,6 +415,33 @@ const MISTA = [
       D.etichetteDelGiorno([piatta('Mattino', 3000), piatta('', 2500)]).map((e) => e.intero),
       ['Mattino · 3.000 m', '2.500 m']);
 
+    // L'ordine del giorno è quello di creazione: in archivio non c'è un
+    // orario, e la lettura dal database non garantisce niente fra due
+    // sedute della stessa data. Casella e pannello usano lo stesso.
+    if (typeof D.inOrdineDiCreazione !== 'function') {
+      male++; console.error('✗ calendario: manca in dominio.js inOrdineDiCreazione');
+    } else {
+      const s = (id, created_at) => ({ id, created_at });
+      const arrivate = [
+        s('c', '2026-10-19T16:30:00.000000+00:00'),
+        s('a', '2026-10-19T06:45:00.123456+00:00'),
+        s('b', '2026-10-19T12:00:00+00:00'),
+      ];
+      dice('per created_at, qualunque sia l\'ordine di arrivo',
+        D.inOrdineDiCreazione(arrivate).map((x) => x.id), ['a', 'b', 'c']);
+      dice('la lista di partenza non si tocca', arrivate.map((x) => x.id), ['c', 'a', 'b']);
+      // Una copia salvata nel dispositivo prima di questa versione non ha
+      // created_at: in fondo, e fra loro per id, perché l'ordine non
+      // cambi a ogni disegno.
+      dice('senza created_at in fondo, fra loro per id',
+        D.inOrdineDiCreazione([s('z', null), s('y', undefined), s('x', '2026-10-19T08:00:00+00:00')]).map((x) => x.id),
+        ['x', 'y', 'z']);
+      dice('stesso istante: per id',
+        D.inOrdineDiCreazione([s('2', '2026-10-19T08:00:00+00:00'), s('1', '2026-10-19T08:00:00+00:00')]).map((x) => x.id),
+        ['1', '2']);
+      dice('nessuna seduta: niente', D.inOrdineDiCreazione(null), []);
+    }
+
     // Nessuna seduta: nessuna etichetta.
     dice('nessuna seduta: niente', D.etichetteDelGiorno([]), []);
     dice('nessuna seduta (null): niente', D.etichetteDelGiorno(null), []);
