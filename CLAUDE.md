@@ -738,13 +738,6 @@ stato che sopravvive al suo contesto. Si chiude azzerandolo quando cambia
 `seduta?.id`, tenendo l'apertura automatica per le sedute che hanno
 davvero degli atleti scelti.
 
-**Da fare su sviluppo: `RAG_3` in `GRUPPO_DI`.** In `dominio.js` il
-gruppo «ragazzi» delle ripartizioni proposte elenca `RAG_3`, ma la
-categoria vera è `RAG_3M` (così in `CATEGORIE`, nei raggruppamenti di
-`dominio.js` e in SwimCoach). Un gruppo fatto solo di Ragazzi 3 non
-riceve la proposta di ripartizione dei Ragazzi. Correzione di una
-riga, con la prova che il gruppo di `RAG_3M` sia «ragazzi».
-
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);
 esercizi legati a notazione e lavagna; modifica gare già salvate; Crono che

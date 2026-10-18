@@ -1779,7 +1779,7 @@ const GRUPPO_DI = [
   { gruppo: 'master',   codici: ['MAS'] },
   { gruppo: 'senior',   codici: ['CAD_1', 'CAD_2', 'SEN_1', 'SEN_2', 'ASS'] },
   { gruppo: 'juniores', codici: ['JUN_1', 'JUN_2'] },
-  { gruppo: 'ragazzi',  codici: ['RAG_1', 'RAG_2', 'RAG_3'] },
+  { gruppo: 'ragazzi',  codici: ['RAG_1', 'RAG_2', 'RAG_3M'] },
   { gruppo: 'eso_a',    codici: ['ESO_A1', 'ESO_A2'] },
   { gruppo: 'eso_b',    codici: ['ESO_B1', 'ESO_B2'] },
 ];

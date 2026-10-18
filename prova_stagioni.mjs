@@ -6,7 +6,7 @@ import { stagioneCorrente, stagioniProposte, fasceRisolte, categoriaDi,
          proponiFasi, proponiTutteLeFasi, gruppoRipartizione, giorno,
          copiaSeduta, perSettimana, lunediDi,
          metriSvolti, scartoPerZona, metriPerSpecializzazione,
-         zonePerSpecializzazione } from './src/lib/dominio.js';
+         zonePerSpecializzazione, CATEGORIE } from './src/lib/dominio.js';
 
 let male = 0;
 const dice = (cosa, avuto, atteso) => {
@@ -113,6 +113,24 @@ dice('gli Esordienti B non fanno lattacido in generale',
 dice('comanda la categoria più alta fra quelle scelte',
   gruppoRipartizione(['ESO_A2', 'RAG_1']), 'ragazzi');
 dice('Propaganda non ha proposta', proponiTutteLeFasi(['PROP_01']), null);
+
+// Una seduta dei soli Ragazzi 3 riceve la proposta dei Ragazzi. Il
+// gruppo elencava "RAG_3", che non esiste: la categoria è RAG_3M, e la
+// seduta restava senza proposta.
+dice('Ragazzi 3 (RAG_3M) è nel gruppo ragazzi', gruppoRipartizione(['RAG_3M']), 'ragazzi');
+dice('e riceve la proposta dei Ragazzi',
+  proponiTutteLeFasi(['RAG_3M']), proponiTutteLeFasi(['RAG_1']));
+
+// Ogni categoria d'età cade in un gruppo: un codice scritto male in
+// GRUPPO_DI lascia senza proposta una categoria intera, in silenzio.
+// Fuori per scelta i percorsi (Teen, Triathlon) e i Propaganda.
+const SENZA_PROPOSTA = /^(PROP_|TEEN_|TRI$)/;
+for (const { codice } of CATEGORIE) {
+  if (SENZA_PROPOSTA.test(codice)) continue;
+  if (!gruppoRipartizione([codice])) {
+    male++; console.error(`✗ ${codice}: nessun gruppo di ripartizione`);
+  }
+}
 
 for (const cat of ['ESO_B1', 'ESO_A1', 'RAG_2', 'JUN_1', 'ASS', 'MAS']) {
   const tutte = proponiTutteLeFasi([cat]);
