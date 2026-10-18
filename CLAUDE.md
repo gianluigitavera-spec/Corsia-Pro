@@ -81,6 +81,21 @@ select c.relname, c.reloptions
    and not coalesce(c.reloptions @> array['security_invoker=true'], false);
 ```
 
+**Dopo ogni passo che scrive, un controllo che legge.** Il "Success" del
+pannello SQL non è una verifica. Con la 032 il passo con due
+`create or replace view` dentro lo stesso `begin`/`commit` ha risposto
+"Success" e non ha applicato niente; eseguite una alla volta, senza
+transazione, le viste sono entrate. Quindi in ogni migrazione:
+
+- ogni passo che scrive è seguito da una `select` che mostra il
+  risultato atteso (la colonna c'è, le righe sono quelle, il vincolo
+  esiste), e si guarda quella, non il messaggio;
+- le viste si ricreano una alla volta, senza `begin`/`commit` intorno:
+  ogni `create or replace view` è già atomico da sé;
+- dove i numeri non devono muoversi, la fotografia prima e dopo
+  (un'impronta md5 delle righe, come nella 032) va fatta in un'ora
+  morta, senza salvataggi in mezzo.
+
 Le categorie **non** sono un enum: sono la tabella `squadra.categorie`
 (`codice`, `nome`, `ordine`, `colore` NOT NULL), e `atleti.categoria_override`
 è una colonna `text` con foreign key su `squadra.categorie(codice)`. In
@@ -95,6 +110,13 @@ Stato delle migrazioni. **Verificato sul database il 29/09/2026:** c'è
 l'indice `atleti_chiave_unica` (021); `v_carico_zona_reale` legge `svolto`
 e `v_fase_reale` si appoggia a lei (023); `v_serie` filtra il lavoro a
 secco (027); fra le categorie ci sono `TRI`, i `TEEN_*` e `MAS`.
+
+**Eseguite a mano e verificate il 18/10/2026:** la 031
+(`v_carico_zona_reale` legge i metri di `svolto` come numeric e
+arrotonda) e la 032 (`squadra.livelli_zona`, `livello` su
+`squadra.zone` e in coda alle due viste di carico, impronte prima e
+dopo identiche). La 030 (grant ad `anon`) è scritta e **non** eseguita:
+aspetta la verifica degli accessi di SwimCoach AI allo schema `squadra`.
 
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026
