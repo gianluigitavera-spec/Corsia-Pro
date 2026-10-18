@@ -20,6 +20,16 @@ import {
   campoAndata, volteDiBlocco, cambiaMetriSvolto, cambiaVolteSvolto,
 } from '../lib/dominio';
 
+// Metri e volte sono interi: virgola, punto, segni ed esponente non si
+// battono nemmeno. È la prima difesa; la seconda sta in dominio.js
+// (cambiaMetriSvolto), che rifiuta comunque quello che non è un intero —
+// un incolla passa di qui senza tasti. E un valore che il browser non sa
+// leggere ("12,") arriva come stringa vuota con badInput: va ignorato, o
+// cancellerebbe la correzione che c'era.
+const soloCifre = (e) => {
+  if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+};
+
 // Righe e volte rilevate, senza la nota: la nota ha il suo campo.
 const soloRilevato = (svolto) => ({ righe: svolto?.righe || {}, volte: svolto?.volte });
 
@@ -132,11 +142,14 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
                       className="mono"
                       type="number"
                       inputMode="numeric"
+                      step="1"
+                      min="0"
+                      onKeyDown={soloCifre}
                       title="Quante volte è stato fatto il blocco: le righe sotto si ricalcolano"
                       disabled={!puoScrivere}
                       placeholder={String(scritte)}
                       value={rilevate ?? ''}
-                      onChange={(e) => cambiaVolte(i, j, e.target.value)}
+                      onChange={(e) => { if (!e.target.validity?.badInput) cambiaVolte(i, j, e.target.value); }}
                       onBlur={() => { partenza.current = null; }}
                       style={{ borderColor: diverse ? 'var(--ambra)' : undefined }}
                     />
@@ -175,10 +188,13 @@ export default function ComeAndata({ seduta, puoScrivere, suSalvato }) {
                     className="mono"
                     type="number"
                     inputMode="numeric"
+                    step="1"
+                    min="0"
+                    onKeyDown={soloCifre}
                     disabled={!puoScrivere}
                     placeholder={String(previsto)}
                     value={corretto ?? ''}
-                    onChange={(e) => cambia(i, j, e.target.value)}
+                    onChange={(e) => { if (!e.target.validity?.badInput) cambia(i, j, e.target.value); }}
                     title={daScrivere ? 'Non si divide in parti uguali per le volte nuove: scrivi tu i metri' : undefined}
                     style={{ borderColor: diverso || daScrivere ? 'var(--ambra)' : undefined }}
                   />

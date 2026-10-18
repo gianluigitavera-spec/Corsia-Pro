@@ -1636,12 +1636,23 @@ export function volteDiBlocco(sezioni, svolto, i, m) {
   return rilevate ?? sezioni?.[i]?.serie?.[m]?.apreBlocco;
 }
 
+// Solo cifre: un intero da zero in su. Niente decimali, segni o
+// esponenti — "1e2" per Number vale 100, per chi lo scrive no.
+const SOLO_INTERO = /^\s*\d+\s*$/;
+
 // Il campo dei metri di una riga qualunque: cambia lei e basta.
+//
+// I metri sono interi. Fino alla 0.56.13 un decimale passava, e
+// v_carico_zona_reale lo convertiva con ::integer: la conversione
+// falliva, e con la vista non si apriva più la Dashboard della società.
+// Quello che non è un intero non si scrive, e svolto resta com'era.
 export function cambiaMetriSvolto(svolto, i, j, valore) {
+  const vuoto = valore === '' || valore === null || valore === undefined;
+  if (!vuoto && !SOLO_INTERO.test(String(valore))) return svolto ?? null;
   const righe = { ...(svolto?.righe || {}) };
   const k = chiaveRiga(i, j);
-  if (valore === '' || valore === null || valore === undefined) delete righe[k];
-  else righe[k] = Math.max(0, +valore);
+  if (vuoto) delete righe[k];
+  else righe[k] = Number(valore);
   return svoltoCollassato({ ...svolto, righe });
 }
 
@@ -1666,8 +1677,8 @@ export function cambiaVolteSvolto(sezioni, svolto, i, m, valore) {
   if (campoAndata(sezione, m) !== 'volte') return nessuno;
   const scritte = sezione.serie[m].apreBlocco;
   const vuoto = valore === '' || valore === null || valore === undefined;
-  const dopo = vuoto ? scritte : Math.max(0, Math.round(+valore));
-  if (!Number.isFinite(dopo)) return nessuno;
+  if (!vuoto && !SOLO_INTERO.test(String(valore))) return nessuno;
+  const dopo = vuoto ? scritte : Number(valore);
   const prima = volteDiBlocco(sezioni, svolto, i, m);
 
   const righe = { ...(svolto?.righe || {}) };
