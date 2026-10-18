@@ -138,7 +138,10 @@ arrotonda) e la 032 (`squadra.livelli_zona`, `livello` su
 dopo identiche), e la 030: `anon` ha solo `SELECT` su `categorie`,
 `categorie_stagione` e `zone`. SwimCoach AI tocca `squadra` (`membri`,
 `periodizzazione`, insert in `sedute`) solo con l'utente loggato: il
-dettaglio è nel file della 030.
+dettaglio è nel file della 030. Infine la 033: le fasce d'età della
+2026/27 in `categorie_stagione`, copiate dalla 2025/26 con gli anni +1,
+Propaganda compresi (27 righe per stagione, confronto riga per riga
+vuoto). Solo dati: `schema.sql` non cambia.
 
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026
