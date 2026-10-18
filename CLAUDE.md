@@ -96,6 +96,26 @@ transazione, le viste sono entrate. Quindi in ogni migrazione:
   (un'impronta md5 delle righe, come nella 032) va fatta in un'ora
   morta, senza salvataggi in mezzo.
 
+**Ogni tabella nuova in `squadra` nasce con RLS attiva e le sue policy,
+nella stessa migrazione.** I privilegi di default dello schema danno in
+automatico `arwd` (select, insert, update, delete) ad `authenticated`
+(`authenticated=arwd/postgres`, verificato il 18/10/2026; ad `anon`
+niente): senza RLS, chiunque abbia fatto l'accesso legge e scrive le
+righe di tutte le società. Una tabella con RLS attiva e senza policy è
+chiusa a tutti, che è l'errore giusto da fare; il contrario no. Le
+policy si scrivono nel file stesso, non "dopo".
+
+Al controllo di ogni migrazione, accanto a quello delle viste, si
+aggiunge questo — anche lui deve restituire zero righe:
+
+```sql
+select c.relname
+  from pg_class c
+ where c.relnamespace = 'squadra'::regnamespace
+   and c.relkind in ('r', 'p')
+   and not c.relrowsecurity;
+```
+
 Le categorie **non** sono un enum: sono la tabella `squadra.categorie`
 (`codice`, `nome`, `ordine`, `colore` NOT NULL), e `atleti.categoria_override`
 è una colonna `text` con foreign key su `squadra.categorie(codice)`. In
@@ -115,8 +135,10 @@ secco (027); fra le categorie ci sono `TRI`, i `TEEN_*` e `MAS`.
 (`v_carico_zona_reale` legge i metri di `svolto` come numeric e
 arrotonda) e la 032 (`squadra.livelli_zona`, `livello` su
 `squadra.zone` e in coda alle due viste di carico, impronte prima e
-dopo identiche). La 030 (grant ad `anon`) è scritta e **non** eseguita:
-aspetta la verifica degli accessi di SwimCoach AI allo schema `squadra`.
+dopo identiche), e la 030: `anon` ha solo `SELECT` su `categorie`,
+`categorie_stagione` e `zone`. SwimCoach AI tocca `squadra` (`membri`,
+`periodizzazione`, insert in `sedute`) solo con l'utente loggato: il
+dettaglio è nel file della 030.
 
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026
@@ -705,6 +727,13 @@ stato del pannello, non provoca nemmeno più letture a vuoto — però è uno
 stato che sopravvive al suo contesto. Si chiude azzerandolo quando cambia
 `seduta?.id`, tenendo l'apertura automatica per le sedute che hanno
 davvero degli atleti scelti.
+
+**Da fare su sviluppo: `RAG_3` in `GRUPPO_DI`.** In `dominio.js` il
+gruppo «ragazzi» delle ripartizioni proposte elenca `RAG_3`, ma la
+categoria vera è `RAG_3M` (così in `CATEGORIE`, nei raggruppamenti di
+`dominio.js` e in SwimCoach). Un gruppo fatto solo di Ragazzi 3 non
+riceve la proposta di ripartizione dei Ragazzi. Correzione di una
+riga, con la prova che il gruppo di `RAG_3M` sia «ragazzi».
 
 **Altro in coda:** duplicazione seduta; offline vero con coda di sincronizzazione
 per l'appello; import seduta da foto (Edge Function OpenAI già presente);
