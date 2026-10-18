@@ -221,7 +221,27 @@ provati in `prova_svolto.mjs`. Chi aggiunge un gesto nuovo che tocca
 `sezioni` o `serie` deve richiamare l'involucro giusto — attenzione ai
 casi che inseriscono **in cima** (`unshift`), che spostano tutto.
 `svoltoCollassato` è l'unico posto che decide quando `svolto` torna
-`null`: righe vuote **e** nessuna nota.
+`null`: righe vuote **e** nessuna volta **e** nessuna nota.
+
+**Dalla 0.56.13 `svolto` ha anche `volte`**, accanto a `righe` e `nota`:
+le volte davvero fatte di un blocco, sulla chiave della sua apertura. In
+"Com'è andata" il campo dell'apertura è il numero di volte, non i metri
+(fino alla 0.56.12 scrivere 4 su un "8x" registrava +4 m, col blocco
+ancora a otto giri). Cambiarlo riscala in `righe` le figlie in
+proporzione, anche quelle corrette a mano; se la divisione non è esatta
+la riga resta com'era e si segnala. Toccare i metri di una figlia cambia
+solo lei. Niente campo sulle aperture a secco, sulle aperture nude delle
+sedute vecchie e sulla fine della ripetizione. Logica in `dominio.js`
+(`campoAndata`, `cambiaVolteSvolto`, `cambiaMetriSvolto`), prove in
+`prova_svolto.mjs`.
+
+`volte` serve solo a ridisegnare il campo: **nessuno lo somma**. I metri
+del blocco stanno sulle figlie in `righe`, ed è lì che li leggono
+`v_serie` e `metri_svolti()`. Le volte sono posizionali come i metri, e
+`rimappaSvolto` le rimappa con le stesse regole. Le sedute salvate prima
+della 0.56.13 possono avere un numero in `righe` sulla chiave di
+un'apertura: sono metri finti, che le viste contano. Se ne vanno al primo
+cambio di volte di quel blocco.
 
 **Nel passaggio testo → editor si elencano i campi da SCARTARE, mai
 quelli da tenere.** `sedutaDaLettura` in `src/lib/importaTesto.js` parte
