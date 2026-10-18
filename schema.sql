@@ -1,6 +1,6 @@
 -- schema.sql: struttura dello schema squadra, senza dati.
 
--- Generato dal pannello SQL di Supabase il 2026-10-14.
+-- Generato dal pannello SQL di Supabase il 2026-10-18.
 
 set check_function_bodies = false;
 
@@ -478,6 +478,13 @@ create table squadra.impostazioni_stagione (
   updated_at timestamp with time zone default now() not null
 );
 
+create table squadra.livelli_zona (
+  codice text not null,
+  nome text not null,
+  famiglia squadra.famiglia_zona not null,
+  ordine integer not null
+);
+
 create table squadra.membri (
   societa_id uuid not null,
   user_id uuid not null,
@@ -577,7 +584,8 @@ create table squadra.zone (
   nome text not null,
   famiglia squadra.famiglia_zona not null,
   ordine integer not null,
-  colore text
+  colore text,
+  livello text
 );
 
 -- ===== Vincoli
@@ -590,6 +598,7 @@ alter table squadra.esercizi add constraint esercizi_pkey PRIMARY KEY (id);
 alter table squadra.esercizi_settimana add constraint esercizi_settimana_pkey PRIMARY KEY (societa_id, settimana, esercizio_id);
 alter table squadra.gare add constraint gare_pkey PRIMARY KEY (id);
 alter table squadra.impostazioni_stagione add constraint impostazioni_stagione_pkey PRIMARY KEY (societa_id, stagione);
+alter table squadra.livelli_zona add constraint livelli_zona_pkey PRIMARY KEY (codice);
 alter table squadra.membri add constraint membri_pkey PRIMARY KEY (societa_id, user_id);
 alter table squadra.obiettivi_fase add constraint obiettivi_fase_pkey PRIMARY KEY (id);
 alter table squadra.periodizzazione add constraint periodizzazione_pkey PRIMARY KEY (id);
@@ -600,6 +609,8 @@ alter table squadra.societa add constraint societa_pkey PRIMARY KEY (id);
 alter table squadra.zone add constraint zone_pkey PRIMARY KEY (codice);
 alter table squadra.atleti add constraint atleti_id_societa_id_key UNIQUE (id, societa_id);
 alter table squadra.benessere add constraint benessere_atleta_id_data_key UNIQUE (atleta_id, data);
+alter table squadra.livelli_zona add constraint livelli_zona_codice_famiglia_key UNIQUE (codice, famiglia);
+alter table squadra.livelli_zona add constraint livelli_zona_ordine_key UNIQUE (ordine);
 alter table squadra.obiettivi_fase add constraint obiettivi_fase_societa_id_categorie_fase_key UNIQUE (societa_id, categorie, fase);
 alter table squadra.sedute add constraint sedute_id_societa_id_key UNIQUE (id, societa_id);
 alter table squadra.atleti add constraint atleti_anno_nascita_check CHECK (((anno_nascita >= 1920) AND (anno_nascita <= 2100)));
@@ -646,6 +657,7 @@ alter table squadra.richieste add constraint richieste_user_id_fkey FOREIGN KEY 
 alter table squadra.sedute add constraint sedute_creata_da_fkey FOREIGN KEY (creata_da) REFERENCES auth.users(id);
 alter table squadra.sedute add constraint sedute_societa_id_fkey FOREIGN KEY (societa_id) REFERENCES squadra.societa(id) ON DELETE CASCADE;
 alter table squadra.societa add constraint societa_creata_da_fkey FOREIGN KEY (creata_da) REFERENCES auth.users(id);
+alter table squadra.zone add constraint zone_livello_famiglia_fkey FOREIGN KEY (livello, famiglia) REFERENCES squadra.livelli_zona(codice, famiglia);
 
 -- ===== Indici
 
@@ -672,7 +684,9 @@ CREATE UNIQUE INDEX idx_societa_codice ON squadra.societa USING btree (codice_in
 
 -- ===== Viste (in ordine di dipendenza)
 
-create or replace view squadra.v_atleti_doppioni as
+-- Tutte le viste hanno security_invoker = true.
+
+create or replace view squadra.v_atleti_doppioni with (security_invoker=true) as
  SELECT societa_id,
     chiave,
     count(*) AS quanti,
@@ -682,7 +696,7 @@ create or replace view squadra.v_atleti_doppioni as
   GROUP BY societa_id, chiave
  HAVING count(*) > 1;
 
-create or replace view squadra.v_benessere as
+create or replace view squadra.v_benessere with (security_invoker=true) as
  SELECT b.id,
     b.societa_id,
     b.atleta_id,
@@ -699,7 +713,7 @@ create or replace view squadra.v_benessere as
    FROM squadra.benessere b
      JOIN squadra.atleti a ON a.id = b.atleta_id;
 
-create or replace view squadra.v_carico_atleta as
+create or replace view squadra.v_carico_atleta with (security_invoker=true) as
  SELECT a.id AS atleta_id,
     a.societa_id,
     a.nome,
@@ -718,7 +732,7 @@ create or replace view squadra.v_carico_atleta as
      JOIN squadra.atleti a ON a.id = p.atleta_id
      JOIN squadra.sedute s ON s.id = p.seduta_id;
 
-create or replace view squadra.v_frequenza as
+create or replace view squadra.v_frequenza with (security_invoker=true) as
  SELECT a.id AS atleta_id,
     a.societa_id,
     a.cognome,
@@ -738,7 +752,7 @@ create or replace view squadra.v_frequenza as
   WHERE a.attivo
   GROUP BY a.id, a.societa_id, a.cognome, a.nome;
 
-create or replace view squadra.v_serie as
+create or replace view squadra.v_serie with (security_invoker=true) as
  SELECT s.id AS seduta_id,
     s.societa_id,
     s.data,
@@ -756,12 +770,12 @@ create or replace view squadra.v_serie as
      CROSS JOIN LATERAL jsonb_array_elements(COALESCE(sez.value -> 'serie'::text, '[]'::jsonb)) WITH ORDINALITY serie(value, m)
   WHERE COALESCE((sez.value ->> 'aSecco'::text)::boolean, false) = false;
 
-create or replace view squadra.v_stagioni as
+create or replace view squadra.v_stagioni with (security_invoker=true) as
  SELECT DISTINCT stagione
    FROM squadra.categorie_stagione
   ORDER BY stagione DESC;
 
-create or replace view squadra.v_benessere_tendenza as
+create or replace view squadra.v_benessere_tendenza with (security_invoker=true) as
  SELECT societa_id,
     atleta_id,
     nome,
@@ -774,7 +788,7 @@ create or replace view squadra.v_benessere_tendenza as
   WHERE data >= (CURRENT_DATE - 7)
   GROUP BY societa_id, atleta_id, nome, cognome;
 
-create or replace view squadra.v_carico_zona as
+create or replace view squadra.v_carico_zona with (security_invoker=true) as
  SELECT v.seduta_id,
     v.societa_id,
     v.data,
@@ -782,14 +796,15 @@ create or replace view squadra.v_carico_zona as
     sp.specializzazione,
     v.zona,
     z.famiglia,
-    sum(v.metri) AS metri
+    sum(v.metri) AS metri,
+    z.livello
    FROM squadra.v_serie v
      CROSS JOIN ( SELECT unnest(enum_range(NULL::squadra.specializzazione)) AS specializzazione) sp
      LEFT JOIN squadra.zone z ON z.codice = v.zona
   WHERE v.destinatari @> '["*"]'::jsonb OR v.destinatari @> to_jsonb(sp.specializzazione::text)
-  GROUP BY v.seduta_id, v.societa_id, v.data, v.categorie, sp.specializzazione, v.zona, z.famiglia;
+  GROUP BY v.seduta_id, v.societa_id, v.data, v.categorie, sp.specializzazione, v.zona, z.famiglia, z.livello;
 
-create or replace view squadra.v_carico_zona_reale as
+create or replace view squadra.v_carico_zona_reale with (security_invoker=true) as
  SELECT v.seduta_id,
     v.societa_id,
     v.data,
@@ -797,15 +812,20 @@ create or replace view squadra.v_carico_zona_reale as
     sp.specializzazione,
     v.zona,
     z.famiglia,
-    sum(COALESCE(((sd.svolto -> 'righe'::text) ->> ((v.sez_n::text || '-'::text) || v.ser_m::text))::integer, v.metri)) AS metri
+    sum(COALESCE(
+        CASE
+            WHEN ((sd.svolto -> 'righe'::text) ->> ((v.sez_n::text || '-'::text) || v.ser_m::text)) ~ '^\s*-?[0-9]+(\.[0-9]+)?\s*$'::text THEN round(((sd.svolto -> 'righe'::text) ->> ((v.sez_n::text || '-'::text) || v.ser_m::text))::numeric)::integer
+            ELSE NULL::integer
+        END, v.metri)) AS metri,
+    z.livello
    FROM squadra.v_serie v
      JOIN squadra.sedute sd ON sd.id = v.seduta_id
      CROSS JOIN ( SELECT unnest(enum_range(NULL::squadra.specializzazione)) AS specializzazione) sp
      LEFT JOIN squadra.zone z ON z.codice = v.zona
   WHERE v.destinatari @> '["*"]'::jsonb OR v.destinatari @> to_jsonb(sp.specializzazione::text)
-  GROUP BY v.seduta_id, v.societa_id, v.data, v.categorie, sp.specializzazione, v.zona, z.famiglia;
+  GROUP BY v.seduta_id, v.societa_id, v.data, v.categorie, sp.specializzazione, v.zona, z.famiglia, z.livello;
 
-create or replace view squadra.v_settimana_atleta as
+create or replace view squadra.v_settimana_atleta with (security_invoker=true) as
  SELECT atleta_id,
     societa_id,
     nome,
@@ -821,7 +841,7 @@ create or replace view squadra.v_settimana_atleta as
    FROM squadra.v_carico_atleta
   GROUP BY atleta_id, societa_id, nome, cognome, (date_trunc('week'::text, data::timestamp with time zone));
 
-create or replace view squadra.v_fase_reale as
+create or replace view squadra.v_fase_reale with (security_invoker=true) as
  SELECT p.id AS fase_id,
     p.societa_id,
     p.fase,
@@ -836,7 +856,7 @@ create or replace view squadra.v_fase_reale as
      JOIN squadra.v_carico_zona_reale z ON z.societa_id = p.societa_id AND z.data >= p.dal AND z.data <= p.al AND z.categorie && p.categorie
   GROUP BY p.id, p.societa_id, p.fase, p.dal, p.al, p.categorie, z.specializzazione, z.zona, z.famiglia;
 
-create or replace view squadra.v_volume_seduta as
+create or replace view squadra.v_volume_seduta with (security_invoker=true) as
  SELECT seduta_id,
     societa_id,
     data,
@@ -851,7 +871,7 @@ create or replace view squadra.v_volume_seduta as
    FROM squadra.v_carico_zona
   GROUP BY seduta_id, societa_id, data, categorie, specializzazione;
 
-create or replace view squadra.v_fase_confronto as
+create or replace view squadra.v_fase_confronto with (security_invoker=true) as
  SELECT p.id AS fase_id,
     p.societa_id,
     p.fase,
@@ -885,6 +905,7 @@ alter table squadra.esercizi enable row level security;
 alter table squadra.esercizi_settimana enable row level security;
 alter table squadra.gare enable row level security;
 alter table squadra.impostazioni_stagione enable row level security;
+alter table squadra.livelli_zona enable row level security;
 alter table squadra.membri enable row level security;
 alter table squadra.obiettivi_fase enable row level security;
 alter table squadra.periodizzazione enable row level security;
@@ -943,6 +964,9 @@ create policy impostazioni_stagione_select on squadra.impostazioni_stagione as p
 create policy impostazioni_stagione_write on squadra.impostazioni_stagione as permissive for all to authenticated
   using (squadra.puo_scrivere(societa_id))
   with check (squadra.puo_scrivere(societa_id));
+
+create policy livelli_zona_select on squadra.livelli_zona as permissive for select to authenticated
+  using (true);
 
 create policy membri_select on squadra.membri as permissive for select to authenticated
   using ((societa_id IN ( SELECT squadra.mie_societa() AS mie_societa)));
@@ -1011,6 +1035,7 @@ grant DELETE, INSERT, SELECT, UPDATE on table squadra.esercizi to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.esercizi_settimana to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.gare to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.impostazioni_stagione to authenticated;
+grant SELECT on table squadra.livelli_zona to authenticated;
 grant SELECT on table squadra.membri to anon;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.membri to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.obiettivi_fase to authenticated;
