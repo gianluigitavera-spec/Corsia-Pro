@@ -1441,29 +1441,41 @@ export function applicaRicontrolloInBlocco(seduta, opzioni) {
 // seduta andata come prevista non tiene un oggetto vuoto in archivio.
 // La nota però non è posizionale e non c'entra con le righe: finché c'è
 // lei, svolto resta.
+//
+// `volte` (dalla 0.56.13) sono le volte davvero fatte di un blocco, sulla
+// chiave della sua apertura: le scrive "Com'è andata" e servono solo a
+// ridisegnare il campo. I metri del blocco stanno comunque in `righe`,
+// sulle figlie, ed è lì che li leggono v_serie e metri_svolti().
 export function svoltoCollassato(svolto) {
-  const righe = Object.fromEntries(
-    Object.entries(svolto?.righe || {})
+  const pieni = (mappa) => Object.fromEntries(
+    Object.entries(mappa || {})
       .filter(([, v]) => v !== '' && v !== null && v !== undefined)
   );
+  const righe = pieni(svolto?.righe);
+  const volte = pieni(svolto?.volte);
   const nota = svolto?.nota || undefined;
-  if (!Object.keys(righe).length && !nota) return null;
-  return { righe, nota };
+  const conVolte = Object.keys(volte).length > 0;
+  if (!Object.keys(righe).length && !conVolte && !nota) return null;
+  return { righe, volte: conVolte ? volte : undefined, nota };
 }
 
 // Il nucleo. `dove(i, j)` torna la posizione nuova come [i2, j2], oppure
-// null se quella riga non esiste più.
+// null se quella riga non esiste più. Le volte sono posizionali come i
+// metri e si rimappano con le stesse regole.
 export function rimappaSvolto(svolto, dove) {
-  if (!svolto?.righe) return svolto ?? null;
-  const righe = {};
-  for (const [chiave, valore] of Object.entries(svolto.righe)) {
-    const [i, j] = chiave.split('-').map(Number);
-    if (!Number.isInteger(i) || !Number.isInteger(j)) continue;  // chiave malfatta: si lascia cadere
-    const nuova = dove(i, j);
-    if (!nuova) continue;
-    righe[chiaveRiga(nuova[0], nuova[1])] = valore;
-  }
-  return svoltoCollassato({ ...svolto, righe });
+  if (!svolto?.righe && !svolto?.volte) return svolto ?? null;
+  const rimappa = (mappa) => {
+    const fuori = {};
+    for (const [chiave, valore] of Object.entries(mappa || {})) {
+      const [i, j] = chiave.split('-').map(Number);
+      if (!Number.isInteger(i) || !Number.isInteger(j)) continue;  // chiave malfatta: si lascia cadere
+      const nuova = dove(i, j);
+      if (!nuova) continue;
+      fuori[chiaveRiga(nuova[0], nuova[1])] = valore;
+    }
+    return fuori;
+  };
+  return svoltoCollassato({ ...svolto, righe: rimappa(svolto.righe), volte: rimappa(svolto.volte) });
 }
 
 // Lo spostamento, in un posto solo: da `da` a `a`, tutto il resto scorre
@@ -1576,6 +1588,106 @@ export function scartoPerZona(sezioni, svolto) {
     });
   });
   return per;
+}
+
+// ---------------------------------------------------------------------
+// COM'È ANDATA — il campo di ogni riga
+//
+// Fino alla 0.56.12 ogni riga aveva il campo dei metri, anche l'apertura
+// "8x": scrivendo 4 si registravano +4 m, e le righe del blocco restavano
+// a otto giri. L'apertura non è un lavoro, è un numero di volte.
+//
+//   'volte'  apertura di un blocco in acqua: il campo dice quante volte,
+//            e cambiarlo riscala le figlie (cambiaVolteSvolto)
+//   'metri'  ogni altra riga, come prima
+//   null     nessun campo: l'apertura a secco (lì non c'è un metro da
+//            riscalare), l'apertura nuda di una seduta vecchia (non si
+//            sa quali righe stiano dentro) e la fine della ripetizione
+// ---------------------------------------------------------------------
+export function campoAndata(sezione, j) {
+  const riga = sezione?.serie?.[j];
+  if (!riga || riga.chiudeBlocco) return null;
+  if (riga.apreBlocco > 1) return eSecco(sezione) ? null : 'volte';
+  if (aperturaDiBlocco(riga.notazione)) return null;
+  return 'metri';
+}
+
+// Le figlie IN LETTURA: il confine si ricava da `moltiplicato`, come
+// quando si ridisegna la seduta. Qui non si ricalcola niente: svolto non
+// tocca il programma.
+function figlieInLettura(sezione, m) {
+  const serie = sezione?.serie || [];
+  const n = serie[m]?.apreBlocco;
+  const fuori = [];
+  for (let k = m + 1; k < serie.length; k++) {
+    const r = serie[k];
+    if (!r || r.apreBlocco > 1 || r.chiudeBlocco) break;
+    if (Number(r.moltiplicato) !== n) break;
+    fuori.push(k);
+  }
+  return fuori;
+}
+
+const numeroSvolto = (v) => (Number.isFinite(+v) && v !== null && v !== '' ? +v : undefined);
+
+// Le volte fatte: quelle rilevate, o quelle scritte nel programma.
+export function volteDiBlocco(sezioni, svolto, i, m) {
+  const rilevate = numeroSvolto(svolto?.volte?.[chiaveRiga(i, m)]);
+  return rilevate ?? sezioni?.[i]?.serie?.[m]?.apreBlocco;
+}
+
+// Il campo dei metri di una riga qualunque: cambia lei e basta.
+export function cambiaMetriSvolto(svolto, i, j, valore) {
+  const righe = { ...(svolto?.righe || {}) };
+  const k = chiaveRiga(i, j);
+  if (valore === '' || valore === null || valore === undefined) delete righe[k];
+  else righe[k] = Math.max(0, +valore);
+  return svoltoCollassato({ ...svolto, righe });
+}
+
+// Il campo delle volte. Ogni figlia si riscala in proporzione dal suo
+// valore di adesso — anche quella corretta a mano: se il blocco è andato
+// a metà, è andata a metà anche lei. Tornando alle volte scritte le
+// figlie tornano al programma e la chiave sparisce.
+//
+// Da zero volte la proporzione non esiste: si riparte dal programma, e
+// le correzioni fatte prima dello zero sono perse (lo zero le aveva già
+// cancellate).
+//
+// Se la divisione non è esatta la riga non si tocca e torna in
+// `nonRiscalate`: meglio un numero non aggiornato, che si vede e si
+// corregge a mano, che uno arrotondato in silenzio.
+//
+// Un numero sulla chiave dell'apertura in `righe` è il "+4" scritto prima
+// della 0.56.13: al primo cambio di volte se ne va.
+export function cambiaVolteSvolto(sezioni, svolto, i, m, valore) {
+  const sezione = sezioni?.[i];
+  const nessuno = { svolto: svolto ?? null, nonRiscalate: [] };
+  if (campoAndata(sezione, m) !== 'volte') return nessuno;
+  const scritte = sezione.serie[m].apreBlocco;
+  const vuoto = valore === '' || valore === null || valore === undefined;
+  const dopo = vuoto ? scritte : Math.max(0, Math.round(+valore));
+  if (!Number.isFinite(dopo)) return nessuno;
+  const prima = volteDiBlocco(sezioni, svolto, i, m);
+
+  const righe = { ...(svolto?.righe || {}) };
+  const volte = { ...(svolto?.volte || {}) };
+  const k = chiaveRiga(i, m);
+  delete righe[k];
+  if (dopo === scritte) delete volte[k]; else volte[k] = dopo;
+
+  const nonRiscalate = [];
+  for (const j of figlieInLettura(sezione, m)) {
+    const kj = chiaveRiga(i, j);
+    const programmati = +sezione.serie[j].metri || 0;
+    const [base, da] = prima > 0
+      ? [numeroSvolto(righe[kj]) ?? programmati, prima]
+      : [programmati, scritte];
+    if ((base * dopo) % da !== 0) { nonRiscalate.push(kj); continue; }
+    const nuovi = (base * dopo) / da;
+    if (nuovi === programmati) delete righe[kj]; else righe[kj] = nuovi;
+  }
+  return { svolto: svoltoCollassato({ ...svolto, righe, volte }), nonRiscalate };
 }
 
 

@@ -187,6 +187,108 @@ if ('svolto' in dopoImport && dopoImport.svolto != null) {
   );
 }
 
+// ------------------------------------------- com'è andata: le volte di un blocco
+// Sulla riga "8x" il campo era quello dei metri, come sulle altre:
+// scrivendo 4 si registravano +4 m e le righe del blocco restavano a
+// otto giri. Sull'apertura il campo è il numero di volte, e cambiarlo
+// riscala le figlie in proporzione, anche quelle corrette a mano.
+// La seduta si monta coi gesti dell'editor: tre righe piatte, poi
+// "+ ripetizione" ×8 sulla prima.
+const D = await import('./src/lib/dominio.js');
+const mancano = ['campoAndata', 'volteDiBlocco', 'cambiaVolteSvolto', 'cambiaMetriSvolto']
+  .filter((f) => typeof D[f] !== 'function');
+if (mancano.length) {
+  male++;
+  console.error(`✗ com'è andata: mancano in dominio.js ${mancano.join(', ')}`);
+} else {
+  const bloccoDaOtto = () => {
+    const sezione = { titolo: 'Centrale', destinatari: ['*'], serie: [
+      { notazione: '8x', metri: 0, zona: '' },
+      { notazione: '1x100', metri: 100, zona: 'A2' },
+      { notazione: '1x50', metri: 50, zona: 'B1' },
+    ] };
+    D.applicaAperturaBlocco(sezione, 0, 8);
+    return [sezione];
+  };
+  const sezioni = bloccoDaOtto();
+  dice('il blocco montato coi gesti: 800 e 400',
+    sezioni[0].serie.map((s) => s.metri), [0, 800, 400]);
+
+  dice('sull\'apertura il campo è delle volte, sulle figlie dei metri',
+    [0, 1, 2].map((j) => D.campoAndata(sezioni[0], j)), ['volte', 'metri', 'metri']);
+  dice('le volte di partenza sono quelle scritte', D.volteDiBlocco(sezioni, null, 0, 0), 8);
+
+  // Il caso del campo: 8x portato a 4.
+  const a4 = D.cambiaVolteSvolto(sezioni, null, 0, 0, '4');
+  dice('8x portato a 4: le figlie a 400 e 200, l\'apertura ricorda 4',
+    a4.svolto, { righe: { '0-1': 400, '0-2': 200 }, volte: { '0-0': 4 }, nota: undefined });
+  dice('8x portato a 4: nessun "+4" sulla riga di apertura', a4.svolto.righe['0-0'], undefined);
+  dice('8x portato a 4: la seduta fa 600, non 1204', D.metriSvolti(sezioni, a4.svolto), 600);
+  dice('8x portato a 4: riaprendo il campo dice 4', D.volteDiBlocco(sezioni, a4.svolto, 0, 0), 4);
+
+  // In salita: il blocco fatto più volte di quelle scritte.
+  for (const [volte, figlie] of [[10, [1000, 500]], [12, [1200, 600]], [9, [900, 450]]]) {
+    const su = D.cambiaVolteSvolto(sezioni, null, 0, 0, String(volte));
+    dice(`8x portato a ${volte}: le figlie a ${figlie.join(' e ')}`,
+      [su.svolto.righe['0-1'], su.svolto.righe['0-2'], su.svolto.volte['0-0'], su.nonRiscalate],
+      [...figlie, volte, []]);
+  }
+
+  // I tasti "1" poi "12": il campo passa da 1 prima di arrivare a 12, e
+  // il risultato deve essere quello di 12. ComeAndata fa ripartire ogni
+  // tasto dalla seduta di quando il campo è stato toccato; si prova
+  // anche la catena tasto dopo tasto, che qui deve dare lo stesso.
+  const tasto1 = D.cambiaVolteSvolto(sezioni, null, 0, 0, '1');
+  dice('tasto "1": le figlie a 100 e 50', tasto1.svolto.righe, { '0-1': 100, '0-2': 50 });
+  const diretto12 = D.cambiaVolteSvolto(sezioni, null, 0, 0, '12').svolto;
+  dice('"1" poi "12", dalla partenza: come 12', D.cambiaVolteSvolto(sezioni, null, 0, 0, '12').svolto, diretto12);
+  dice('"1" poi "12", in catena: come 12', D.cambiaVolteSvolto(sezioni, tasto1.svolto, 0, 0, '12').svolto, diretto12);
+  dice('"1" poi "12": la seduta fa 1800', D.metriSvolti(sezioni, diretto12), 1800);
+
+  // Anche la riga corretta a mano segue le volte, in proporzione.
+  const corretta = D.cambiaMetriSvolto(null, 0, 1, '700');
+  dice('la figlia corretta a mano segue le volte: 700 su 8 giri, 350 su 4',
+    D.cambiaVolteSvolto(sezioni, corretta, 0, 0, '4').svolto.righe, { '0-1': 350, '0-2': 200 });
+
+  // Toccando i metri di una riga sola cambia solo quella.
+  dice('i metri di una figlia cambiano solo lei',
+    D.cambiaMetriSvolto(a4.svolto, 0, 2, '150'),
+    { righe: { '0-1': 400, '0-2': 150 }, volte: { '0-0': 4 }, nota: undefined });
+
+  // Tornando alle volte scritte la seduta torna com'era: svolto sparisce.
+  dice('tornando a 8 svolto torna null', D.cambiaVolteSvolto(sezioni, a4.svolto, 0, 0, '8').svolto, null);
+  dice('svuotando il campo svolto torna null', D.cambiaVolteSvolto(sezioni, a4.svolto, 0, 0, '').svolto, null);
+
+  // Se la divisione non è esatta la riga non si riscala, e lo si dice.
+  const strana = D.cambiaVolteSvolto(sezioni, D.cambiaMetriSvolto(null, 0, 1, '750'), 0, 0, '3');
+  dice('750 su 8 giri portato a 3 non si inventa: la riga resta e si segnala',
+    [strana.svolto.righe, strana.nonRiscalate], [{ '0-1': 750, '0-2': 150 }, ['0-1']]);
+
+  // Da zero volte si riparte dal programma, non da zero.
+  const zero = D.cambiaVolteSvolto(sezioni, null, 0, 0, '0');
+  dice('a zero volte le figlie fanno zero', zero.svolto.righe, { '0-1': 0, '0-2': 0 });
+  dice('da zero a 2 si riparte dal programma',
+    D.cambiaVolteSvolto(sezioni, zero.svolto, 0, 0, '2').svolto.righe, { '0-1': 200, '0-2': 100 });
+
+  // Righe senza campo: l'apertura a secco, l'apertura nuda di una seduta
+  // vecchia (le figlie non si sanno) e la fine della ripetizione.
+  const palestra = { ...D.sezioneSeccaVuota('Palestra'), serie: [
+    { notazione: '4x', metri: 0, apreBlocco: 4, senzaMetri: true },
+    { notazione: '10 piegamenti', metri: 0 },
+  ] };
+  dice('a secco l\'apertura non ha campo', D.campoAndata(palestra, 0), null);
+  const vecchia = { titolo: 'X', destinatari: ['*'], serie: [{ notazione: '8x', metri: 0 }, D.rigaFineBlocco()] };
+  dice('l\'apertura nuda non ha campo', D.campoAndata(vecchia, 0), null);
+  dice('la fine della ripetizione non ha campo', D.campoAndata(vecchia, 1), null);
+
+  // Le volte sono posizionali come i metri: seguono la riga.
+  dice('le volte seguono l\'apertura quando le righe scalano',
+    svoltoDopoInserisciRiga(a4.svolto, 0, 0),
+    { righe: { '0-2': 400, '0-3': 200 }, volte: { '0-1': 4 }, nota: undefined });
+  dice('togliendo l\'apertura le sue volte se ne vanno',
+    svoltoDopoTogliRiga(a4.svolto, 0, 0), { righe: { '0-0': 400, '0-1': 200 }, nota: undefined });
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

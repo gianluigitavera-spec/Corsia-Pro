@@ -20,6 +20,17 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.56.13',
+    data: '2026-10-18',
+    annuncia: true,
+    voci: [
+      'Corretto in «Com’è andata»: sulla riga della ripetizione (es. «8x») il campo è il numero di volte, non i metri. Scrivendo 4 le righe del blocco si ricalcolano a metà, anche quelle che avevi già corretto. Prima scrivere 4 aggiungeva 4 metri e il blocco restava a 8 volte',
+      'Toccando i metri di una sola riga del blocco cambia solo quella',
+      'Nelle sezioni a secco, sulla riga della ripetizione non c’è più nessun campo',
+      'Se avete scritto un numero sulla riga di una ripetizione in «Com’è andata», quella seduta conta qualche metro in più: riapritela, rimettete le volte giuste e salvate',
+    ],
+  },
+  {
     versione: '0.56.12',
     data: '2026-10-14',
     annuncia: true,
