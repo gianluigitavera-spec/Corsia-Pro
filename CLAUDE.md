@@ -489,12 +489,19 @@ comportamento corretto, ma è una sorpresa che altrimenti si scopre davanti
 a un grafico che non torna. Se un giorno servisse difendere il pregresso,
 la via è riclassificare a partire da una data, non retroattivamente.
 
-**Ci sono categorie che sono percorsi, non età: Propaganda, Teen, Master
-e Triathlon.** Non hanno righe in `categorie_stagione` e non devono
+**Ci sono categorie che sono percorsi, non età: Teen, Master e
+Triathlon.** Non hanno righe in `categorie_stagione` e non devono
 averne: se gliene dai una, ogni atleta di quell'età ci cade dentro da
 solo — un agonista di 28 anni diventa Master, e Master è un tipo di
 tesseramento. Si assegnano a mano (`categoria_override`) o scrivendole
 nella colonna categoria del CSV.
+
+**I Propaganda invece hanno fasce d'età**, dalla 024: sotto gli
+Esordienti B la tabella FIN non ha niente, e i Propaganda sono solo
+bambini più piccoli, quindi le fasce continuano a ritroso (`PROP_2`,
+`PROP_01`). Ogni stagione nuova li copia come tutte le altre — la 033
+ha fatto così con la 2026/27. Escluderli cambierebbe le categorie dei
+più piccoli: la proiezione dell'app li contiene già.
 
 Per lo stesso motivo **non si deducono**. Fino alla 0.55.5
 `categoriaDaCsv` proponeva Master sopra i 25 anni: era nata come
