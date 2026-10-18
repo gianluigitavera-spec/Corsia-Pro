@@ -2587,6 +2587,50 @@ export function specializzazioniConLavoroDedicato(sezioni) {
 }
 
 // ---------------------------------------------------------------------
+// L'ETICHETTA DELLA SEDUTA IN CALENDARIO
+//
+// Con un gruppo scelto la casella del giorno dice, per ogni seduta,
+// titolo e metri programmati: «Aerobico lungo · 4.200 m».
+//
+// I metri seguono la regola dei volumi, non la somma delle sezioni: con
+// lo split nessuno nuota tutti i rami. Si dice da quanto a quanto —
+// dal ramo più corto al più lungo, ognuno col comune sopra — e un numero
+// solo quando i rami coincidono o non ci sono. Deciso il 19/10/2026:
+// scegliere un ramo per tutti (il più lungo, o "Generale" come in
+// Volumi, che in una seduta tutta a rami è il solo riscaldamento) dava
+// un numero che qualcuno del gruppo non nuota.
+//
+// La regola non taglia il titolo: lo taglia la casella, che sa quanto è
+// larga, e tiene `intero` per il passaggio del mouse. Titolo e metri
+// restano separati perché il taglio non mangi mai i metri.
+// ---------------------------------------------------------------------
+
+// "4.200": il punto delle migliaia anche sotto i 10.000. toLocaleString
+// in italiano non lo mette (raggruppamento minimo di due cifre) e
+// scriverebbe "4200".
+export const metriConPunto = (m) =>
+  String(Math.round(Number(m) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+export function etichettaCalendario(seduta) {
+  const sezioni = seduta?.sezioni || [];
+  const rami = specializzazioniConLavoroDedicato(sezioni);
+  const valori = rami.length
+    ? rami.map((spec) => metriPerSpecializzazione(sezioni, spec))
+    : [metriPerSpecializzazione(sezioni, 'Generale')];
+  const min = Math.min(...valori);
+  const max = Math.max(...valori);
+  const metri = min === max
+    ? `${metriConPunto(min)} m`
+    : `${metriConPunto(min)}–${metriConPunto(max)} m`;
+  const titolo = String(seduta?.titolo ?? '').trim();
+  return { titolo, metri, intero: titolo ? `${titolo} · ${metri}` : metri };
+}
+
+// Le sedute di un giorno, nell'ordine in cui arrivano: lo stesso del
+// pannello del giorno, così casella e pannello si leggono uguali.
+export const etichetteDelGiorno = (sedute) => (sedute || []).map(etichettaCalendario);
+
+// ---------------------------------------------------------------------
 // NOTE DA MOSTRARE E NOTE DA NASCONDERE
 //
 // L'analizzatore appende alle note dei promemoria suoi, utili mentre si

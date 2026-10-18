@@ -361,6 +361,66 @@ const MISTA = [
     { secondi: 0, comuni: 0, conPartenza: 0, senzaPartenza: 0, sezioniSecche: 0 });
 }
 
+// ------------------------------------- l'etichetta della seduta in Calendario
+// Con un gruppo scelto, la casella del giorno dice titolo e metri di ogni
+// seduta. I metri seguono la regola dei volumi: con lo split non si
+// sommano i rami, si dice da quanto a quanto nuota chi c'è
+// (deciso il 19/10/2026: intervallo, dal ramo più corto al più lungo).
+{
+  const D = await import('./src/lib/dominio.js');
+  const mancano = ['etichettaCalendario', 'etichetteDelGiorno', 'metriConPunto']
+    .filter((f) => typeof D[f] !== 'function');
+  if (mancano.length) {
+    male++;
+    console.error(`✗ calendario: mancano in dominio.js ${mancano.join(', ')}`);
+  } else {
+    const comune = (metri) => ({ titolo: 'Warm Up', destinatari: ['*'], serie: [{ notazione: `1x${metri}`, metri, zona: 'A1' }] });
+    const ramo = (spec, metri) => ({ titolo: spec, destinatari: [spec], serie: [{ notazione: `1x${metri}`, metri, zona: 'A2' }] });
+    const piatta = (titolo, metri) => ({ titolo, sezioni: [comune(1200), { ...comune(metri - 1200), titolo: 'Centrale' }] });
+
+    // Il punto delle migliaia c'è anche sotto i 10.000: toLocaleString
+    // in italiano scriverebbe "4200".
+    dice('metri con il punto', ['800', '4200', '12500', '0'].map((m) => D.metriConPunto(+m)),
+      ['800', '4.200', '12.500', '0']);
+
+    // Titolo pieno.
+    dice('titolo pieno: titolo e metri',
+      D.etichettaCalendario(piatta('Aerobico lungo', 4200)),
+      { titolo: 'Aerobico lungo', metri: '4.200 m', intero: 'Aerobico lungo · 4.200 m' });
+
+    // Titolo vuoto, assente o di soli spazi: solo i metri.
+    for (const titolo of ['', null, undefined, '   ']) {
+      dice(`titolo ${JSON.stringify(titolo)}: solo i metri`,
+        D.etichettaCalendario(piatta(titolo, 4200)), { titolo: '', metri: '4.200 m', intero: '4.200 m' });
+    }
+
+    // Titolo lungo: la regola non lo taglia — lo taglia la casella, e
+    // tiene intero il testo per il passaggio del mouse. Titolo e metri
+    // restano separati, così il taglio non mangia mai i metri.
+    const lungo = 'Aerobico lungo con pinne e palette, poi tecnica di virata a dorso';
+    const l = D.etichettaCalendario(piatta(lungo, 4200));
+    dice('titolo lungo: intero nella regola', l.titolo, lungo);
+    dice('titolo lungo: i metri a parte', l.metri, '4.200 m');
+    dice('titolo lungo: intero per il passaggio del mouse', l.intero, `${lungo} · 4.200 m`);
+
+    // Split: da quanto a quanto, mai la somma dei rami (6.200).
+    const split = { titolo: 'Aerobico lungo', sezioni: [comune(1200), ramo('Velocità', 2000), ramo('Mezzofondo', 3000)] };
+    dice('split: l\'intervallo dei rami, non la somma', D.etichettaCalendario(split).metri, '3.200–4.200 m');
+    const uguali = { titolo: 'X', sezioni: [comune(1200), ramo('Velocità', 2000), ramo('Mezzofondo', 2000)] };
+    dice('split con rami uguali: un numero solo', D.etichettaCalendario(uguali).metri, '3.200 m');
+
+    // Due sedute nello stesso giorno: una sotto l'altra, nell'ordine in
+    // cui arrivano — lo stesso del pannello del giorno.
+    dice('due sedute: in ordine',
+      D.etichetteDelGiorno([piatta('Mattino', 3000), piatta('', 2500)]).map((e) => e.intero),
+      ['Mattino · 3.000 m', '2.500 m']);
+
+    // Nessuna seduta: nessuna etichetta.
+    dice('nessuna seduta: niente', D.etichetteDelGiorno([]), []);
+    dice('nessuna seduta (null): niente', D.etichetteDelGiorno(null), []);
+  }
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

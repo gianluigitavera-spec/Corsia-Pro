@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trophy, Timer, Waves, Medal, LifeBuoy, Anchor, X, Trash2, ChevronRight } from 'lucide-react';
 import * as api from '../lib/dati';
 import {
   rientraNelMacro, faseDelGiorno, faseDi, RAGGRUPPAMENTI, dataItLunga, dataIt,
-  metriDaRicontrollare, apertureNude, annoInizialeDi,
+  metriDaRicontrollare, apertureNude, annoInizialeDi, etichetteDelGiorno,
 } from '../lib/dominio';
 import Periodizzazione from './Periodizzazione';
 
@@ -32,6 +32,23 @@ export default function Calendario({
   const [giorno, setGiorno] = useState(null);
   const [fasi, setFasi] = useState([]);
   const [nuovaGara, setNuovaGara] = useState(null);
+
+  // Il tocco lungo su una casella mostra i titoli interi: il title del
+  // passaggio del mouse, sul vetro, non c'è. `intero` è il giorno aperto
+  // così; il tocco lungo non deve anche selezionare il giorno, e
+  // `lungo` ricorda che il click che arriva dopo va ignorato.
+  const [intero, setIntero] = useState(null);
+  const pressione = useRef({ timer: null, lungo: false });
+  const premi = (giornoIso) => {
+    clearTimeout(pressione.current.timer);
+    pressione.current.lungo = false;
+    pressione.current.timer = setTimeout(() => {
+      pressione.current.lungo = true;
+      setIntero((g) => (g === giornoIso ? null : giornoIso));
+    }, 500);
+  };
+  const lascia = () => clearTimeout(pressione.current.timer);
+  useEffect(() => () => clearTimeout(pressione.current.timer), []);
 
   // La programmazione sta prima del calendario e lo spinge in basso.
   // Chiusa di default: diventa una riga sola che dice la fase di oggi, e
@@ -293,6 +310,11 @@ export default function Calendario({
             const oggiQ = iso(d) === iso(oggi);
             const f = faseDelGiorno(fasi, iso(d));
             const tintaFase = f ? faseDi(f.fase)?.colore : null;
+            // Con un gruppo scelto la casella dice titolo e metri di ogni
+            // seduta; con "Tutte le categorie" solo quante sono, come
+            // prima. Sul telefono il numero resta comunque (styles.css):
+            // sette colonne su un vetro stretto non reggono un titolo.
+            const etichette = codiciMacro ? etichetteDelGiorno(ss) : [];
             return (
               <button
                 key={iso(d)}
@@ -300,14 +322,32 @@ export default function Calendario({
                 data-oggi={oggiQ}
                 data-scelto={giorno === iso(d)}
                 data-fase={f ? f.fase : ''}
+                data-intero={intero === iso(d)}
                 style={tintaFase ? { '--tinta-fase': tintaFase } : undefined}
                 title={f ? faseDi(f.fase)?.nome : undefined}
-                onClick={() => setGiorno(giorno === iso(d) ? null : iso(d))}
+                onPointerDown={etichette.length ? () => premi(iso(d)) : undefined}
+                onPointerUp={lascia}
+                onPointerLeave={lascia}
+                onPointerCancel={lascia}
+                onClick={() => {
+                  if (pressione.current.lungo) { pressione.current.lungo = false; return; }
+                  setGiorno(giorno === iso(d) ? null : iso(d));
+                }}
               >
                 <span className="numero mono">{d.getDate()}</span>
                 {ss.length > 0 && (
-                  <span className="segno-seduta">
+                  <span className="segno-seduta" data-con-etichette={etichette.length > 0}>
                     <Waves size={11} /> {ss.length}
+                  </span>
+                )}
+                {etichette.length > 0 && (
+                  <span className="etichette-giorno">
+                    {etichette.map((e, k) => (
+                      <span className="etichetta-seduta" key={ss[k].id} title={e.intero}>
+                        {e.titolo && <span className="titolo-seduta">{e.titolo} ·</span>}
+                        <span className="metri-seduta mono">{e.metri}</span>
+                      </span>
+                    ))}
                   </span>
                 )}
                 {gg.map((g) => (
