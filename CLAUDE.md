@@ -576,6 +576,16 @@ si riporta su `sviluppo` perché i due rami non divergano. Un difetto
 che si vede male, o un numero mostrato storto ma salvato giusto, non è
 un'eccezione: aspetta il rilascio.
 
+**La correzione urgente si riporta UNENDO `main` dentro `sviluppo`**
+(`git switch sviluppo` e `git merge main`), **mai ricopiandola con
+`cherry-pick`**. La copia crea un secondo commit con lo stesso contenuto
+e un altro nome: git non sa che sono la stessa modifica, e al rilascio
+ogni riga che `sviluppo` ha ritoccato dopo diventa un conflitto. È
+successo con la 0.57.0: la 0.56.13 stava su `main` come `51ed18a` e su
+`sviluppo` come `82bd8d6`, identiche, e il merge si è fermato su sette
+file. Col merge invece il commit è uno solo, sta in tutti e due i rami,
+e il rilascio dopo non lo rivede.
+
 **Il registro delle novità è obbligatorio.** Ogni cambio di versione vuole la
 sua voce in `src/versione.js`, o `sincronizza_versione.mjs` ferma la build.
 Le voci si scrivono per un allenatore, non per uno sviluppatore: cosa cambia
