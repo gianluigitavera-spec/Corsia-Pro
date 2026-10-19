@@ -20,6 +20,17 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.57.0',
+    data: '2026-10-20',
+    annuncia: true,
+    voci: [
+      'Calendario: scegliendo un gruppo vedi titolo e metri di ogni seduta',
+      'Il PDF si chiama CorsiaPro_data_titolo',
+      'Dashboard: percentuali per zona calcolate solo sui metri con la zona',
+      '«Com’è andata»: solo numeri interi',
+    ],
+  },
+  {
     versione: '0.56.13',
     data: '2026-10-18',
     annuncia: true,
