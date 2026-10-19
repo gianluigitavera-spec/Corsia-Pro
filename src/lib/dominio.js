@@ -718,6 +718,24 @@ export function caricoPerFamiglia(sezioni, specializzazione, zone = ZONE) {
   return out;
 }
 
+// Le percentuali per famiglia, sui SOLI metri classificati. Fino al
+// rilascio dopo la 0.56.13 Dashboard e Confronto dividevano per il
+// totale, metri senza zona compresi: ogni famiglia usciva più bassa, la
+// somma sotto il 100, e accanto a obiettivi che fra le quattro famiglie
+// fanno 100 il confronto diceva "manca aerobico" dove mancava solo la
+// zona. I metri senza zona restano nel totale — sono stati nuotati — e
+// `fuori` dice quanti sono, perché chi guarda lo sappia.
+// Qualunque chiave che non sia una delle quattro famiglie è fuori:
+// nonClassificati (Dashboard), altro (v_fase_confronto), nonclass.
+export function percentualiPerFamiglia(metriPerFamiglia) {
+  const m = metriPerFamiglia || {};
+  const totale = Object.values(m).reduce((t, v) => t + (Number(v) || 0), 0);
+  const classificati = FAMIGLIE.reduce((t, f) => t + (Number(m[f]) || 0), 0);
+  const pct = Object.fromEntries(FAMIGLIE.map((f) =>
+    [f, classificati ? ((Number(m[f]) || 0) * 100) / classificati : 0]));
+  return { totale, classificati, fuori: totale - classificati, pct };
+}
+
 // Metri realmente nuotati dalla squadra in una seduta, dati gli atleti
 // presenti (ognuno col proprio percorso).
 export function volumeEffettivoSquadra(sezioni, atletiPresenti) {

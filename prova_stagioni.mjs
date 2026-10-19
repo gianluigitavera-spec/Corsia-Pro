@@ -178,6 +178,51 @@ dice('due settimane distinte', settimane.length, 2);
 dice('la più recente per prima', settimane[0].lunedi, '2026-08-10');
 dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
 
+// --- le percentuali per famiglia, sui soli metri classificati ---
+// Dashboard e Confronto dividevano per il totale, metri senza zona
+// compresi: ogni famiglia usciva più bassa, la somma sotto il 100, e il
+// confronto con obiettivi che fra le quattro famiglie fanno 100 diceva
+// "manca aerobico" dove mancava solo la zona. I metri senza zona restano
+// nel totale (sono nuotati) e si dice quanti sono, ma non nel
+// denominatore.
+{
+  const D = await import('./src/lib/dominio.js');
+  if (typeof D.percentualiPerFamiglia !== 'function') {
+    male++; console.error('✗ percentuali: manca in dominio.js percentualiPerFamiglia');
+  } else {
+    // Dashboard: la famiglia mancante si chiama nonClassificati.
+    const conFuori = D.percentualiPerFamiglia({
+      aerobico: 7200, vo2: 900, lattacido: 0, alattacido: 900, nonClassificati: 1000,
+    });
+    dice('totale: tutti i metri, anche senza zona', conFuori.totale, 10000);
+    dice('classificati: le quattro famiglie', conFuori.classificati, 9000);
+    dice('fuori: i metri senza zona', conFuori.fuori, 1000);
+    dice('aerobico sui classificati: 80, non 72', conFuori.pct.aerobico, 80);
+    dice('vo2 e alattacido 10, lattacido 0',
+      [conFuori.pct.vo2, conFuori.pct.alattacido, conFuori.pct.lattacido], [10, 10, 0]);
+    dice('le quattro famiglie fanno 100',
+      Object.values(conFuori.pct).reduce((a, b) => a + b, 0), 100);
+
+    // Confronto: la vista chiama la famiglia mancante 'altro'.
+    const altro = D.percentualiPerFamiglia({ aerobico: 600, lattacido: 200, altro: 200 });
+    dice('anche "altro" resta fuori', [altro.classificati, altro.fuori, altro.pct.aerobico], [800, 200, 75]);
+
+    // Senza metri senza zona non cambia niente rispetto a prima.
+    const pulita = D.percentualiPerFamiglia({ aerobico: 300, vo2: 100 });
+    dice('senza metri fuori: come prima', [pulita.fuori, pulita.pct.aerobico, pulita.pct.vo2], [0, 75, 25]);
+
+    // Tutto senza zona: nessuna percentuale da inventare, tutto fuori.
+    const tuttoFuori = D.percentualiPerFamiglia({ nonClassificati: 500 });
+    dice('tutto senza zona: percentuali a zero, 500 fuori',
+      [tuttoFuori.classificati, tuttoFuori.fuori, tuttoFuori.pct.aerobico], [0, 500, 0]);
+
+    // Niente di niente.
+    dice('vuoto', D.percentualiPerFamiglia({}),
+      { totale: 0, classificati: 0, fuori: 0, pct: { aerobico: 0, vo2: 0, lattacido: 0, alattacido: 0 } });
+    dice('null', D.percentualiPerFamiglia(null).totale, 0);
+  }
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);
