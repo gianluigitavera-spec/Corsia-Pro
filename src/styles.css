@@ -499,6 +499,26 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
   font-size: 10px; color: #06121F; font-weight: 600; border-radius: 5px;
   padding: 2px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* Il tocco lungo apre i titoli interi: senza questo iOS ci mette sopra
+   il suo menu. */
+.giorno { -webkit-touch-callout: none; }
+
+/* Titolo e metri di ogni seduta, con un gruppo scelto. Si taglia il
+   titolo, mai i metri: per questo sono due pezzi e non una frase. */
+.giorno .etichette-giorno { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.giorno .etichetta-seduta {
+  display: flex; gap: 3px; min-width: 0;
+  font-size: 10.5px; line-height: 1.25; color: var(--testo-2);
+}
+.giorno .titolo-seduta {
+  flex: 0 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.giorno .metri-seduta { flex: 0 0 auto; white-space: nowrap; color: var(--ciano); }
+.giorno[data-intero='true'] .etichetta-seduta { flex-wrap: wrap; }
+.giorno[data-intero='true'] .titolo-seduta { white-space: normal; overflow-wrap: anywhere; }
+/* Con le etichette il numero di sedute non serve, se non sul telefono. */
+.giorno .segno-seduta[data-con-etichette='true'] { display: none; }
 
 .pannello-giorno {
   margin-top: 16px; padding: 15px; border-radius: 12px;
@@ -516,6 +536,9 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 @media (max-width: 640px) {
   .giorno { min-height: 60px; padding: 4px; }
   .giorno .segno-gara { font-size: 9px; }
+  /* Sul telefono solo il numero di sedute, come prima. */
+  .giorno .etichette-giorno { display: none; }
+  .giorno .segno-seduta[data-con-etichette='true'] { display: inline-flex; }
 }
 
 /* ------------------------------------------------ maniglie di ordine */

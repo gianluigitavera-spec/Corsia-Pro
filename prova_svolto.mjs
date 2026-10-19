@@ -250,6 +250,16 @@ if (mancano.length) {
   dice('la figlia corretta a mano segue le volte: 700 su 8 giri, 350 su 4',
     D.cambiaVolteSvolto(sezioni, corretta, 0, 0, '4').svolto.righe, { '0-1': 350, '0-2': 200 });
 
+  // I metri sono interi. Un decimale in svolto faceva fallire
+  // v_carico_zona_reale (::integer) e con lei la Dashboard: il campo non
+  // lo accetta, e quello che c'era resta com'era.
+  for (const scritto of ['12.5', '12,5', '1e2', '-3', 'abc']) {
+    dice(`metri "${scritto}" non si accettano: svolto non cambia`,
+      D.cambiaMetriSvolto(a4.svolto, 0, 1, scritto), a4.svolto);
+  }
+  dice('un intero si accetta', D.cambiaMetriSvolto(null, 0, 1, '350').righe, { '0-1': 350 });
+  dice('volte "4.5" non si accettano', D.cambiaVolteSvolto(sezioni, null, 0, 0, '4.5').svolto, null);
+
   // Toccando i metri di una riga sola cambia solo quella.
   dice('i metri di una figlia cambiano solo lei',
     D.cambiaMetriSvolto(a4.svolto, 0, 2, '150'),

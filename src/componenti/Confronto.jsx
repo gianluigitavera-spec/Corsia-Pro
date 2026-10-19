@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Target, TrendingUp } from 'lucide-react';
 import * as api from '../lib/dati';
-import { FASI, faseDi, dataIt } from '../lib/dominio';
+import { FASI, faseDi, dataIt, percentualiPerFamiglia } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 
 const FAMIGLIE = [
@@ -72,7 +72,12 @@ export default function Confronto({ societa, specializzazione = 'Generale', grup
           </div>
         ) : (
           fasi.map((f, i) => {
-            const totale = Object.values(f.metri).reduce((a, b) => a + b, 0);
+            // Il volume della fase è tutto; il reale di ogni famiglia è sui
+            // soli metri con la zona, come gli obiettivi, che fra le quattro
+            // famiglie fanno 100. La vista chiama 'altro' la famiglia
+            // mancante: resta fuori, e si dice quanta è.
+            const famiglie = percentualiPerFamiglia(f.metri);
+            const totale = famiglie.totale;
             const conclusa = f.al < oggi();
             const inCorso = f.dal <= oggi() && f.al >= oggi();
             const info = faseDi(f.fase);
@@ -102,10 +107,13 @@ export default function Confronto({ societa, specializzazione = 'Generale', grup
                   <p className="nota-obiettivo">
                     {conclusa ? 'Nessuna seduta registrata in questa fase.' : 'Fase non ancora cominciata.'}
                   </p>
+                ) : famiglie.classificati === 0 ? (
+                  <p className="nota-obiettivo">
+                    Nessuna serie con la zona in questa fase: senza zone non c'è niente da confrontare.
+                  </p>
                 ) : (
                   FAMIGLIE.map((fam) => {
-                    const fatti = f.metri[fam.chiave] || 0;
-                    const reale = Math.round((fatti / totale) * 100);
+                    const reale = Math.round(famiglie.pct[fam.chiave] || 0);
                     const atteso = f.ripartizione[fam.chiave];
                     const scarto = atteso != null ? reale - atteso : null;
                     return (
@@ -130,6 +138,12 @@ export default function Confronto({ societa, specializzazione = 'Generale', grup
                     );
                   })
                 )}
+                {haObiettivi && famiglie.fuori > 0 && famiglie.classificati > 0 && (
+                  <p className="nota-obiettivo">
+                    {famiglie.fuori.toLocaleString('it-IT')} m senza zona su{' '}
+                    {totale.toLocaleString('it-IT')}: contano nei km, restano fuori dalle percentuali.
+                  </p>
+                )}
               </div>
             );
           })
@@ -137,7 +151,8 @@ export default function Confronto({ societa, specializzazione = 'Generale', grup
 
         <p style={{ fontSize: 12, color: 'var(--testo-3)', marginTop: 12 }}>
           La barra chiara è quello che ti aspettavi, quella piena quello che è stato nuotato.
-          Il confronto vale quanto le zone che scrivi: le serie senza zona non entrano in nessuna famiglia.
+          Le percentuali sono sui soli metri con la zona, come gli obiettivi: le serie senza zona
+          contano nei km ma non in nessuna famiglia.
         </p>
       </div>
     </div>

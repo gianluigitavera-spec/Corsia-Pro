@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI, sedutaNelGruppo } from '../lib/dominio';
+import { SPECIALIZZAZIONI, sedutaNelGruppo, percentualiPerFamiglia } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
 import Calendario from './Calendario';
 import { BarreImpilate } from './Grafici';
@@ -63,15 +63,22 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
     return acc;
   }, {});
 
-  const totale = Object.values(perZona).reduce((a, b) => a + b, 0);
-  const pct = (m) => (totale ? ((m / totale) * 100).toFixed(1) : '0.0');
+  // Il volume è tutto quello nuotato; le percentuali sono sui soli metri
+  // classificati (percentualiPerFamiglia in dominio.js). Prima si divideva
+  // per il totale e i metri senza zona abbassavano ogni famiglia.
+  // Anche le percentuali delle singole zone stanno sullo stesso
+  // denominatore: A1 + A2 + B1 devono dare l'aerobico che si legge sopra.
+  const famiglie = percentualiPerFamiglia(perFamiglia);
+  const totale = famiglie.totale;
+  const pct = (m) => (famiglie.classificati ? ((m * 100) / famiglie.classificati).toFixed(1) : '0.0');
+  const pctFamiglia = (f) => famiglie.pct[f].toFixed(1);
 
   const kpi = [
     { nome: 'Volume totale', valore: (totale / 1000).toFixed(1), unita: 'km', sotto: `${totale.toLocaleString('it-IT')} metri`, tinta: 'var(--ciano)' },
-    { nome: 'Aerobico', valore: pct(perFamiglia.aerobico || 0), unita: '%', sotto: `${(perFamiglia.aerobico || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.aerobico },
-    { nome: 'VO₂max', valore: pct(perFamiglia.vo2 || 0), unita: '%', sotto: `${(perFamiglia.vo2 || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.vo2 },
-    { nome: 'Lattacido', valore: pct(perFamiglia.lattacido || 0), unita: '%', sotto: `${(perFamiglia.lattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.lattacido },
-    { nome: 'Alattacido', valore: pct(perFamiglia.alattacido || 0), unita: '%', sotto: `${(perFamiglia.alattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.alattacido },
+    { nome: 'Aerobico', valore: pctFamiglia('aerobico'), unita: '%', sotto: `${(perFamiglia.aerobico || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.aerobico },
+    { nome: 'VO₂max', valore: pctFamiglia('vo2'), unita: '%', sotto: `${(perFamiglia.vo2 || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.vo2 },
+    { nome: 'Lattacido', valore: pctFamiglia('lattacido'), unita: '%', sotto: `${(perFamiglia.lattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.lattacido },
+    { nome: 'Alattacido', valore: pctFamiglia('alattacido'), unita: '%', sotto: `${(perFamiglia.alattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.alattacido },
   ];
 
   const massimo = Math.max(1, ...Object.values(perZona));
@@ -180,10 +187,12 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
             })
           )}
 
-          {perZona['?'] > 0 && (
+          {famiglie.fuori > 0 && (
             <div className="avviso" style={{ marginTop: 16 }}>
-              {perZona['?'].toLocaleString('it-IT')} metri senza zona indicata: non entrano in nessuna
-              percentuale. Li trovi nelle sedute con la serie priva di zona.
+              {famiglie.fuori.toLocaleString('it-IT')} metri senza zona su {totale.toLocaleString('it-IT')}:
+              contano nel volume ma restano fuori dalle percentuali, calcolate sui{' '}
+              {famiglie.classificati.toLocaleString('it-IT')} metri con la zona. Li trovi nelle sedute
+              con la serie priva di zona.
             </div>
           )}
         </div>

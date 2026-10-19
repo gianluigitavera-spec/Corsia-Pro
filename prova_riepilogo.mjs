@@ -361,6 +361,128 @@ const MISTA = [
     { secondi: 0, comuni: 0, conPartenza: 0, senzaPartenza: 0, sezioniSecche: 0 });
 }
 
+// ------------------------------------- l'etichetta della seduta in Calendario
+// Con un gruppo scelto, la casella del giorno dice titolo e metri di ogni
+// seduta. I metri seguono la regola dei volumi: con lo split non si
+// sommano i rami, si dice da quanto a quanto nuota chi c'è
+// (deciso il 19/10/2026: intervallo, dal ramo più corto al più lungo).
+{
+  const D = await import('./src/lib/dominio.js');
+  const mancano = ['etichettaCalendario', 'etichetteDelGiorno', 'metriConPunto']
+    .filter((f) => typeof D[f] !== 'function');
+  if (mancano.length) {
+    male++;
+    console.error(`✗ calendario: mancano in dominio.js ${mancano.join(', ')}`);
+  } else {
+    const comune = (metri) => ({ titolo: 'Warm Up', destinatari: ['*'], serie: [{ notazione: `1x${metri}`, metri, zona: 'A1' }] });
+    const ramo = (spec, metri) => ({ titolo: spec, destinatari: [spec], serie: [{ notazione: `1x${metri}`, metri, zona: 'A2' }] });
+    const piatta = (titolo, metri) => ({ titolo, sezioni: [comune(1200), { ...comune(metri - 1200), titolo: 'Centrale' }] });
+
+    // Il punto delle migliaia c'è anche sotto i 10.000: toLocaleString
+    // in italiano scriverebbe "4200".
+    dice('metri con il punto', ['800', '4200', '12500', '0'].map((m) => D.metriConPunto(+m)),
+      ['800', '4.200', '12.500', '0']);
+
+    // Titolo pieno.
+    dice('titolo pieno: titolo e metri',
+      D.etichettaCalendario(piatta('Aerobico lungo', 4200)),
+      { titolo: 'Aerobico lungo', metri: '4.200 m', intero: 'Aerobico lungo · 4.200 m' });
+
+    // Titolo vuoto, assente o di soli spazi: solo i metri.
+    for (const titolo of ['', null, undefined, '   ']) {
+      dice(`titolo ${JSON.stringify(titolo)}: solo i metri`,
+        D.etichettaCalendario(piatta(titolo, 4200)), { titolo: '', metri: '4.200 m', intero: '4.200 m' });
+    }
+
+    // Titolo lungo: la regola non lo taglia — lo taglia la casella, e
+    // tiene intero il testo per il passaggio del mouse. Titolo e metri
+    // restano separati, così il taglio non mangia mai i metri.
+    const lungo = 'Aerobico lungo con pinne e palette, poi tecnica di virata a dorso';
+    const l = D.etichettaCalendario(piatta(lungo, 4200));
+    dice('titolo lungo: intero nella regola', l.titolo, lungo);
+    dice('titolo lungo: i metri a parte', l.metri, '4.200 m');
+    dice('titolo lungo: intero per il passaggio del mouse', l.intero, `${lungo} · 4.200 m`);
+
+    // Split: da quanto a quanto, mai la somma dei rami (6.200).
+    const split = { titolo: 'Aerobico lungo', sezioni: [comune(1200), ramo('Velocità', 2000), ramo('Mezzofondo', 3000)] };
+    dice('split: l\'intervallo dei rami, non la somma', D.etichettaCalendario(split).metri, '3.200–4.200 m');
+    const uguali = { titolo: 'X', sezioni: [comune(1200), ramo('Velocità', 2000), ramo('Mezzofondo', 2000)] };
+    dice('split con rami uguali: un numero solo', D.etichettaCalendario(uguali).metri, '3.200 m');
+
+    // Due sedute nello stesso giorno: una sotto l'altra, nell'ordine in
+    // cui arrivano — lo stesso del pannello del giorno.
+    dice('due sedute: in ordine',
+      D.etichetteDelGiorno([piatta('Mattino', 3000), piatta('', 2500)]).map((e) => e.intero),
+      ['Mattino · 3.000 m', '2.500 m']);
+
+    // L'ordine del giorno è quello di creazione: in archivio non c'è un
+    // orario, e la lettura dal database non garantisce niente fra due
+    // sedute della stessa data. Casella e pannello usano lo stesso.
+    if (typeof D.inOrdineDiCreazione !== 'function') {
+      male++; console.error('✗ calendario: manca in dominio.js inOrdineDiCreazione');
+    } else {
+      const s = (id, created_at) => ({ id, created_at });
+      const arrivate = [
+        s('c', '2026-10-19T16:30:00.000000+00:00'),
+        s('a', '2026-10-19T06:45:00.123456+00:00'),
+        s('b', '2026-10-19T12:00:00+00:00'),
+      ];
+      dice('per created_at, qualunque sia l\'ordine di arrivo',
+        D.inOrdineDiCreazione(arrivate).map((x) => x.id), ['a', 'b', 'c']);
+      dice('la lista di partenza non si tocca', arrivate.map((x) => x.id), ['c', 'a', 'b']);
+      // Una copia salvata nel dispositivo prima di questa versione non ha
+      // created_at: in fondo, e fra loro per id, perché l'ordine non
+      // cambi a ogni disegno.
+      dice('senza created_at in fondo, fra loro per id',
+        D.inOrdineDiCreazione([s('z', null), s('y', undefined), s('x', '2026-10-19T08:00:00+00:00')]).map((x) => x.id),
+        ['x', 'y', 'z']);
+      dice('stesso istante: per id',
+        D.inOrdineDiCreazione([s('2', '2026-10-19T08:00:00+00:00'), s('1', '2026-10-19T08:00:00+00:00')]).map((x) => x.id),
+        ['1', '2']);
+      dice('nessuna seduta: niente', D.inOrdineDiCreazione(null), []);
+    }
+
+    // Nessuna seduta: nessuna etichetta.
+    dice('nessuna seduta: niente', D.etichetteDelGiorno([]), []);
+    dice('nessuna seduta (null): niente', D.etichetteDelGiorno(null), []);
+  }
+}
+
+// ------------------------------------------------ il nome del PDF della seduta
+// Il PDF è la stampa del browser, che propone come nome il titolo della
+// pagina: «CorsiaPro_GG-MM-AA_Titolo». I caratteri che Windows, macOS e
+// iOS non accettano in un nome di file si sostituiscono.
+{
+  const D = await import('./src/lib/dominio.js');
+  if (typeof D.nomeFileSeduta !== 'function') {
+    male++; console.error('✗ PDF: manca in dominio.js nomeFileSeduta');
+  } else {
+    const n = (titolo, data = '2026-10-19') => D.nomeFileSeduta({ data, titolo });
+    dice('PDF: titolo pieno', n('Aerobico lungo'), 'CorsiaPro_19-10-26_Aerobico lungo');
+    for (const vuoto of ['', null, undefined, '   ']) {
+      dice(`PDF: titolo ${JSON.stringify(vuoto)}`, n(vuoto), 'CorsiaPro_19-10-26');
+    }
+    // Ogni carattere non valido (\ / : * ? " < > | e i caratteri di
+    // controllo) diventa un trattino; più di seguito, uno solo.
+    dice('PDF: la barra e i due punti', n('A1/A2: base'), 'CorsiaPro_19-10-26_A1-A2- base');
+    dice('PDF: tutti i non validi', n('a\\b/c:d*e?f"g<h>i|j'), 'CorsiaPro_19-10-26_a-b-c-d-e-f-g-h-i-j');
+    dice('PDF: di seguito, un trattino solo', n('Soglia ??? fine'), 'CorsiaPro_19-10-26_Soglia - fine');
+    dice('PDF: un trattino in fondo se ne va', n('Soglia?'), 'CorsiaPro_19-10-26_Soglia');
+    dice('PDF: a capo e tabulazioni', n('Riga uno\nriga\tdue'), 'CorsiaPro_19-10-26_Riga uno-riga-due');
+    // Windows toglie da sé punti e spazi in fondo: meglio toglierli qui
+    // che ritrovarsi un nome diverso da quello mostrato.
+    dice('PDF: punti e spazi in fondo', n('Tecnica... '), 'CorsiaPro_19-10-26_Tecnica');
+    dice('PDF: solo caratteri non validi vale vuoto', n('///'), 'CorsiaPro_19-10-26');
+    dice('PDF: gli accenti restano', n('Velocità · C3'), 'CorsiaPro_19-10-26_Velocità · C3');
+    dice('PDF: spazi doppi', n('Aerobico   lungo'), 'CorsiaPro_19-10-26_Aerobico lungo');
+    // Il giorno e il mese a due cifre, l'anno con le ultime due.
+    dice('PDF: giorno e mese a due cifre', n('X', '2027-01-05'), 'CorsiaPro_05-01-27_X');
+    // Senza data (una bozza mai datata) il nome resta valido, senza data.
+    dice('PDF: senza data', n('Aerobico lungo', ''), 'CorsiaPro_Aerobico lungo');
+    dice('PDF: senza data né titolo', n('', null), 'CorsiaPro');
+  }
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

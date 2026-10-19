@@ -192,7 +192,7 @@ export async function leggiSedute(societaId, { da, a } = {}) {
     // che niente lo dicesse.
     let q = sb
       .from('sedute')
-      .select('id, data, titolo, origine, categorie, atleti, sezioni, svolto')
+      .select('id, data, titolo, origine, categorie, atleti, sezioni, svolto, created_at')
       .eq('societa_id', societaId)
       .order('data', { ascending: false })
       .limit(da || a ? 1000 : 60);

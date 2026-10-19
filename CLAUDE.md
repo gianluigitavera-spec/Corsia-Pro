@@ -56,7 +56,65 @@ anche quando l'SQL è stato lanciato a mano dal pannello: la catena deve essere
 ripetibile su un ambiente pulito. È già successo di perdere la 025.
 
 Dopo ogni migrazione, rigenerare `schema.sql` e committarlo. È l'unico modo
-perché chi legge il repo sappia com'è fatto davvero il database.
+perché chi legge il repo sappia com'è fatto davvero il database. Si genera
+nel pannello SQL con `query_schema.sql`, che sta nella cartella del
+progetto ma fuori dal repo (`.gitignore`): restituisce una cella sola, da
+copiarne il contenuto. Se arriva come tabella Markdown (`| schema_sql |`,
+`<br>`, `\|`) va riconvertita prima di committarla.
+
+**Ogni vista nasce con `security_invoker = true`.** Senza, la vista gira
+coi permessi del suo proprietario, salta le RLS e mostra le righe di tutte
+le società a chiunque abbia fatto l'accesso: è successo con
+`v_atleti_doppioni`, che esponeva gli atleti — minori — di ogni squadra
+(chiusa con la 029). Vale anche per le viste ricreate con `drop` e
+`create`: l'opzione non sopravvive al `drop`, va riscritta.
+
+**Il controllo si rifà a ogni migrazione**, non solo quando si tocca una
+vista. In `schema.sql` la sezione delle viste comincia con l'elenco di
+quelle scoperte; dal pannello, questa deve restituire zero righe:
+
+```sql
+select c.relname, c.reloptions
+  from pg_class c
+ where c.relnamespace = 'squadra'::regnamespace
+   and c.relkind = 'v'
+   and not coalesce(c.reloptions @> array['security_invoker=true'], false);
+```
+
+**Dopo ogni passo che scrive, un controllo che legge.** Il "Success" del
+pannello SQL non è una verifica. Con la 032 il passo con due
+`create or replace view` dentro lo stesso `begin`/`commit` ha risposto
+"Success" e non ha applicato niente; eseguite una alla volta, senza
+transazione, le viste sono entrate. Quindi in ogni migrazione:
+
+- ogni passo che scrive è seguito da una `select` che mostra il
+  risultato atteso (la colonna c'è, le righe sono quelle, il vincolo
+  esiste), e si guarda quella, non il messaggio;
+- le viste si ricreano una alla volta, senza `begin`/`commit` intorno:
+  ogni `create or replace view` è già atomico da sé;
+- dove i numeri non devono muoversi, la fotografia prima e dopo
+  (un'impronta md5 delle righe, come nella 032) va fatta in un'ora
+  morta, senza salvataggi in mezzo.
+
+**Ogni tabella nuova in `squadra` nasce con RLS attiva e le sue policy,
+nella stessa migrazione.** I privilegi di default dello schema danno in
+automatico `arwd` (select, insert, update, delete) ad `authenticated`
+(`authenticated=arwd/postgres`, verificato il 18/10/2026; ad `anon`
+niente): senza RLS, chiunque abbia fatto l'accesso legge e scrive le
+righe di tutte le società. Una tabella con RLS attiva e senza policy è
+chiusa a tutti, che è l'errore giusto da fare; il contrario no. Le
+policy si scrivono nel file stesso, non "dopo".
+
+Al controllo di ogni migrazione, accanto a quello delle viste, si
+aggiunge questo — anche lui deve restituire zero righe:
+
+```sql
+select c.relname
+  from pg_class c
+ where c.relnamespace = 'squadra'::regnamespace
+   and c.relkind in ('r', 'p')
+   and not c.relrowsecurity;
+```
 
 Le categorie **non** sono un enum: sono la tabella `squadra.categorie`
 (`codice`, `nome`, `ordine`, `colore` NOT NULL), e `atleti.categoria_override`
@@ -72,6 +130,18 @@ Stato delle migrazioni. **Verificato sul database il 29/09/2026:** c'è
 l'indice `atleti_chiave_unica` (021); `v_carico_zona_reale` legge `svolto`
 e `v_fase_reale` si appoggia a lei (023); `v_serie` filtra il lavoro a
 secco (027); fra le categorie ci sono `TRI`, i `TEEN_*` e `MAS`.
+
+**Eseguite a mano e verificate il 18/10/2026:** la 031
+(`v_carico_zona_reale` legge i metri di `svolto` come numeric e
+arrotonda) e la 032 (`squadra.livelli_zona`, `livello` su
+`squadra.zone` e in coda alle due viste di carico, impronte prima e
+dopo identiche), e la 030: `anon` ha solo `SELECT` su `categorie`,
+`categorie_stagione` e `zone`. SwimCoach AI tocca `squadra` (`membri`,
+`periodizzazione`, insert in `sedute`) solo con l'utente loggato: il
+dettaglio è nel file della 030. Infine la 033: le fasce d'età della
+2026/27 in `categorie_stagione`, copiate dalla 2025/26 con gli anni +1,
+Propaganda compresi (27 righe per stagione, confronto riga per riga
+vuoto). Solo dati: `schema.sql` non cambia.
 
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026
@@ -198,7 +268,27 @@ provati in `prova_svolto.mjs`. Chi aggiunge un gesto nuovo che tocca
 `sezioni` o `serie` deve richiamare l'involucro giusto — attenzione ai
 casi che inseriscono **in cima** (`unshift`), che spostano tutto.
 `svoltoCollassato` è l'unico posto che decide quando `svolto` torna
-`null`: righe vuote **e** nessuna nota.
+`null`: righe vuote **e** nessuna volta **e** nessuna nota.
+
+**Dalla 0.56.13 `svolto` ha anche `volte`**, accanto a `righe` e `nota`:
+le volte davvero fatte di un blocco, sulla chiave della sua apertura. In
+"Com'è andata" il campo dell'apertura è il numero di volte, non i metri
+(fino alla 0.56.12 scrivere 4 su un "8x" registrava +4 m, col blocco
+ancora a otto giri). Cambiarlo riscala in `righe` le figlie in
+proporzione, anche quelle corrette a mano; se la divisione non è esatta
+la riga resta com'era e si segnala. Toccare i metri di una figlia cambia
+solo lei. Niente campo sulle aperture a secco, sulle aperture nude delle
+sedute vecchie e sulla fine della ripetizione. Logica in `dominio.js`
+(`campoAndata`, `cambiaVolteSvolto`, `cambiaMetriSvolto`), prove in
+`prova_svolto.mjs`.
+
+`volte` serve solo a ridisegnare il campo: **nessuno lo somma**. I metri
+del blocco stanno sulle figlie in `righe`, ed è lì che li leggono
+`v_serie` e `metri_svolti()`. Le volte sono posizionali come i metri, e
+`rimappaSvolto` le rimappa con le stesse regole. Le sedute salvate prima
+della 0.56.13 possono avere un numero in `righe` sulla chiave di
+un'apertura: sono metri finti, che le viste contano. Se ne vanno al primo
+cambio di volte di quel blocco.
 
 **Nel passaggio testo → editor si elencano i campi da SCARTARE, mai
 quelli da tenere.** `sedutaDaLettura` in `src/lib/importaTesto.js` parte
@@ -402,12 +492,19 @@ comportamento corretto, ma è una sorpresa che altrimenti si scopre davanti
 a un grafico che non torna. Se un giorno servisse difendere il pregresso,
 la via è riclassificare a partire da una data, non retroattivamente.
 
-**Ci sono categorie che sono percorsi, non età: Propaganda, Teen, Master
-e Triathlon.** Non hanno righe in `categorie_stagione` e non devono
+**Ci sono categorie che sono percorsi, non età: Teen, Master e
+Triathlon.** Non hanno righe in `categorie_stagione` e non devono
 averne: se gliene dai una, ogni atleta di quell'età ci cade dentro da
 solo — un agonista di 28 anni diventa Master, e Master è un tipo di
 tesseramento. Si assegnano a mano (`categoria_override`) o scrivendole
 nella colonna categoria del CSV.
+
+**I Propaganda invece hanno fasce d'età**, dalla 024: sotto gli
+Esordienti B la tabella FIN non ha niente, e i Propaganda sono solo
+bambini più piccoli, quindi le fasce continuano a ritroso (`PROP_2`,
+`PROP_01`). Ogni stagione nuova li copia come tutte le altre — la 033
+ha fatto così con la 2026/27. Escluderli cambierebbe le categorie dei
+più piccoli: la proiezione dell'app li contiene già.
 
 Per lo stesso motivo **non si deducono**. Fino alla 0.55.5
 `categoriaDaCsv` proponeva Master sopra i 25 anni: era nata come
@@ -466,6 +563,18 @@ società, ma può esistere in società diverse (è normale, es. account di prova
 ---
 
 ## Come si lavora qui
+
+**Tutto il lavoro va su `sviluppo`.** Commit e push si fanno lì. `main`
+si aggiorna **solo quando lo dice l'allenatore**, con un rilascio unico
+che porta dentro tutto quello che è maturato su `sviluppo`: non si
+fondono pezzi alla spicciolata, non si fa push su `main` di propria
+iniziativa, nemmeno per una patch che sembra innocua.
+
+L'unica eccezione sono i difetti che **scrivono dati sbagliati** o
+**bloccano l'app**: lì la correzione può andare su `main` subito, e poi
+si riporta su `sviluppo` perché i due rami non divergano. Un difetto
+che si vede male, o un numero mostrato storto ma salvato giusto, non è
+un'eccezione: aspetta il rilascio.
 
 **Il registro delle novità è obbligatorio.** Ogni cambio di versione vuole la
 sua voce in `src/versione.js`, o `sincronizza_versione.mjs` ferma la build.

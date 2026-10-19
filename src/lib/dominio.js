@@ -718,6 +718,24 @@ export function caricoPerFamiglia(sezioni, specializzazione, zone = ZONE) {
   return out;
 }
 
+// Le percentuali per famiglia, sui SOLI metri classificati. Fino al
+// rilascio dopo la 0.56.13 Dashboard e Confronto dividevano per il
+// totale, metri senza zona compresi: ogni famiglia usciva più bassa, la
+// somma sotto il 100, e accanto a obiettivi che fra le quattro famiglie
+// fanno 100 il confronto diceva "manca aerobico" dove mancava solo la
+// zona. I metri senza zona restano nel totale — sono stati nuotati — e
+// `fuori` dice quanti sono, perché chi guarda lo sappia.
+// Qualunque chiave che non sia una delle quattro famiglie è fuori:
+// nonClassificati (Dashboard), altro (v_fase_confronto), nonclass.
+export function percentualiPerFamiglia(metriPerFamiglia) {
+  const m = metriPerFamiglia || {};
+  const totale = Object.values(m).reduce((t, v) => t + (Number(v) || 0), 0);
+  const classificati = FAMIGLIE.reduce((t, f) => t + (Number(m[f]) || 0), 0);
+  const pct = Object.fromEntries(FAMIGLIE.map((f) =>
+    [f, classificati ? ((Number(m[f]) || 0) * 100) / classificati : 0]));
+  return { totale, classificati, fuori: totale - classificati, pct };
+}
+
 // Metri realmente nuotati dalla squadra in una seduta, dati gli atleti
 // presenti (ognuno col proprio percorso).
 export function volumeEffettivoSquadra(sezioni, atletiPresenti) {
@@ -1636,12 +1654,23 @@ export function volteDiBlocco(sezioni, svolto, i, m) {
   return rilevate ?? sezioni?.[i]?.serie?.[m]?.apreBlocco;
 }
 
+// Solo cifre: un intero da zero in su. Niente decimali, segni o
+// esponenti — "1e2" per Number vale 100, per chi lo scrive no.
+const SOLO_INTERO = /^\s*\d+\s*$/;
+
 // Il campo dei metri di una riga qualunque: cambia lei e basta.
+//
+// I metri sono interi. Fino alla 0.56.13 un decimale passava, e
+// v_carico_zona_reale lo convertiva con ::integer: la conversione
+// falliva, e con la vista non si apriva più la Dashboard della società.
+// Quello che non è un intero non si scrive, e svolto resta com'era.
 export function cambiaMetriSvolto(svolto, i, j, valore) {
+  const vuoto = valore === '' || valore === null || valore === undefined;
+  if (!vuoto && !SOLO_INTERO.test(String(valore))) return svolto ?? null;
   const righe = { ...(svolto?.righe || {}) };
   const k = chiaveRiga(i, j);
-  if (valore === '' || valore === null || valore === undefined) delete righe[k];
-  else righe[k] = Math.max(0, +valore);
+  if (vuoto) delete righe[k];
+  else righe[k] = Number(valore);
   return svoltoCollassato({ ...svolto, righe });
 }
 
@@ -1666,8 +1695,8 @@ export function cambiaVolteSvolto(sezioni, svolto, i, m, valore) {
   if (campoAndata(sezione, m) !== 'volte') return nessuno;
   const scritte = sezione.serie[m].apreBlocco;
   const vuoto = valore === '' || valore === null || valore === undefined;
-  const dopo = vuoto ? scritte : Math.max(0, Math.round(+valore));
-  if (!Number.isFinite(dopo)) return nessuno;
+  if (!vuoto && !SOLO_INTERO.test(String(valore))) return nessuno;
+  const dopo = vuoto ? scritte : Number(valore);
   const prima = volteDiBlocco(sezioni, svolto, i, m);
 
   const righe = { ...(svolto?.righe || {}) };
@@ -1768,7 +1797,7 @@ const GRUPPO_DI = [
   { gruppo: 'master',   codici: ['MAS'] },
   { gruppo: 'senior',   codici: ['CAD_1', 'CAD_2', 'SEN_1', 'SEN_2', 'ASS'] },
   { gruppo: 'juniores', codici: ['JUN_1', 'JUN_2'] },
-  { gruppo: 'ragazzi',  codici: ['RAG_1', 'RAG_2', 'RAG_3'] },
+  { gruppo: 'ragazzi',  codici: ['RAG_1', 'RAG_2', 'RAG_3M'] },
   { gruppo: 'eso_a',    codici: ['ESO_A1', 'ESO_A2'] },
   { gruppo: 'eso_b',    codici: ['ESO_B1', 'ESO_B2'] },
 ];
@@ -2573,6 +2602,89 @@ export function specializzazioniConLavoroDedicato(sezioni) {
     }
   }
   return SPECIALIZZAZIONI.filter((s) => viste.has(s));
+}
+
+// ---------------------------------------------------------------------
+// L'ETICHETTA DELLA SEDUTA IN CALENDARIO
+//
+// Con un gruppo scelto la casella del giorno dice, per ogni seduta,
+// titolo e metri programmati: «Aerobico lungo · 4.200 m».
+//
+// I metri seguono la regola dei volumi, non la somma delle sezioni: con
+// lo split nessuno nuota tutti i rami. Si dice da quanto a quanto —
+// dal ramo più corto al più lungo, ognuno col comune sopra — e un numero
+// solo quando i rami coincidono o non ci sono. Deciso il 19/10/2026:
+// scegliere un ramo per tutti (il più lungo, o "Generale" come in
+// Volumi, che in una seduta tutta a rami è il solo riscaldamento) dava
+// un numero che qualcuno del gruppo non nuota.
+//
+// La regola non taglia il titolo: lo taglia la casella, che sa quanto è
+// larga, e tiene `intero` per il passaggio del mouse. Titolo e metri
+// restano separati perché il taglio non mangi mai i metri.
+// ---------------------------------------------------------------------
+
+// "4.200": il punto delle migliaia anche sotto i 10.000. toLocaleString
+// in italiano non lo mette (raggruppamento minimo di due cifre) e
+// scriverebbe "4200".
+export const metriConPunto = (m) =>
+  String(Math.round(Number(m) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+export function etichettaCalendario(seduta) {
+  const sezioni = seduta?.sezioni || [];
+  const rami = specializzazioniConLavoroDedicato(sezioni);
+  const valori = rami.length
+    ? rami.map((spec) => metriPerSpecializzazione(sezioni, spec))
+    : [metriPerSpecializzazione(sezioni, 'Generale')];
+  const min = Math.min(...valori);
+  const max = Math.max(...valori);
+  const metri = min === max
+    ? `${metriConPunto(min)} m`
+    : `${metriConPunto(min)}–${metriConPunto(max)} m`;
+  const titolo = String(seduta?.titolo ?? '').trim();
+  return { titolo, metri, intero: titolo ? `${titolo} · ${metri}` : metri };
+}
+
+// Le sedute di un giorno, nell'ordine in cui arrivano: il Calendario le
+// passa già in ordine di creazione (inOrdineDiCreazione), lo stesso del
+// pannello del giorno, così casella e pannello si leggono uguali.
+export const etichetteDelGiorno = (sedute) => (sedute || []).map(etichettaCalendario);
+
+// ---------------------------------------------------------------------
+// IL NOME DEL PDF DELLA SEDUTA
+//
+// Il PDF è la stampa del browser, che come nome del file propone il
+// titolo della pagina. «CorsiaPro_GG-MM-AA_Titolo», e senza titolo
+// «CorsiaPro_GG-MM-AA». I caratteri che Windows, macOS o iOS rifiutano
+// in un nome di file (\ / : * ? " < > | e quelli di controllo, a capo
+// compreso) diventano un trattino, uno solo per gruppo. Punti, spazi e
+// trattini in fondo si tolgono: Windows i punti li toglierebbe da sé, e
+// il file salvato si chiamerebbe diverso da quello proposto.
+// ---------------------------------------------------------------------
+export function nomeFileSeduta(seduta) {
+  const pulito = String(seduta?.titolo ?? '')
+    .replace(/[\\/:*?"<>|\u0000-\u001F\u007F]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s-]+/, '')
+    .replace(/[\s.-]+$/, '');
+  const m = String(seduta?.data ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const data = m ? `${m[3]}-${m[2]}-${m[1].slice(2)}` : '';
+  return ['CorsiaPro', data, pulito].filter(Boolean).join('_');
+}
+
+// L'ordine delle sedute dello stesso giorno: quello di creazione. In
+// archivio non c'è un orario, e la lettura dal database non garantisce
+// niente fra due sedute della stessa data — la mattina poteva finire
+// sotto il pomeriggio. Senza created_at (una copia salvata nel
+// dispositivo prima che la lettura lo portasse) si va in fondo, e fra
+// loro per id: l'ordine non deve cambiare a ogni disegno. Non tocca la
+// lista che riceve.
+export function inOrdineDiCreazione(sedute) {
+  const quando = (s) => {
+    const t = Date.parse(s?.created_at ?? '');
+    return Number.isFinite(t) ? t : Infinity;
+  };
+  return [...(sedute || [])].sort((a, b) =>
+    (quando(a) - quando(b)) || String(a?.id ?? '').localeCompare(String(b?.id ?? '')));
 }
 
 // ---------------------------------------------------------------------
