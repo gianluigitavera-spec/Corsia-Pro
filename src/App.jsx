@@ -4,7 +4,7 @@ import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
-import { novitaDaMostrare, novitaDiRecupero } from './lib/novita';
+import { novitaAllApertura, novitaAllaChiusura } from './lib/novita';
 import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
 import StatoLinea from './componenti/StatoLinea';
@@ -129,33 +129,50 @@ export default function App() {
   //
   // Al contrario del tutorial, se localStorage non risponde qui si sta
   // zitti: senza poter scrivere "vista", la finestra tornerebbe a ogni
-  // apertura, e a bordo vasca è una molestia. Nel dubbio, silenzio.
+  // apertura, e a bordo vasca è una molestia. Nel dubbio, silenzio — e
+  // per saperlo si prova a scrivere PRIMA di mostrare, perché adesso la
+  // scrittura vera arriva solo alla chiusura.
+  //
+  // La decisione sta tutta in novitaAllApertura (lib/novita.js, sotto
+  // prova in prova_novita.mjs). Questo effetto può girare quante volte
+  // vuole — e gira: all'arrivo della società, quando il tutorial si apre
+  // e quando si chiude — perché finché c'è qualcosa da mostrare non
+  // scrive niente, e ogni giro dà le stesse voci. Fino alla 0.57.0 la
+  // versione si segnava qui, al primo calcolo: il giro dopo trovava
+  // tutto già visto e svuotava il pannello, che col tutorial aperto da
+  // solo non compariva mai.
+  //
+  // Senza versione salvata ci sono due persone diverse: chi apre l'app
+  // oggi per la prima volta, e chi la usa da mesi ma è arrivato prima che
+  // l'annuncio esistesse. A distinguerli è una qualunque altra traccia
+  // lasciata dall'uso: il magazzino, i gruppi scelti, il tutorial chiuso.
   useEffect(() => {
-    if (!societa || tutorial) return;
+    if (!societa) return;
     try {
-      const vistaPrima = localStorage.getItem('corsiapro:novita');
-      // Prima apertura in assoluto: si registra la versione e basta,
-      // senza annunciare niente. La decisione sta in novitaDaMostrare.
-      //
-      // Senza versione salvata ci sono però due persone diverse: chi apre
-      // l'app oggi per la prima volta, e chi la usa da mesi ma è arrivato
-      // prima che l'annuncio esistesse. Trattarli uguale vorrebbe dire
-      // che il secondo si perde in silenzio la novità appena consegnata.
-      // A distinguerli è una qualunque altra traccia lasciata dall'uso:
-      // il magazzino, i gruppi scelti, il tutorial chiuso.
-      setNovita(
-        vistaPrima
-          ? novitaDaMostrare(VERSIONE, CAMBIAMENTI, vistaPrima)
-          : (giaUsata() ? novitaDiRecupero(VERSIONE, CAMBIAMENTI) : [])
-      );
-      // La versione si segna comunque, anche quando non si apre niente:
-      // così una voce senza `annuncia` non resta in agguato per la volta
-      // dopo.
-      localStorage.setItem('corsiapro:novita', VERSIONE);
-    } catch { /* navigazione privata: nessun annuncio, nessun danno */ }
+      const d = novitaAllApertura({
+        versione: VERSIONE,
+        cambiamenti: CAMBIAMENTI,
+        vistaPrima: localStorage.getItem('corsiapro:novita'),
+        giaUsata: giaUsata(),
+        tutorialAperto: tutorial,
+      });
+      if (d.segnaOra) localStorage.setItem('corsiapro:novita', VERSIONE);
+      else if (d.voci.length) {
+        localStorage.setItem('corsiapro:prova-scrittura', '1');
+        localStorage.removeItem('corsiapro:prova-scrittura');
+      }
+      setNovita(d.voci);
+    } catch { setNovita([]); /* navigazione privata: nessun annuncio, nessun danno */ }
   }, [societa?.id, tutorial]);
 
-  const chiudiNovita = useCallback(() => setNovita([]), []);
+  // Chiudere il pannello è vedere le novità: solo qui la versione si segna.
+  const chiudiNovita = useCallback(() => {
+    setNovita([]);
+    try {
+      const { segna } = novitaAllaChiusura(VERSIONE);
+      localStorage.setItem('corsiapro:novita', segna);
+    } catch { /* niente */ }
+  }, []);
 
   const chiudiTutorial = useCallback((nonPiu) => {
     setTutorial(false);

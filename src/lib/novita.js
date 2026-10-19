@@ -84,3 +84,46 @@ export function novitaDiRecupero(versione, cambiamenti) {
   const prima = registro.slice(qui).find((c) => c.annuncia === true);
   return prima ? [prima] : [];
 }
+
+// ---------------------------------------------------------------------
+// LA SEQUENZA ALL'APERTURA
+//
+// La versione è "vista" quando il pannello si CHIUDE, non quando si
+// calcolano le voci. Fino alla 0.57.0 App.jsx la segnava al calcolo: se
+// il calcolo girava una seconda volta prima che il pannello si vedesse,
+// rileggeva la versione appena segnata, otteneva [] e svuotava la lista.
+// Col tutorial che si apre da solo succedeva sempre — i due effetti
+// girano nello stesso passaggio, quello delle novità calcola e segna,
+// il tutorial copre il pannello, e quando si chiude il calcolo rigira e
+// non trova più niente. La 0.57.0 non si è vista così.
+//
+// Ora il calcolo non scrive niente quando c'è qualcosa da mostrare: può
+// girare quante volte vuole e dà sempre le stesse voci. Si segna subito
+// solo quando non c'è niente da mostrare (prima apertura, una voce senza
+// annuncio, versione già vista): senza pannello non arriverebbe nessuna
+// chiusura a segnarla, e la voce resterebbe in agguato per la volta dopo.
+//
+// Se l'app si chiude col pannello aperto, la versione non è segnata e il
+// pannello torna alla prossima apertura: non visto vuol dire non visto.
+// ---------------------------------------------------------------------
+
+/**
+ * Cosa fare all'apertura, e a ogni giro dell'effetto.
+ *
+ * @param tutorialAperto  il tutorial è a schermo: il pannello aspetta e
+ *                        non si scrive niente
+ * @param giaUsata        l'app ha altre tracce nel telefono (vedi
+ *                        novitaDiRecupero)
+ * @returns { voci, segnaOra }  voci da mostrare; segnaOra dice se la
+ *                        versione va scritta adesso
+ */
+export function novitaAllApertura({ versione, cambiamenti, vistaPrima, giaUsata, tutorialAperto }) {
+  if (tutorialAperto) return { voci: [], segnaOra: false };
+  const voci = vistaPrima
+    ? novitaDaMostrare(versione, cambiamenti, vistaPrima)
+    : (giaUsata ? novitaDiRecupero(versione, cambiamenti) : []);
+  return { voci, segnaOra: voci.length === 0 };
+}
+
+// La chiusura del pannello: è lei a segnare la versione come vista.
+export const novitaAllaChiusura = (versione) => ({ segna: versione });

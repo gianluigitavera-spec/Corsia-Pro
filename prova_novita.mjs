@@ -113,6 +113,144 @@ dice('recupero: versione corrente fuori dal registro',
   novitaDiRecupero('0.99.0', REGISTRO), []);
 dice('recupero: registro vuoto', novitaDiRecupero('0.54.0', []), []);
 
+// =====================================================================
+// LA SEQUENZA ALL'APERTURA — tutorial, effetto che rigira, chiusura
+//
+// Con la 0.57.0 il pannello non è comparso. novitaDaMostrare era giusta;
+// sbagliava chi la chiamava: App.jsx segnava la versione come vista nel
+// momento in cui CALCOLAVA le voci, non quando il pannello veniva chiuso.
+// Se il calcolo girava una seconda volta prima che il pannello si
+// vedesse — e col tutorial aperto da solo succedeva sempre — rileggeva
+// la versione appena segnata, otteneva [] e svuotava la lista.
+//
+// Qui la sequenza si prova come la vive il telefono: un magazzino finto
+// al posto di localStorage, e i passi uno dopo l'altro. Le prove sopra
+// guardavano solo la funzione pura, ed erano verdi mentre il difetto
+// stava tutto fuori.
+// =====================================================================
+{
+  const D = await import('./src/lib/novita.js');
+  const mancano = ['novitaAllApertura', 'novitaAllaChiusura'].filter((f) => typeof D[f] !== 'function');
+  if (mancano.length) {
+    male++;
+    console.error(`✗ sequenza: mancano in novita.js ${mancano.join(', ')}`);
+  } else {
+    const V = '0.57.0';
+    const REG = [
+      { versione: '0.57.0', annuncia: true, voci: ['calendario'] },
+      { versione: '0.56.13', annuncia: true, voci: ['volte'] },
+      { versione: '0.56.12', voci: ['fine ripetizione'] },
+    ];
+    const CHIAVE = 'corsiapro:novita';
+
+    // Il telefono: cosa c'è nel magazzino, e cosa l'app mostra adesso.
+    const telefono = (vista, { giaUsata = true } = {}) =>
+      ({ magazzino: vista == null ? {} : { [CHIAVE]: vista }, giaUsata, pannello: [] });
+
+    // Un giro dell'effetto in App.jsx: legge, decide, scrive solo se la
+    // decisione lo dice.
+    const giro = (t, { tutorialAperto = false } = {}) => {
+      const d = D.novitaAllApertura({
+        versione: V, cambiamenti: REG,
+        vistaPrima: t.magazzino[CHIAVE] ?? null,
+        giaUsata: t.giaUsata, tutorialAperto,
+      });
+      t.pannello = d.voci;
+      if (d.segnaOra) t.magazzino[CHIAVE] = V;
+    };
+    // La chiusura del pannello: è lei a segnare la versione.
+    const chiudi = (t) => {
+      const c = D.novitaAllaChiusura(V);
+      if (c.segna) t.magazzino[CHIAVE] = c.segna;
+      t.pannello = [];
+    };
+    const mostra = (t) => t.pannello.map((c) => c.versione);
+
+    // --- il caso del campo: il tutorial compare prima ---
+    // Stesso passaggio: l'effetto delle novità vede ancora il tutorial
+    // chiuso e calcola; poi il tutorial si apre (l'effetto rigira e
+    // aspetta); poi si chiude, e l'effetto rigira di nuovo.
+    {
+      const t = telefono('0.56.13');
+      giro(t);                                // stesso passaggio del tutorial
+      dice('tutorial prima: niente segnato al primo calcolo', t.magazzino[CHIAVE], '0.56.13');
+      giro(t, { tutorialAperto: true });      // il tutorial è aperto
+      dice('tutorial aperto: il pannello aspetta', mostra(t), []);
+      dice('tutorial aperto: niente segnato', t.magazzino[CHIAVE], '0.56.13');
+      giro(t);                                // il tutorial si chiude
+      dice('tutorial chiuso: il pannello compare', mostra(t), ['0.57.0']);
+      chiudi(t);
+      dice('chiuso il pannello: la versione è vista', t.magazzino[CHIAVE], '0.57.0');
+      giro(t);                                // apertura successiva
+      dice('apertura dopo: niente', mostra(t), []);
+    }
+
+    // --- l'effetto che gira due volte senza tutorial ---
+    // Il secondo giro deve dare le stesse voci, non una lista vuota.
+    {
+      const t = telefono('0.56.13');
+      giro(t);
+      giro(t);
+      dice('due giri: il pannello resta', mostra(t), ['0.57.0']);
+      dice('due giri: ancora niente segnato', t.magazzino[CHIAVE], '0.56.13');
+    }
+
+    // --- l'app chiusa senza chiudere il pannello ---
+    // Non visto vuol dire non visto: alla prossima apertura torna.
+    {
+      const t = telefono('0.56.13');
+      giro(t);
+      const riaperto = telefono(t.magazzino[CHIAVE]);
+      giro(riaperto);
+      dice('pannello non chiuso: torna alla prossima apertura', mostra(riaperto), ['0.57.0']);
+    }
+
+    // --- salto di più versioni: tutte le annunciabili in mezzo ---
+    {
+      const t = telefono('0.56.12');
+      giro(t);
+      dice('dalla 0.56.12: due voci', mostra(t), ['0.57.0', '0.56.13']);
+    }
+
+    // --- niente da annunciare: si segna subito ---
+    // Una voce senza annuncia non deve restare in agguato per la volta
+    // dopo: senza pannello non c'è una chiusura che la segni.
+    {
+      const silenziosa = [{ versione: '0.57.1', voci: ['correzione'] }, ...REG];
+      const t = { magazzino: { [CHIAVE]: '0.57.0' }, giaUsata: true, pannello: [] };
+      const d = D.novitaAllApertura({ versione: '0.57.1', cambiamenti: silenziosa, vistaPrima: '0.57.0', giaUsata: true });
+      if (d.segnaOra) t.magazzino[CHIAVE] = '0.57.1';
+      dice('voce senza annuncio: nessun pannello', d.voci, []);
+      dice('voce senza annuncio: segnata subito', t.magazzino[CHIAVE], '0.57.1');
+    }
+
+    // --- prima apertura in assoluto: niente, e si segna ---
+    {
+      const t = telefono(null, { giaUsata: false });
+      giro(t);
+      dice('prima apertura: nessun pannello', mostra(t), []);
+      dice('prima apertura: versione segnata', t.magazzino[CHIAVE], '0.57.0');
+    }
+
+    // --- chi usava l'app prima degli annunci: una voce, segnata alla chiusura ---
+    {
+      const t = telefono(null, { giaUsata: true });
+      giro(t);
+      dice('recupero: una voce', mostra(t), ['0.57.0']);
+      dice('recupero: niente segnato prima della chiusura', t.magazzino[CHIAVE], undefined);
+      chiudi(t);
+      dice('recupero: segnato alla chiusura', t.magazzino[CHIAVE], '0.57.0');
+    }
+
+    // --- già vista: niente e niente da scrivere ---
+    {
+      const t = telefono('0.57.0');
+      giro(t);
+      dice('già vista: nessun pannello', mostra(t), []);
+    }
+  }
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);
