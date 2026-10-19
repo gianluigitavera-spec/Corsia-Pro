@@ -2631,6 +2631,28 @@ export function etichettaCalendario(seduta) {
 // pannello del giorno, così casella e pannello si leggono uguali.
 export const etichetteDelGiorno = (sedute) => (sedute || []).map(etichettaCalendario);
 
+// ---------------------------------------------------------------------
+// IL NOME DEL PDF DELLA SEDUTA
+//
+// Il PDF è la stampa del browser, che come nome del file propone il
+// titolo della pagina. «CorsiaPro_GG-MM-AA_Titolo», e senza titolo
+// «CorsiaPro_GG-MM-AA». I caratteri che Windows, macOS o iOS rifiutano
+// in un nome di file (\ / : * ? " < > | e quelli di controllo, a capo
+// compreso) diventano un trattino, uno solo per gruppo. Punti, spazi e
+// trattini in fondo si tolgono: Windows i punti li toglierebbe da sé, e
+// il file salvato si chiamerebbe diverso da quello proposto.
+// ---------------------------------------------------------------------
+export function nomeFileSeduta(seduta) {
+  const pulito = String(seduta?.titolo ?? '')
+    .replace(/[\\/:*?"<>|\u0000-\u001F\u007F]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s-]+/, '')
+    .replace(/[\s.-]+$/, '');
+  const m = String(seduta?.data ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const data = m ? `${m[3]}-${m[2]}-${m[1].slice(2)}` : '';
+  return ['CorsiaPro', data, pulito].filter(Boolean).join('_');
+}
+
 // L'ordine delle sedute dello stesso giorno: quello di creazione. In
 // archivio non c'è un orario, e la lettura dal database non garantisce
 // niente fra due sedute della stessa data — la mattina poteva finire

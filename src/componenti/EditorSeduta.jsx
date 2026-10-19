@@ -11,7 +11,7 @@ import {
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
   durataPerSpecializzazione, specializzazioniDaSezioni, specializzazioniDiAtleti,
   specializzazioniConLavoroDedicato,
-  eSecco, sezioneSeccaVuota,
+  eSecco, sezioneSeccaVuota, nomeFileSeduta,
   apertureNude, applicaAperturaBlocco, figlieDelBlocco, ricalcolaBlocchi, annotaLettura,
   svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
   svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
@@ -40,6 +40,24 @@ function coloreSezione(sezione, zone) {
 }
 
 const metriIt = (m) => (Number(m) || 0).toLocaleString('it-IT');
+
+// Il PDF è la stampa del browser, che come nome del file propone il
+// titolo della pagina: per la durata della stampa la pagina si chiama
+// come il file (nomeFileSeduta in dominio.js), poi torna "CorsiaPro".
+// Si rimette a posto con afterprint; il focus è la rete di sicurezza per
+// i browser dove afterprint non arriva, così il titolo non resta appeso.
+function stampaSeduta(seduta) {
+  const prima = document.title;
+  document.title = nomeFileSeduta(seduta);
+  const rimetti = () => {
+    document.title = prima;
+    window.removeEventListener('afterprint', rimetti);
+    window.removeEventListener('focus', rimetti);
+  };
+  window.addEventListener('afterprint', rimetti);
+  window.addEventListener('focus', rimetti);
+  window.print();
+}
 const conSegno = (m) => (m > 0 ? `+${metriIt(m)}` : m < 0 ? `−${metriIt(-m)}` : '0');
 
 // Perché una riga del controllo non ha il tasto, o perché va guardata da
@@ -650,7 +668,7 @@ export default function EditorSeduta({
         <button className="mini" onClick={() => setLavagna(true)} title="Lavagna a bordo vasca">
           <Presentation size={14} style={{ verticalAlign: -2 }} /> Lavagna
         </button>
-        <button className="mini" onClick={() => window.print()} title="Stampa o salva in PDF">
+        <button className="mini" onClick={() => stampaSeduta(seduta)} title="Stampa o salva in PDF">
           <Printer size={14} style={{ verticalAlign: -2 }} /> PDF
         </button>
         <button
