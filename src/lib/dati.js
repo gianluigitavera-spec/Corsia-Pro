@@ -490,8 +490,37 @@ export async function salvaBenessere(riga) {
 
 
 // ----------------------------------------------------------- frequenza
+// v_frequenza conta con altre regole (ultimi 7 e 30 giorni, G fra i
+// presenti). Dal rilascio dopo la 0.57.0 Appello la usa solo per Tot. e
+// Rit.; Sett. e Mese li calcola frequenzaAppello (dominio.js) sulle
+// presenze di leggiPresenzePeriodo.
 export async function leggiFrequenza(societaId) {
   return ok(await sb.from('v_frequenza').select('*').eq('societa_id', societaId));
+}
+
+// Le presenze di un periodo, con la data della seduta. A pagine: Supabase
+// restituisce al massimo 1000 righe per lettura, e un mese di una squadra
+// grande le supera (100 atleti × 20 sedute) — senza pagine la percentuale
+// si farebbe su mezzo mese, e niente lo direbbe. L'ordine sulla chiave
+// tiene ferme le pagine fra una lettura e l'altra.
+const PAGINA = 1000;
+export async function leggiPresenzePeriodo(societaId, da, a) {
+  const tutte = [];
+  for (let dal = 0; ; dal += PAGINA) {
+    const righe = ok(await sb
+      .from('presenze')
+      .select('seduta_id, atleta_id, stato, sedute!inner(data)')
+      .eq('societa_id', societaId)
+      .gte('sedute.data', da)
+      .lte('sedute.data', a)
+      .order('seduta_id')
+      .order('atleta_id')
+      .range(dal, dal + PAGINA - 1));
+    for (const r of righe) {
+      tutte.push({ seduta_id: r.seduta_id, atleta_id: r.atleta_id, stato: r.stato, data: r.sedute?.data });
+    }
+    if (righe.length < PAGINA) return tutte;
+  }
 }
 
 // ----------------------------------------------------- periodizzazione

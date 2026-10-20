@@ -223,6 +223,63 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
   }
 }
 
+// --- la frequenza dell'Appello: Sett. e Mese (regole del 19/10/2026) ---
+// % = (P + R) / (P + R + A), solo sulle sedute con l'appello fatto. R è
+// una presenza, G non entra nel conto. Denominatore zero: nessuna
+// percentuale ("—"), non 0%. Sett. è la settimana da lunedì a domenica
+// che contiene oggi; Mese è il mese di calendario. Prima erano gli
+// ultimi 7 e 30 giorni, con G contato come presenza (v_frequenza).
+{
+  const D = await import('./src/lib/dominio.js');
+  const servono = ['frequenzaAppello', 'periodoFrequenza'];
+  const mancano = servono.filter((f) => typeof D[f] !== 'function');
+  if (mancano.length) {
+    male++; console.error(`✗ frequenza: mancano in dominio.js ${mancano.join(', ')}`);
+  } else {
+    const p = (data, stato, atleta_id = 'x') => ({ atleta_id, seduta_id: `${data}-${atleta_id}`, data, stato });
+    const di = (presenze, oggi, atleta = 'x') => D.frequenzaAppello(presenze, oggi)[atleta];
+
+    // Lunedì mattina, nessun appello ancora: "—", non 0%. La settimana
+    // prima non conta, anche se è a un giorno di distanza.
+    const lunedi = di([p('2026-10-16', 'P'), p('2026-10-18', 'A')], '2026-10-19');
+    dice('lunedì senza appelli: settimana senza percentuale', lunedi?.sett.pct ?? null, null);
+    dice('lunedì: il mese però c\'è', lunedi?.mese.pct, 50);
+
+    // Settimana a metà: lunedì P, martedì A, mercoledì R → 2 su 3.
+    // La domenica prima (A) è negli ultimi 7 giorni ma non in settimana.
+    const meta = di([p('2026-10-18', 'A'), p('2026-10-19', 'P'), p('2026-10-20', 'A'), p('2026-10-21', 'R')], '2026-10-21');
+    dice('settimana a metà: 67%', meta?.sett.pct, 67);
+    dice('settimana a metà: i conti', [meta?.sett.p, meta?.sett.r, meta?.sett.a], [1, 1, 1]);
+
+    // G non conta: né sopra né sotto.
+    dice('G non conta', di([p('2026-10-19', 'P'), p('2026-10-20', 'G')], '2026-10-21')?.sett.pct, 100);
+    dice('solo G: nessuna percentuale', di([p('2026-10-19', 'G')], '2026-10-21')?.sett.pct ?? null, null);
+
+    // R conta come presenza.
+    dice('R conta', di([p('2026-10-19', 'R'), p('2026-10-20', 'R'), p('2026-10-21', 'A')], '2026-10-21')?.sett.pct, 67);
+
+    // Fine mese: domenica 1 novembre. La settimana parte lunedì 26
+    // ottobre e prende anche ottobre; il mese è solo novembre.
+    const fine = di([p('2026-10-27', 'P'), p('2026-10-29', 'A'), p('2026-11-01', 'P')], '2026-11-01');
+    dice('fine mese: la settimana scavalca il mese', fine?.sett.pct, 67);
+    dice('fine mese: il mese è solo novembre', fine?.mese.pct, 100);
+    // L'ultimo del mese è dentro il mese.
+    dice('ultimo giorno del mese incluso',
+      di([p('2026-10-01', 'A'), p('2026-10-31', 'P')], '2026-10-31')?.mese.pct, 50);
+
+    // Ogni atleta per sé.
+    const due = D.frequenzaAppello([p('2026-10-19', 'P', 'a'), p('2026-10-19', 'A', 'b')], '2026-10-21');
+    dice('ogni atleta per sé', [due.a.sett.pct, due.b.sett.pct], [100, 0]);
+
+    // Il periodo da leggere: tutto quello che serve a Sett. e Mese.
+    dice('periodo: fine mese, dal lunedì di ottobre alla fine di novembre',
+      D.periodoFrequenza('2026-11-01'), { da: '2026-10-26', a: '2026-11-30' });
+    dice('periodo: a metà mese, il mese intero',
+      D.periodoFrequenza('2026-10-21'), { da: '2026-10-01', a: '2026-10-31' });
+    dice('periodo: febbraio bisestile', D.periodoFrequenza('2028-02-15'), { da: '2028-02-01', a: '2028-02-29' });
+  }
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

@@ -2,10 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { HeartPulse, Check } from 'lucide-react';
 import * as api from '../lib/dati';
 import ComeAndata from './ComeAndata';
-import { categoriaAtleta, dataIt, sedutaNelGruppo, atletaNelGruppo } from '../lib/dominio';
+import {
+  categoriaAtleta, dataIt, sedutaNelGruppo, atletaNelGruppo, frequenzaAppello, periodoFrequenza,
+} from '../lib/dominio';
 
-// Quattro stati. L'assenza non conta come presenza; ritardo e
-// giustificato sì — il ritardo però viene contato a parte.
+// Quattro stati. In Sett. e Mese (frequenzaAppello in dominio.js) il
+// ritardo è una presenza, l'assenza no, e il giustificato non entra nel
+// conto. Tot. viene ancora da v_frequenza, che conta G fra i presenti.
+// Il ritardo si conta anche a parte, nella colonna Rit.
+
+// La data di oggi sul telefono. toISOString è in UTC: fra mezzanotte e
+// le due, in Italia, direbbe ancora ieri — e il lunedì appena passata la
+// mezzanotte la settimana sarebbe quella di prima.
+const oggiQui = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const STATI = [
   { codice: 'P', nome: 'Presente',     breve: 'P', tinta: 'var(--menta)' },
   { codice: 'R', nome: 'Ritardo',      breve: 'R', tinta: 'var(--ciano)' },
@@ -30,20 +42,35 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
   const [stati, setStati] = useState({});
   const [prontezza, setProntezza] = useState({});
   const [frequenza, setFrequenza] = useState({});
+  // Le presenze della settimana e del mese, per Sett. e Mese.
+  const [presenzePeriodo, setPresenzePeriodo] = useState([]);
   const [messaggio, setMessaggio] = useState(null);
+  const oggiFrequenza = oggiQui();
 
   useEffect(() => {
     (async () => {
       try {
-        const [s, a, f] = await Promise.all([
+        const { da, a: al } = periodoFrequenza(oggiQui());
+        // Le presenze del periodo vanno per conto loro: se la lettura
+        // fallisce l'appello si fa lo stesso, e il messaggio lo dice —
+        // un "—" muto sembrerebbe "nessun appello".
+        const [s, a, f, pp] = await Promise.all([
           api.leggiSedute(societa.id), api.leggiAtleti(societa.id), api.leggiFrequenza(societa.id),
+          api.leggiPresenzePeriodo(societa.id, da, al).catch(() => null),
         ]);
         setSedute(s);
         setAtleti(a);
         setFrequenza(Object.fromEntries(f.map((x) => [x.atleta_id, x])));
+        setPresenzePeriodo(pp || []);
+        if (!pp) setMessaggio('Percentuali di Sett. e Mese non lette: riprova riaprendo l’Appello.');
       } catch (e) { setMessaggio(e.message); }
     })();
   }, [societa.id]);
+
+  const frequenzaPeriodo = useMemo(
+    () => frequenzaAppello(presenzePeriodo, oggiFrequenza),
+    [presenzePeriodo, oggiFrequenza],
+  );
 
   // Solo le sedute della categoria scelta: se alleni gli Esordienti A non
   // devi scorrere quelle dei Ragazzi per trovare la tua.
@@ -99,6 +126,13 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
     try {
       await api.segnaPresenza({ sedutaId, atletaId, societaId: societa.id, stato: prossimo });
       setMessaggio(null);
+      // Sett. e Mese si rifanno qui, senza rileggere: la riga di questa
+      // seduta si sostituisce (o se ne va, se lo stato è stato tolto), e
+      // frequenzaAppello guarda da sé se la data cade nel periodo.
+      setPresenzePeriodo((tutte) => [
+        ...tutte.filter((x) => !(x.seduta_id === sedutaId && x.atleta_id === atletaId)),
+        ...(prossimo && seduta ? [{ seduta_id: sedutaId, atleta_id: atletaId, stato: prossimo, data: seduta.data }] : []),
+      ]);
       api.leggiFrequenza(societa.id)
         .then((f) => setFrequenza(Object.fromEntries(f.map((x) => [x.atleta_id, x]))))
         .catch(() => {});
@@ -169,8 +203,8 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
           const stato = stati[a.id] || null;
           const f = frequenza[a.id];
           const p = prontezza[a.id];
-          const ps = f ? pct(f.presenti_sett, f.rilevate_sett) : null;
-          const pm = f ? pct(f.presenti_mese, f.rilevate_mese) : null;
+          const ps = frequenzaPeriodo[a.id]?.sett.pct ?? null;
+          const pm = frequenzaPeriodo[a.id]?.mese.pct ?? null;
           const pt = f ? pct(f.presenti_tot, f.rilevate_tot) : null;
           return (
             <div className="riga-appello" key={a.id} data-stato={stato || ''}>
@@ -220,7 +254,9 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
       </div>
 
       <p style={{ fontSize: 12, color: 'var(--testo-3)', marginTop: 12 }}>
-        La percentuale conta come presenza P, R e G: l'assenza è l'unico stato che la fa scendere.
+        Sett. e Mese: presenti e ritardi su presenti, ritardi e assenti. Il giustificato non
+        entra nel conto, e senza nessun appello la percentuale è «—». La settimana riparte ogni
+        lunedì, il mese è quello del calendario. Tot. conta ancora il giustificato come presenza.
         La colonna Rit. è il totale dei ritardi, che restano presenze ma si vedono.
       </p>
 

@@ -1842,6 +1842,74 @@ export const lunediDi = (isoData) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// ---------------------------------------------------------------------
+// LA FREQUENZA DELL'APPELLO — Sett. e Mese (regole del 19/10/2026)
+//
+// % = (P + R) / (P + R + A), contando solo le sedute dove l'atleta è
+// stato segnato: chi non è stato toccato non entra nel suo denominatore
+// (vale per le doppie, vedi CLAUDE.md). R è una presenza, in acqua c'era;
+// G non entra nel conto, né sopra né sotto. Denominatore zero: nessuna
+// percentuale (null, "—" a schermo), non 0% — lunedì mattina nessuno ha
+// ancora mancato niente.
+//
+// Sett. è la settimana da lunedì a domenica che contiene oggi, e riparte
+// ogni lunedì; Mese è il mese di calendario. Non gli ultimi 7 e 30
+// giorni: quelli li conta v_frequenza, con G fra i presenti, e non
+// coincidono con come l'allenatore ragiona la settimana.
+// ---------------------------------------------------------------------
+const isoDi = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const settimanaDi = (oggi) => {
+  const da = lunediDi(oggi);
+  const d = new Date(da + 'T12:00');
+  d.setDate(d.getDate() + 6);
+  return { da, a: isoDi(d) };
+};
+
+const meseDi = (oggi) => {
+  const [anno, mese] = oggi.split('-').map(Number);
+  return { da: `${oggi.slice(0, 7)}-01`, a: isoDi(new Date(anno, mese, 0, 12)) };   // giorno 0 = ultimo del mese prima
+};
+
+// Il periodo da leggere per avere Sett. e Mese: la settimana può
+// cominciare nel mese prima o finire in quello dopo.
+export function periodoFrequenza(oggi) {
+  const s = settimanaDi(oggi);
+  const m = meseDi(oggi);
+  return { da: s.da < m.da ? s.da : m.da, a: s.a > m.a ? s.a : m.a };
+}
+
+const percentualePresenza = ({ p, r, a }) => {
+  const su = p + r + a;
+  return su > 0 ? Math.round(((p + r) * 100) / su) : null;
+};
+
+/**
+ * @param presenze  [{ atleta_id, data, stato }], una per seduta segnata
+ * @param oggi      'AAAA-MM-GG'
+ * @returns { [atleta_id]: { sett: {p,r,g,a,pct}, mese: {p,r,g,a,pct} } }
+ */
+export function frequenzaAppello(presenze, oggi) {
+  const periodi = { sett: settimanaDi(oggi), mese: meseDi(oggi) };
+  const conti = {};
+  for (const x of presenze || []) {
+    const k = String(x?.stato || '').toLowerCase();
+    if (!['p', 'r', 'g', 'a'].includes(k) || !x.data) continue;
+    const o = (conti[x.atleta_id] ||= {
+      sett: { p: 0, r: 0, g: 0, a: 0 }, mese: { p: 0, r: 0, g: 0, a: 0 },
+    });
+    for (const [nome, { da, a }] of Object.entries(periodi)) {
+      if (x.data >= da && x.data <= a) o[nome][k] += 1;
+    }
+  }
+  for (const o of Object.values(conti)) {
+    o.sett.pct = percentualePresenza(o.sett);
+    o.mese.pct = percentualePresenza(o.mese);
+  }
+  return conti;
+}
+
 export function copiaSeduta(seduta, nuovaData) {
   return {
     societa_id: seduta.societa_id,

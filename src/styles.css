@@ -1225,6 +1225,17 @@ tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
   input, select, textarea { font-size: 16px; }
 }
 
+/* Tablet: sul tocco i quattro stati sono larghi almeno 52px con 8px fra
+   loro — 4 × 52 + 3 × 8 = 232px — e la colonna Stato ne aveva 176: il
+   pulsante A finiva sotto la percentuale della settimana. La colonna si
+   allarga quanto i tasti. Solo sopra i 720px: sotto, l'appello è già su
+   due righe (stati sotto il nome) e la colonna non esiste. */
+@media (pointer: coarse) and (min-width: 721px) {
+  .intestazione-appello, .riga-appello {
+    grid-template-columns: minmax(0, 1fr) 232px 56px 56px 56px 44px;
+  }
+}
+
 /* --------------------------------- SCELTA DEL GRUPPO IN TESTATA */
 .scegli-gruppi { position: relative; }
 .bottone-gruppi { display: inline-flex; align-items: center; white-space: nowrap; cursor: pointer; }
