@@ -5,6 +5,7 @@ import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
 import { novitaAllApertura, novitaAllaChiusura } from './lib/novita';
+import { tutorialSiApreDaSolo, tutorialAperto, tutorialChiuso } from './lib/tutorial';
 import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
 import StatoLinea from './componenti/StatoLinea';
@@ -77,7 +78,10 @@ export default function App() {
   const [senzaSquadra, setSenzaSquadra] = useState(false);
   const [apertura, setApertura] = useState(null); // {id} oppure {data}
   const [registro, setRegistro] = useState(false);
-  const [tutorial, setTutorial] = useState(false);
+  // Il tutorial aperto, con la scheda da cui è partito (lib/tutorial.js);
+  // null quando è chiuso.
+  const [statoTutorial, setStatoTutorial] = useState(null);
+  const tutorial = statoTutorial !== null;
   const [novita, setNovita] = useState([]);
   const [ricarica, setRicarica] = useState(0);
 
@@ -111,16 +115,19 @@ export default function App() {
     })();
   }, [sessione, stagione, ricarica]);
 
-  // Alla prima visita il tutorial parte da solo; poi solo se lo richiami.
+  // Alla prima visita il tutorial parte da solo; poi solo se lo richiami
+  // col «?». La decisione sta in lib/tutorial.js, sotto prova.
+  //
+  // In navigazione privata su Safari localStorage lancia invece di
+  // tornare null. Fino alla 0.57.0 il tutorial partiva lo stesso, e
+  // senza poter segnare "visto" tornava a ogni avvio: ora no, come per
+  // le novità — nel dubbio, silenzio.
   useEffect(() => {
     if (!societa) return;
-    try {
-      // In navigazione privata su Safari localStorage lancia invece di
-      // tornare null: senza la rete, l'app non si apriva proprio.
-      try {
-        if (localStorage.getItem('corsiapro:tutorial') !== 'visto') setTutorial(true);
-      } catch { setTutorial(true); }
-    } catch { /* navigazione privata: pazienza, non parte */ }
+    let lettura;
+    try { lettura = { ok: true, valore: localStorage.getItem('corsiapro:tutorial') }; }
+    catch { lettura = { ok: false }; }
+    if (tutorialSiApreDaSolo(lettura)) setStatoTutorial(tutorialAperto(scheda));
   }, [societa?.id]);
 
   // Le novità dopo un aggiornamento. Parte dopo il tutorial e mai
@@ -174,12 +181,15 @@ export default function App() {
     } catch { /* niente */ }
   }, []);
 
-  const chiudiTutorial = useCallback((nonPiu) => {
-    setTutorial(false);
-    if (nonPiu) {
-      try { localStorage.setItem('corsiapro:tutorial', 'visto'); } catch { /* niente */ }
-    }
-  }, []);
+  // La chiusura, in qualunque modo: X, «Comincia», Esc, tocco fuori. Vale
+  // "visto", e riporta alla scheda da cui il tutorial era partito — i suoi
+  // passi girano per le schede, e prima si restava sull'ultima.
+  const chiudiTutorial = useCallback(() => {
+    const { segna, tornaA } = tutorialChiuso(statoTutorial);
+    try { localStorage.setItem('corsiapro:tutorial', segna); } catch { /* niente */ }
+    setStatoTutorial(null);
+    if (tornaA) setScheda(tornaA);
+  }, [statoTutorial]);
 
   // Dal calendario all'editor, con la data del giorno cliccato.
   const apriSeduta = useCallback((id, data) => {
@@ -228,7 +238,7 @@ export default function App() {
           <div className="spazio" />
           <StatoLinea />
           <Feedback scheda={scheda} societa={societa} />
-          <button className="mini" onClick={() => setTutorial(true)} title="Rivedi il tutorial" aria-label="Tutorial">
+          <button className="mini" onClick={() => setStatoTutorial(tutorialAperto(scheda))} title="Rivedi il tutorial" aria-label="Tutorial">
             <HelpCircle size={15} />
           </button>
           <button className="mini" onClick={() => api.esci()} title="Esci" aria-label="Esci">

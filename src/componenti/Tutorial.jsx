@@ -91,27 +91,26 @@ const PASSI = [
 
 export default function Tutorial({ vaiA, chiudi }) {
   const [i, setI] = useState(0);
-  const [nonPiu, setNonPiu] = useState(false);
   const passo = PASSI[i];
 
   useEffect(() => { vaiA(passo.scheda); }, [i]);
 
   useEffect(() => {
     const tasti = (e) => {
-      if (e.key === 'Escape') chiudi(nonPiu);
+      if (e.key === 'Escape') chiudi();
       if (e.key === 'ArrowRight' && i < PASSI.length - 1) setI(i + 1);
       if (e.key === 'ArrowLeft' && i > 0) setI(i - 1);
     };
     window.addEventListener('keydown', tasti);
     return () => window.removeEventListener('keydown', tasti);
-  }, [i, nonPiu, chiudi]);
+  }, [i, chiudi]);
 
   const { Icona } = passo;
 
   return (
-    <div className="velo-tutorial" onClick={(e) => e.target === e.currentTarget && chiudi(nonPiu)}>
+    <div className="velo-tutorial" onClick={(e) => e.target === e.currentTarget && chiudi()}>
       <div className="riquadro-tutorial" role="dialog" aria-label="Tutorial">
-        <button className="chiudi-tutorial" onClick={() => chiudi(nonPiu)} aria-label="Chiudi il tutorial">
+        <button className="chiudi-tutorial" onClick={() => chiudi()} aria-label="Chiudi il tutorial">
           <X size={18} />
         </button>
 
@@ -132,16 +131,14 @@ export default function Tutorial({ vaiA, chiudi }) {
         </div>
 
         <div className="piede-tutorial">
-          <label className="flag-tutorial">
-            <input type="checkbox" checked={nonPiu} onChange={(e) => setNonPiu(e.target.checked)} />
-            Non mostrare più
-          </label>
+          {/* Niente casella: chiuderlo, in qualunque modo, basta perché non
+              si riapra da solo. Lo riapre il «?» in testata. */}
           <div style={{ flex: 1 }} />
           <button className="mini" onClick={() => setI(i - 1)} disabled={i === 0} aria-label="Indietro">
             <ChevronLeft size={15} />
           </button>
           {passo.ultimo ? (
-            <button className="azione" onClick={() => chiudi(nonPiu)}>Comincia</button>
+            <button className="azione" onClick={() => chiudi()}>Comincia</button>
           ) : (
             <button className="azione" onClick={() => setI(i + 1)}>
               Avanti <ChevronRight size={15} style={{ verticalAlign: -3 }} />

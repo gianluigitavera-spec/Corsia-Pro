@@ -251,6 +251,112 @@ dice('recupero: registro vuoto', novitaDiRecupero('0.54.0', []), []);
   }
 }
 
+// =====================================================================
+// IL TUTORIAL — quando si apre da solo, e dove si torna chiudendolo
+//
+// Fino alla 0.57.0 il tutorial si segnava "visto" solo con la casella
+// «Non mostrare più» spuntata: chi chiudeva con la X, con «Comincia»,
+// con Esc o toccando fuori se lo ritrovava a ogni avvio — e il tutorial
+// aperto da solo era anche quello che nascondeva le novità. In più
+// portava in giro per le schede dei suoi passi e lì lasciava.
+//
+// Ora la prima chiusura, in qualunque modo, vale "visto"; il tasto «?»
+// lo riapre quando vuoi; chiudendolo si torna alla scheda da cui era
+// partito. Con localStorage che non risponde non si apre da solo: senza
+// poter segnare "visto" tornerebbe a ogni avvio.
+// =====================================================================
+{
+  let T = null;
+  try { T = await import('./src/lib/tutorial.js'); } catch { /* sotto */ }
+  const servono = ['tutorialSiApreDaSolo', 'tutorialAperto', 'tutorialChiuso'];
+  const mancano = T ? servono.filter((f) => typeof T[f] !== 'function') : servono;
+  if (mancano.length) {
+    male++;
+    console.error(`✗ tutorial: mancano in src/lib/tutorial.js ${mancano.join(', ')}`);
+  } else {
+    const CHIAVE = 'corsiapro:tutorial';
+    // Un telefono: il magazzino (o null se localStorage non risponde) e
+    // la scheda a schermo.
+    const telefono = (magazzino, scheda = 'dashboard') => ({ magazzino, scheda, stato: null });
+    const leggi = (t) => (t.magazzino ? { ok: true, valore: t.magazzino[CHIAVE] ?? null } : { ok: false });
+    const avvio = (t) => {
+      if (T.tutorialSiApreDaSolo(leggi(t))) t.stato = T.tutorialAperto(t.scheda);
+    };
+    const tasto = (t) => { t.stato = T.tutorialAperto(t.scheda); };     // il «?» in testata
+    const passi = (t, ...schede) => { for (const s of schede) t.scheda = s; };  // vaiA dei passi
+    const chiudi = (t) => {
+      const c = T.tutorialChiuso(t.stato);
+      if (t.magazzino && c.segna) t.magazzino[CHIAVE] = c.segna;
+      if (c.tornaA) t.scheda = c.tornaA;
+      t.stato = null;
+    };
+
+    // --- prima apertura: si apre da solo ---
+    {
+      const t = telefono({});
+      avvio(t);
+      dice('tutorial: alla prima apertura si apre', t.stato?.aperto, true);
+      // Chiuso senza nessuna casella: vale già "visto".
+      passi(t, 'dashboard', 'sedute', 'calendario');
+      chiudi(t);
+      dice('tutorial: la prima chiusura vale visto', t.magazzino[CHIAVE], 'visto');
+      dice('tutorial: si torna alla scheda di partenza', t.scheda, 'dashboard');
+      avvio(t);
+      dice('tutorial: all\'avvio dopo non si riapre', t.stato, null);
+    }
+
+    // --- chi aveva già scelto «non mostrare più»: niente cambia ---
+    {
+      const t = telefono({ [CHIAVE]: 'visto' });
+      avvio(t);
+      dice('tutorial: già visto, non si apre', t.stato, null);
+    }
+
+    // --- localStorage che non risponde: non si apre da solo ---
+    {
+      const t = telefono(null);
+      avvio(t);
+      dice('tutorial: senza magazzino non si apre da solo', t.stato, null);
+    }
+
+    // --- il «?» lo apre sempre, e si torna da dove eri ---
+    {
+      const t = telefono({ [CHIAVE]: 'visto' }, 'calendario');
+      tasto(t);
+      dice('tutorial: il ? lo apre anche se già visto', t.stato?.aperto, true);
+      passi(t, 'dashboard', 'sedute', 'atleti');
+      chiudi(t);
+      dice('tutorial: chiuso, di nuovo in Calendario', t.scheda, 'calendario');
+      dice('tutorial: e resta visto', t.magazzino[CHIAVE], 'visto');
+    }
+    {
+      const t = telefono(null, 'sedute');
+      tasto(t);
+      dice('tutorial: il ? funziona anche senza magazzino', t.stato?.aperto, true);
+      passi(t, 'dashboard');
+      chiudi(t);
+      dice('tutorial: e si torna comunque alle Sedute', t.scheda, 'sedute');
+    }
+
+    // --- chiusura senza stato (non dovrebbe capitare): non si va da nessuna parte ---
+    dice('tutorial: chiusura senza stato', T.tutorialChiuso(null), { segna: 'visto', tornaA: null });
+  }
+
+  // "In qualunque modo": X, «Comincia», Esc, tocco fuori chiamano tutti
+  // la stessa chiusura, senza più una casella che decida. La guardia sta
+  // sul sorgente: se la casella torna, o una chiusura riprende a passare
+  // un'opzione, la prova salta.
+  const { readFileSync } = await import('node:fs');
+  const sorgente = readFileSync('./src/componenti/Tutorial.jsx', 'utf8');
+  if (/nonPiu|Non mostrare più/.test(sorgente)) {
+    male++; console.error('✗ tutorial: in Tutorial.jsx c\'è ancora la casella «Non mostrare più»');
+  }
+  const chiusure = [...sorgente.matchAll(/chiudi\(([^)]*)\)/g)].map((m) => m[1].trim());
+  if (chiusure.length < 4 || chiusure.some((a) => a !== '')) {
+    male++; console.error(`✗ tutorial: le chiusure devono essere almeno quattro e tutte chiudi(), sono ${JSON.stringify(chiusure)}`);
+  }
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

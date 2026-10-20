@@ -899,17 +899,11 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 .punti-tutorial button[data-attivo='true'] { background: var(--ciano); box-shadow: 0 0 10px var(--ciano); }
 
 .piede-tutorial { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.flag-tutorial {
-  display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;
-  font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--testo-3);
-}
-.flag-tutorial input { width: 17px; height: 17px; min-height: auto; accent-color: var(--ciano); cursor: pointer; }
 
 @media (max-width: 560px) {
   .velo-tutorial { padding: 10px; }
   .riquadro-tutorial { padding: 18px 16px 16px; border-radius: 16px; }
   .testo-tutorial { font-size: 14px; }
-  .piede-tutorial .flag-tutorial { order: 3; width: 100%; margin-top: 4px; }
 }
 
 
