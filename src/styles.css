@@ -715,6 +715,31 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 }
 .versione:hover { color: var(--ciano); border-color: var(--ciano); }
 
+/* Il pallino delle novità non ancora viste (deciso il 20/10/2026). Ben
+   visibile anche sul telefono: pieno, col colore di richiamo, staccato
+   dal fondo da un anello del colore della testata, sull'angolo del
+   badge. Sparisce aprendo il registro o chiudendo il pannello. */
+.versione { position: relative; }
+.versione[data-novita='true'] { color: var(--testo); border-color: var(--ambra); }
+.pallino-novita {
+  position: absolute; top: -4px; right: -4px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--ambra); box-shadow: 0 0 0 2px var(--fondo), 0 0 8px rgba(251, 191, 36, 0.7);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pallino-novita { animation: pallino-novita 2.4s ease-in-out infinite; }
+}
+@keyframes pallino-novita {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+
+/* Sul tocco il badge è un tasto come gli altri della testata: alto
+   abbastanza da prenderlo col dito, anche sul telefono. */
+@media (pointer: coarse) {
+  .riga-testata .versione { min-height: 32px; padding: 0 10px; }
+}
+
 .registro {
   position: fixed; inset: 0; z-index: 70; background: rgba(3, 8, 18, 0.78);
   display: grid; place-items: center; padding: 18px;

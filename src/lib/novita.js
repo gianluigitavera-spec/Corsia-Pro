@@ -127,3 +127,27 @@ export function novitaAllApertura({ versione, cambiamenti, vistaPrima, giaUsata,
 
 // La chiusura del pannello: è lei a segnare la versione come vista.
 export const novitaAllaChiusura = (versione) => ({ segna: versione });
+
+// ---------------------------------------------------------------------
+// IL PALLINO SUL BADGE DELLA VERSIONE (deciso il 20/10/2026)
+//
+// Il badge in testata apre «Cosa è cambiato». Se ci sono novità
+// annunciate non ancora viste ci compare un pallino. Dice la stessa cosa
+// del pannello — "c'è qualcosa che non hai visto" — e quindi segue la
+// stessa regola, non una sua: il pallino c'è quando il pannello si
+// aprirebbe. Due regole scritte in due posti divergono, e il pallino
+// acceso con il pannello che non arriva (o il contrario) sarebbe peggio
+// di niente.
+//
+// Sparisce quando la versione è segnata vista: chiudendo il pannello
+// (novitaAllaChiusura) o aprendo il registro.
+// ---------------------------------------------------------------------
+export function pallinoNovita({ versione, cambiamenti, vistaPrima, giaUsata }) {
+  return novitaAllApertura({ versione, cambiamenti, vistaPrima, giaUsata, tutorialAperto: false })
+    .voci.length > 0;
+}
+
+// Aprire il registro è vedere le novità: le stesse voci, più tutte le
+// altre. Segna la versione come la chiusura del pannello, così il
+// pallino sparisce e il pannello all'avvio dopo non le ripropone.
+export const novitaAllAperturaRegistro = (versione) => ({ segna: versione });

@@ -4,7 +4,7 @@ import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
-import { novitaAllApertura, novitaAllaChiusura } from './lib/novita';
+import { novitaAllApertura, novitaAllaChiusura, pallinoNovita, novitaAllAperturaRegistro } from './lib/novita';
 import { tutorialSiApreDaSolo, tutorialAperto, tutorialChiuso } from './lib/tutorial';
 import { BUILD } from './lib/versione';
 import Accesso from './componenti/Accesso';
@@ -83,6 +83,7 @@ export default function App() {
   const [statoTutorial, setStatoTutorial] = useState(null);
   const tutorial = statoTutorial !== null;
   const [novita, setNovita] = useState([]);
+  const [pallino, setPallino] = useState(false);   // novità annunciate non ancora viste
   const [ricarica, setRicarica] = useState(0);
 
   const [stagione, setStagione] = useState(stagioneCorrente());
@@ -156,11 +157,13 @@ export default function App() {
   useEffect(() => {
     if (!societa) return;
     try {
+      const vistaPrima = localStorage.getItem('corsiapro:novita');
+      const usata = giaUsata();
       const d = novitaAllApertura({
         versione: VERSIONE,
         cambiamenti: CAMBIAMENTI,
-        vistaPrima: localStorage.getItem('corsiapro:novita'),
-        giaUsata: giaUsata(),
+        vistaPrima,
+        giaUsata: usata,
         tutorialAperto: tutorial,
       });
       if (d.segnaOra) localStorage.setItem('corsiapro:novita', VERSIONE);
@@ -169,8 +172,28 @@ export default function App() {
         localStorage.removeItem('corsiapro:prova-scrittura');
       }
       setNovita(d.voci);
-    } catch { setNovita([]); /* navigazione privata: nessun annuncio, nessun danno */ }
+      // Il pallino sul badge: la stessa regola del pannello, sulla
+      // versione vista com'è adesso (appena segnata, se lo è stata).
+      setPallino(pallinoNovita({
+        versione: VERSIONE,
+        cambiamenti: CAMBIAMENTI,
+        vistaPrima: d.segnaOra ? VERSIONE : vistaPrima,
+        giaUsata: usata,
+      }));
+    } catch { setNovita([]); setPallino(false); /* navigazione privata: nessun annuncio, nessun danno */ }
   }, [societa?.id, tutorial]);
+
+  // Il badge della versione apre il registro. Aprirlo è vedere le
+  // novità: la versione si segna vista e il pallino se ne va, come
+  // chiudendo il pannello.
+  const apriRegistro = useCallback(() => {
+    setRegistro(true);
+    setPallino(false);
+    try {
+      const { segna } = novitaAllAperturaRegistro(VERSIONE);
+      localStorage.setItem('corsiapro:novita', segna);
+    } catch { /* niente */ }
+  }, []);
 
   // Il registro dei cambiamenti si chiude come il tutorial e le novità:
   // con la X, toccando fuori dal riquadro, con Esc.
@@ -184,6 +207,7 @@ export default function App() {
   // Chiudere il pannello è vedere le novità: solo qui la versione si segna.
   const chiudiNovita = useCallback(() => {
     setNovita([]);
+    setPallino(false);
     try {
       const { segna } = novitaAllaChiusura(VERSIONE);
       localStorage.setItem('corsiapro:novita', segna);
@@ -239,10 +263,13 @@ export default function App() {
           </div>
           <button
             className="versione"
-            onClick={() => setRegistro(true)}
-            title={`Cosa è cambiato · build ${BUILD}`}
+            data-novita={pallino}
+            onClick={apriRegistro}
+            title={pallino ? `Novità da vedere · build ${BUILD}` : `Cosa è cambiato · build ${BUILD}`}
+            aria-label={pallino ? `Versione ${VERSIONE}, ci sono novità da vedere` : `Versione ${VERSIONE}, cosa è cambiato`}
           >
             v{VERSIONE}
+            {pallino && <span className="pallino-novita" aria-hidden="true" />}
           </button>
           <div className="spazio" />
           <StatoLinea />

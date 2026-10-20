@@ -252,6 +252,70 @@ dice('recupero: registro vuoto', novitaDiRecupero('0.54.0', []), []);
 }
 
 // =====================================================================
+// IL PALLINO SUL BADGE DELLA VERSIONE (deciso il 20/10/2026)
+//
+// Il badge in testata apre «Cosa è cambiato». Quando ci sono novità
+// annunciate non ancora viste ci compare un pallino; aprendo il
+// registro o chiudendo il pannello delle novità sparisce. Il pallino
+// dice la stessa cosa del pannello — "c'è qualcosa che non hai visto" —
+// quindi segue la stessa regola: se il pannello si aprirebbe, il
+// pallino c'è.
+// =====================================================================
+{
+  const N = await import('./src/lib/novita.js');
+  if (typeof N.pallinoNovita !== 'function') {
+    male++; console.error('✗ pallino: manca in novita.js pallinoNovita');
+  } else {
+    const REG = [
+      { versione: '0.57.1', voci: ['correzione silenziosa'] },
+      { versione: '0.57.0', annuncia: true, voci: ['calendario'] },
+      { versione: '0.56.13', annuncia: true, voci: ['volte'] },
+      { versione: '0.56.12', voci: ['fine ripetizione'] },
+    ];
+    const pallino = (versione, vistaPrima, giaUsata = true) =>
+      N.pallinoNovita({ versione, cambiamenti: REG, vistaPrima, giaUsata });
+
+    // Versione vista uguale a quella che gira: niente.
+    dice('pallino: versione già vista', pallino('0.57.0', '0.57.0'), false);
+    // Più vecchia, con una voce annunciata in mezzo: c'è.
+    dice('pallino: vista più vecchia, novità annunciata', pallino('0.57.0', '0.56.13'), true);
+    dice('pallino: salto di più versioni', pallino('0.57.0', '0.56.12'), true);
+    // Più vecchia, ma in mezzo solo una voce senza annuncio: niente.
+    dice('pallino: voce senza annuncio', pallino('0.57.1', '0.57.0'), false);
+    // Mai vista: chi apre l'app per la prima volta non ha arretrati…
+    dice('pallino: mai vista, prima apertura', pallino('0.57.0', null, false), false);
+    // …chi la usava prima che gli annunci esistessero sì, una voce.
+    dice('pallino: mai vista, app già usata', pallino('0.57.0', null, true), true);
+    // Una versione che il registro non conosce: come il pannello, si
+    // ripiega sulla corrente.
+    dice('pallino: vista sconosciuta, corrente annunciata', pallino('0.57.0', '0.40.0'), true);
+
+    // Pallino e pannello dicono la stessa cosa, in ogni caso.
+    for (const [versione, vista, usata] of [
+      ['0.57.0', '0.57.0', true], ['0.57.0', '0.56.13', true], ['0.57.1', '0.57.0', true],
+      ['0.57.0', null, false], ['0.57.0', null, true], ['0.57.1', '0.56.13', true],
+    ]) {
+      const voci = N.novitaAllApertura({ versione, cambiamenti: REG, vistaPrima: vista, giaUsata: usata }).voci;
+      dice(`pallino e pannello d'accordo (${vista} → ${versione})`, pallino(versione, vista, usata), voci.length > 0);
+    }
+
+    // Sparisce aprendo il registro o chiudendo il pannello: tutti e due
+    // segnano la versione come vista.
+    if (typeof N.novitaAllAperturaRegistro !== 'function') {
+      male++; console.error('✗ pallino: manca in novita.js novitaAllAperturaRegistro');
+    } else {
+      const dopoRegistro = N.novitaAllAperturaRegistro('0.57.0').segna;
+      dice('pallino: aperto il registro, sparisce', pallino('0.57.0', dopoRegistro), false);
+      // E il pannello all'avvio dopo non torna: il registro le ha mostrate.
+      dice('pallino: dopo il registro il pannello non si riapre',
+        N.novitaAllApertura({ versione: '0.57.0', cambiamenti: REG, vistaPrima: dopoRegistro, giaUsata: true }).voci, []);
+    }
+    const dopoChiusura = N.novitaAllaChiusura('0.57.0').segna;
+    dice('pallino: chiuso il pannello, sparisce', pallino('0.57.0', dopoChiusura), false);
+  }
+}
+
+// =====================================================================
 // IL TUTORIAL — quando si apre da solo, e dove si torna chiudendolo
 //
 // Fino alla 0.57.0 il tutorial si segnava "visto" solo con la casella
