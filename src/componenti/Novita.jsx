@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 
 // La finestra delle novità dopo un aggiornamento. Stessa veste del
 // registro consultabile dalla pillola in testata: è la stessa roba, letta
@@ -32,6 +32,11 @@ export default function Novita({ voci, chiudi }) {
         <div className="intestazione">
           <Sparkles size={17} style={{ color: 'var(--ciano)', flex: 'none' }} />
           <h3>Cosa c'è di nuovo</h3>
+          {/* Come il registro e il tutorial: X sulla riga del titolo. Il
+              tasto grande in fondo resta, per chi chiude con una mano. */}
+          <button className="chiudi-riquadro" onClick={chiudi} aria-label="Chiudi">
+            <X size={18} />
+          </button>
         </div>
 
         <div className="corpo">

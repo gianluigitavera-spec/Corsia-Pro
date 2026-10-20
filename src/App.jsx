@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Sparkles, Settings2, LogOut, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Sparkles, Settings2, LogOut, HelpCircle, X } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo } from './lib/dominio';
@@ -172,6 +172,15 @@ export default function App() {
     } catch { setNovita([]); /* navigazione privata: nessun annuncio, nessun danno */ }
   }, [societa?.id, tutorial]);
 
+  // Il registro dei cambiamenti si chiude come il tutorial e le novità:
+  // con la X, toccando fuori dal riquadro, con Esc.
+  useEffect(() => {
+    if (!registro) return;
+    const tasti = (e) => { if (e.key === 'Escape') setRegistro(false); };
+    window.addEventListener('keydown', tasti);
+    return () => window.removeEventListener('keydown', tasti);
+  }, [registro]);
+
   // Chiudere il pannello è vedere le novità: solo qui la versione si segna.
   const chiudiNovita = useCallback(() => {
     setNovita([]);
@@ -280,12 +289,20 @@ export default function App() {
       )}
 
       {registro && (
-        <div className="registro" role="dialog" aria-label="Registro dei cambiamenti">
-          <div className="registro-riquadro">
+        <div
+          className="registro"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Registro dei cambiamenti"
+          onClick={() => setRegistro(false)}
+        >
+          {/* Il tocco dentro al riquadro non deve chiudere. */}
+          <div className="registro-riquadro" onClick={(e) => e.stopPropagation()}>
             <div className="intestazione">
               <h3>Cosa è cambiato</h3>
-              <div style={{ flex: 1 }} />
-              <button className="mini" onClick={() => setRegistro(false)}>Chiudi</button>
+              <button className="chiudi-riquadro" onClick={() => setRegistro(false)} aria-label="Chiudi">
+                <X size={18} />
+              </button>
             </div>
             <div className="corpo">
               {CAMBIAMENTI.map((c) => (

@@ -719,11 +719,43 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   position: fixed; inset: 0; z-index: 70; background: rgba(3, 8, 18, 0.78);
   display: grid; place-items: center; padding: 18px;
 }
+/* Il registro e le novità: scorre solo il contenuto, così l'intestazione
+   con la X resta ferma in cima invece di andarsene col testo. */
 .registro-riquadro {
-  width: 100%; max-width: 620px; max-height: 84vh; overflow: auto;
+  width: 100%; max-width: 620px; max-height: 84vh; overflow: hidden;
+  display: flex; flex-direction: column;
   background: linear-gradient(180deg, rgba(22,35,63,0.98), rgba(16,27,51,0.98));
   border: var(--riga); border-radius: var(--raggio); box-shadow: 0 24px 64px rgba(0,0,0,0.5);
 }
+.registro-riquadro > .intestazione {
+  display: flex; align-items: center; gap: 11px; padding: 12px 12px 12px 18px;
+  border-bottom: var(--riga); flex: none;
+}
+.registro-riquadro > .intestazione h3 { flex: 1; margin: 0; }
+.registro-riquadro > .corpo {
+  padding: 18px; overflow-y: auto; min-height: 0;
+  /* La barra di scorrimento col tema scuro, non quella bianca del
+     sistema: color-scheme la scurisce ovunque, scrollbar-color le dà i
+     colori nostri dove il browser lo permette (Firefox, Chrome). */
+  color-scheme: dark;
+  scrollbar-width: thin; scrollbar-color: var(--bordo-vivo) transparent;
+}
+.registro-riquadro > .corpo::-webkit-scrollbar { width: 10px; }
+.registro-riquadro > .corpo::-webkit-scrollbar-track { background: transparent; }
+.registro-riquadro > .corpo::-webkit-scrollbar-thumb {
+  background: var(--bordo-vivo); border-radius: 10px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+.registro-riquadro > .corpo::-webkit-scrollbar-thumb:hover { background-color: var(--testo-3); }
+
+/* La X del registro e delle novità: stessa veste di quella del tutorial,
+   ma sulla riga del titolo invece che appoggiata sopra. */
+.chiudi-riquadro {
+  flex: none; width: 36px; height: 36px; min-height: auto; padding: 0;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; border: var(--riga); border-radius: 10px; color: var(--testo-2);
+}
+.chiudi-riquadro:hover { color: var(--testo); border-color: var(--bordo-vivo); }
 .voce-registro { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid rgba(30,46,79,0.6); }
 .voce-registro:last-child { border-bottom: 0; margin-bottom: 0; }
 .riga-versione { display: flex; align-items: baseline; gap: 10px; }
@@ -738,10 +770,9 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
 /* La finestra delle novità: si legge in piedi, con una mano, e si chiude
    in fretta. Il tasto sta in fondo e non scorre via col testo, e sotto
    c'è la barra dell'iPhone da scavalcare. */
-.registro-riquadro.novita { display: flex; flex-direction: column; max-width: 520px; }
-.registro-riquadro.novita .corpo { overflow-y: auto; }
+.registro-riquadro.novita { max-width: 520px; }
 .piede-novita {
-  position: sticky; bottom: 0; padding: 13px 16px;
+  flex: none; padding: 13px 16px;
   padding-bottom: calc(13px + env(safe-area-inset-bottom));
   border-top: var(--riga); background: rgba(16, 27, 51, 0.98);
 }
