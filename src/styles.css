@@ -197,6 +197,44 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
   font-family: var(--corpo); font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
   background: var(--fondo-2); border: var(--riga); color: var(--testo-2);
 }
+/* ------------------------------------------------- report presenze */
+.scelte-report { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.gruppo-pastiglie { display: inline-flex; gap: 6px; }
+.foglio-report { padding: 16px 18px; }
+.testata-report {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  border-bottom: var(--riga); padding-bottom: 12px; margin-bottom: 12px;
+}
+.testata-report h2 { margin: 0; font-size: 18px; }
+.testata-report p { margin: 4px 0 0; color: var(--testo-3); font-size: 13px; }
+.societa-report { text-align: right; }
+.riepilogo-report { margin: 0 0 12px; color: var(--testo-2); font-size: 13px; }
+.nota-report { font-size: 12px; color: var(--testo-3); margin: 12px 0 0; }
+/* La griglia del mese è larga: scorre lei, non la pagina. Il nome resta
+   fermo a sinistra mentre i giorni scorrono. */
+.scorre-report { overflow-x: auto; }
+.tabella-report { border-collapse: collapse; width: 100%; font-size: 13px; }
+.tabella-report th, .tabella-report td { padding: 6px 8px; border-bottom: 1px solid rgba(30,46,79,0.6); text-align: left; }
+.tabella-report th { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--testo-3); }
+.griglia-report th, .griglia-report td { padding: 5px 4px; text-align: center; white-space: nowrap; }
+.griglia-report .atleta-report {
+  text-align: left; position: sticky; left: 0; z-index: 1;
+  background: var(--fondo-2); padding-right: 10px; min-width: 150px;
+}
+.giorno-report { min-width: 24px; font-family: var(--dati); }
+.giorno-report span { display: block; font-size: 9px; opacity: 0.7; }
+.casella-report { font-family: var(--dati); font-size: 12px; min-width: 24px; }
+.casella-report span + span { margin-left: 2px; }
+.casella-report[data-futuro='true'], .giorno-report[data-futuro='true'],
+.mese-report[data-futuro='true'] { background: rgba(255,255,255,0.025); color: var(--testo-3); }
+.pct-report { font-family: var(--dati); text-align: right !important; font-weight: 600; }
+/* Solo dentro il report: data-stato c'è anche sulle righe dell'Appello. */
+.foglio-report [data-stato='P'] { color: var(--menta); }
+.foglio-report [data-stato='R'] { color: var(--ciano); }
+.foglio-report [data-stato='G'] { color: var(--ambra); }
+.foglio-report [data-stato='A'] { color: var(--rosso); }
+.foglio-report .stato-report[data-stato=''] { color: var(--testo-3); }
+
 .pastiglia[aria-pressed='true'] {
   background: rgba(34, 211, 238, 0.16); border-color: var(--ciano); color: var(--ciano); font-weight: 600;
 }
@@ -694,7 +732,33 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   .foglio-volumi { width: 100%; border-top: 2px solid #000; margin-top: 4mm; border-collapse: collapse; }
   .foglio-volumi td { padding: 1.4mm 0; font-size: 11pt; }
   .foglio-note-finali { font-size: 10pt; margin-top: 4mm; }
+
+  /* Il report presenze: si stampa lui e basta, in bianco e nero. La
+     griglia del mese e la stagione vanno in orizzontale dove il browser
+     lo sa fare (Chrome, Edge); altrove restano in verticale col
+     carattere piccolo. */
+  .foglio-report, .foglio-report * { visibility: visible !important; }
+  .foglio-report {
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: #fff !important; border: 0 !important; box-shadow: none !important; padding: 0 !important;
+  }
+  .foglio-report * { color: #000 !important; background: transparent !important; box-shadow: none !important; }
+  .foglio-report[data-forma='mese'], .foglio-report[data-forma='stagione'] { page: orizzontale; }
+  .foglio-report .solo-schermo { display: none !important; }
+  .foglio-report .scorre-report { overflow: visible !important; }
+  .foglio-report .testata-report { border-bottom: 2px solid #000; padding: 0 0 4mm; margin-bottom: 4mm; }
+  .foglio-report .tabella-report { width: 100%; border-collapse: collapse; }
+  .foglio-report .tabella-report th, .foglio-report .tabella-report td {
+    border: 1px solid #999 !important; padding: 1mm 1.2mm; font-size: 9pt;
+  }
+  .foglio-report .griglia-report th, .foglio-report .griglia-report td { font-size: 7.5pt; padding: 0.8mm 0.6mm; }
+  .foglio-report .casella-report[data-futuro='true'], .foglio-report .giorno-report[data-futuro='true'],
+  .foglio-report .mese-report[data-futuro='true'] { background: #eee !important; }
+  .foglio-report .atleta-report { position: static !important; }
+  .foglio-report tr { break-inside: avoid; }
+  .foglio-report .nota-report { font-size: 8pt; color: #333 !important; }
 }
+@page orizzontale { size: A4 landscape; margin: 10mm; }
 
 .versione {
   font-size: 11px; color: var(--testo-3); letter-spacing: 0.04em;

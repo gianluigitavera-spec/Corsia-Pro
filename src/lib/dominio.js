@@ -1860,6 +1860,11 @@ export const lunediDi = (isoData) => {
 const isoDi = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+// La data di oggi sul telefono, 'AAAA-MM-GG'. toISOString è in UTC: fra
+// mezzanotte e le due, in Italia, direbbe ancora ieri — e il lunedì
+// appena passata la mezzanotte la settimana sarebbe quella di prima.
+export const oggiLocale = (adesso = new Date()) => isoDi(adesso);
+
 const settimanaDi = (oggi) => {
   const da = lunediDi(oggi);
   const d = new Date(da + 'T12:00');
@@ -1871,6 +1876,13 @@ const meseDi = (oggi) => {
   const [anno, mese] = oggi.split('-').map(Number);
   return { da: `${oggi.slice(0, 7)}-01`, a: isoDi(new Date(anno, mese, 0, 12)) };   // giorno 0 = ultimo del mese prima
 };
+
+// Il mese si conta FINO A OGGI: i giorni che devono ancora venire non
+// entrano, nemmeno con uno stato già segnato (un G messo in anticipo).
+// Una regola sola, per la colonna Mese dell'Appello e per il report
+// presenze (mensile e stagione): prima l'Appello contava il mese intero e
+// il report solo fino a oggi, e sugli stessi dati dicevano due numeri.
+export const finoAOggi = ({ da, a }, oggi) => ({ da, a: a < oggi ? a : oggi });
 
 // Il periodo da leggere per avere Sett. e Mese: la settimana può
 // cominciare nel mese prima o finire in quello dopo.
@@ -1918,7 +1930,7 @@ export function frequenzaNelPeriodo(presenze, periodo) {
  */
 export function frequenzaAppello(presenze, oggi) {
   const sett = frequenzaNelPeriodo(presenze, settimanaDi(oggi));
-  const mese = frequenzaNelPeriodo(presenze, meseDi(oggi));
+  const mese = frequenzaNelPeriodo(presenze, finoAOggi(meseDi(oggi), oggi));
   const vuoto = { p: 0, r: 0, g: 0, a: 0, pct: null };
   const out = {};
   for (const id of new Set([...Object.keys(sett), ...Object.keys(mese)])) {
@@ -2271,8 +2283,6 @@ function atletiDelReport(atleti, codici, fasce) {
   return (atleti || []).filter((a) => atletaNelGruppo(a, codici, fasce)).sort(perCognome);
 }
 
-const minimo = (x, y) => (x < y ? x : y);
-
 /**
  * Giornaliero: una seduta.
  * Se la seduta è per pochi atleti (le doppie, seduta.atleti), l'elenco è
@@ -2332,7 +2342,7 @@ export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, prese
     .sort((x, y) => (posto.get(x.seduta_id) ?? Infinity) - (posto.get(y.seduta_id) ?? Infinity)
       || String(x.seduta_id).localeCompare(String(y.seduta_id)));
 
-  const frequenze = frequenzaNelPeriodo(nelMese, { da, a: minimo(a, oggi) });
+  const frequenze = frequenzaNelPeriodo(nelMese, finoAOggi({ da, a }, oggi));
   const righe = elenco.map((at) => {
     const sue = nelMese.filter((x) => x.atleta_id === at.id);
     return {
@@ -2365,10 +2375,9 @@ export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze
 
   const perMese = mesi.map((m) => {
     if (m.futuro) return null;
-    const { da, a } = meseDi(`${m.mese}-01`);
-    return frequenzaNelPeriodo(sue, { da, a: minimo(a, oggi) });
+    return frequenzaNelPeriodo(sue, finoAOggi(meseDi(`${m.mese}-01`), oggi));
   });
-  const totale = frequenzaNelPeriodo(sue, { da: `${anno}-09-01`, a: minimo(`${anno + 1}-08-31`, oggi) });
+  const totale = frequenzaNelPeriodo(sue, finoAOggi({ da: `${anno}-09-01`, a: `${anno + 1}-08-31` }, oggi));
 
   const righe = elenco.map((at) => ({
     atleta_id: at.id, cognome: at.cognome, nome: at.nome,

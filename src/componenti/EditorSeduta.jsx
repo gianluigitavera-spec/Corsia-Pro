@@ -24,6 +24,7 @@ import RevisioneTesto from './RevisioneTesto';
 import { condividiSeduta } from '../lib/testoSeduta';
 import Lavagna from './Lavagna';
 import FoglioStampa from './FoglioStampa';
+import { stampaConNome } from '../lib/stampa';
 
 function coloreSezione(sezione, zone) {
   // Il lavoro a terra ha la sua striscia gialla: si distingue a colpo
@@ -41,23 +42,9 @@ function coloreSezione(sezione, zone) {
 
 const metriIt = (m) => (Number(m) || 0).toLocaleString('it-IT');
 
-// Il PDF è la stampa del browser, che come nome del file propone il
-// titolo della pagina: per la durata della stampa la pagina si chiama
-// come il file (nomeFileSeduta in dominio.js), poi torna "CorsiaPro".
-// Si rimette a posto con afterprint; il focus è la rete di sicurezza per
-// i browser dove afterprint non arriva, così il titolo non resta appeso.
-function stampaSeduta(seduta) {
-  const prima = document.title;
-  document.title = nomeFileSeduta(seduta);
-  const rimetti = () => {
-    document.title = prima;
-    window.removeEventListener('afterprint', rimetti);
-    window.removeEventListener('focus', rimetti);
-  };
-  window.addEventListener('afterprint', rimetti);
-  window.addEventListener('focus', rimetti);
-  window.print();
-}
+// Il PDF è la stampa del browser, col nome del file al posto del titolo
+// della pagina (lib/stampa.js, la stessa del report presenze).
+const stampaSeduta = (seduta) => stampaConNome(nomeFileSeduta(seduta));
 const conSegno = (m) => (m > 0 ? `+${metriIt(m)}` : m < 0 ? `−${metriIt(-m)}` : '0');
 
 // Perché una riga del controllo non ha il tasto, o perché va guardata da

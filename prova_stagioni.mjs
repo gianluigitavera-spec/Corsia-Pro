@@ -305,9 +305,31 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
     const oggi = '2026-10-21';
     const app = D.frequenzaAppello(righe, oggi).x;
     const settimana = D.frequenzaNelPeriodo(righe, { da: '2026-10-19', a: '2026-10-25' }).x;
-    const mese = D.frequenzaNelPeriodo(righe, { da: '2026-10-01', a: '2026-10-31' }).x;
+    // Il mese si conta fino a oggi, come nel report (21/10/2026): la P
+    // del 31 è nel futuro e non entra.
+    const mese = D.frequenzaNelPeriodo(righe, { da: '2026-10-01', a: '2026-10-21' }).x;
     dice('Appello = frequenzaNelPeriodo sulla settimana', app.sett, settimana ?? { p: 0, r: 0, g: 0, a: 0, pct: null });
-    dice('Appello = frequenzaNelPeriodo sul mese', app.mese, mese);
+    dice('Appello = frequenzaNelPeriodo sul mese, fino a oggi', app.mese, mese);
+    dice('Appello: un giorno futuro del mese non conta', [app.mese.p, app.mese.pct], [1, 67]);
+
+    // Una regola sola: la colonna Mese dell'Appello e il report mensile
+    // dicono lo stesso numero, sugli stessi dati.
+    if (typeof D.reportMensile === 'function') {
+      const conSeduta = righe.map((x, i) => ({ ...x, seduta_id: `s${i}` }));
+      const rep = D.reportMensile({ mese: '2026-10', oggi, atleti: [{ id: 'x', cognome: 'X' }], presenze: conSeduta });
+      dice('Appello e report mensile: la stessa percentuale', app.mese.pct, rep.righe[0].frequenza.pct);
+      dice('Appello e report mensile: gli stessi conti',
+        [app.mese.p, app.mese.r, app.mese.g, app.mese.a],
+        [rep.righe[0].frequenza.p, rep.righe[0].frequenza.r, rep.righe[0].frequenza.g, rep.righe[0].frequenza.a]);
+    }
+    if (typeof D.finoAOggi !== 'function') {
+      male++; console.error('✗ frequenza: manca in dominio.js finoAOggi, la regola del "fino a oggi"');
+    } else {
+      dice('finoAOggi: il mese in corso si ferma a oggi',
+        D.finoAOggi({ da: '2026-10-01', a: '2026-10-31' }, '2026-10-21'), { da: '2026-10-01', a: '2026-10-21' });
+      dice('finoAOggi: un mese passato resta intero',
+        D.finoAOggi({ da: '2026-09-01', a: '2026-09-30' }, '2026-10-21'), { da: '2026-09-01', a: '2026-09-30' });
+    }
   }
 
   // --- il report presenze (deciso il 19/10/2026): giornaliero, mensile,

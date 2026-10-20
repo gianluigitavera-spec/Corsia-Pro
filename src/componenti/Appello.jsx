@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { HeartPulse, Check } from 'lucide-react';
+import { HeartPulse, Check, FileText } from 'lucide-react';
 import * as api from '../lib/dati';
 import ComeAndata from './ComeAndata';
+import ReportPresenze from './ReportPresenze';
 import {
   categoriaAtleta, dataIt, sedutaNelGruppo, atletaNelGruppo, frequenzaAppello, periodoFrequenza,
+  oggiLocale,
 } from '../lib/dominio';
 
 // Quattro stati. In Sett. e Mese (frequenzaAppello in dominio.js) il
@@ -13,13 +15,8 @@ import {
 // Tot. conta ancora G fra i presenti.
 // Il ritardo si conta anche a parte, nella colonna Rit.
 
-// La data di oggi sul telefono. toISOString è in UTC: fra mezzanotte e
-// le due, in Italia, direbbe ancora ieri — e il lunedì appena passata la
-// mezzanotte la settimana sarebbe quella di prima.
-const oggiQui = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+// La data di oggi è quella del telefono, non UTC (oggiLocale in dominio.js).
+const oggiQui = () => oggiLocale();
 const STATI = [
   { codice: 'P', nome: 'Presente',     breve: 'P', tinta: 'var(--menta)' },
   { codice: 'R', nome: 'Ritardo',      breve: 'R', tinta: 'var(--ciano)' },
@@ -37,7 +34,7 @@ const tintaPct = (p) =>
     : p >= 60 ? 'var(--ambra)'
     : 'var(--rosso)';
 
-export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
+export default function Appello({ societa, fasce, puoScrivere, gruppi, codiciGruppi }) {
   const [sedute, setSedute] = useState([]);
   const [sedutaId, setSedutaId] = useState('');
   const [atleti, setAtleti] = useState([]);
@@ -47,6 +44,7 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
   // Le presenze della settimana e del mese, per Sett. e Mese.
   const [presenzePeriodo, setPresenzePeriodo] = useState([]);
   const [messaggio, setMessaggio] = useState(null);
+  const [report, setReport] = useState(false);     // il report presenze al posto dell'elenco
   const oggiFrequenza = oggiQui();
 
   useEffect(() => {
@@ -144,6 +142,23 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
   const rilevati = visibili.filter((a) => stati[a.id]).length;
   const inAcqua = visibili.filter((a) => ['P', 'R'].includes(stati[a.id])).length;
 
+  // Il report presenze prende il posto dell'appello, come l'editor di una
+  // seduta prende quello dell'elenco. Sta dopo tutti gli hook: un hook
+  // sotto un return anticipato è l'errore #300 (CLAUDE.md, eslint).
+  if (report) {
+    return (
+      <ReportPresenze
+        societa={societa}
+        atleti={atleti}
+        fasce={fasce}
+        sedute={sedute}
+        gruppi={gruppi}
+        sedutaIniziale={sedutaId}
+        chiudi={() => setReport(false)}
+      />
+    );
+  }
+
   if (sedute.length === 0) {
     return (
       <div className="scheda">
@@ -159,6 +174,10 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
     <>
       <div className="barra">
         <h1>Appello</h1>
+        <div style={{ flex: 1 }} />
+        <button className="mini" onClick={() => setReport(true)} title="Report presenze: giorno, mese, stagione">
+          <FileText size={14} style={{ verticalAlign: -2 }} /> Report
+        </button>
       </div>
 
       <div className="barra" style={{ marginBottom: 12 }}>
