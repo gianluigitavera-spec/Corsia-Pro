@@ -1877,11 +1877,11 @@ const meseDi = (oggi) => {
   return { da: `${oggi.slice(0, 7)}-01`, a: isoDi(new Date(anno, mese, 0, 12)) };   // giorno 0 = ultimo del mese prima
 };
 
-// Il mese si conta FINO A OGGI: i giorni che devono ancora venire non
-// entrano, nemmeno con uno stato già segnato (un G messo in anticipo).
-// Una regola sola, per la colonna Mese dell'Appello e per il report
-// presenze (mensile e stagione): prima l'Appello contava il mese intero e
-// il report solo fino a oggi, e sugli stessi dati dicevano due numeri.
+// Si conta FINO A OGGI: i giorni che devono ancora venire non entrano,
+// nemmeno con uno stato già segnato (un G messo in anticipo). Una regola
+// sola, per le colonne Sett. e Mese dell'Appello e per il report presenze
+// (mensile e stagione): prima l'Appello contava il mese intero e il
+// report solo fino a oggi, e sugli stessi dati dicevano due numeri.
 export const finoAOggi = ({ da, a }, oggi) => ({ da, a: a < oggi ? a : oggi });
 
 // Il periodo da leggere per avere Sett. e Mese: la settimana può
@@ -1929,7 +1929,7 @@ export function frequenzaNelPeriodo(presenze, periodo) {
  * @returns { [atleta_id]: { sett: {p,r,g,a,pct}, mese: {p,r,g,a,pct} } }
  */
 export function frequenzaAppello(presenze, oggi) {
-  const sett = frequenzaNelPeriodo(presenze, settimanaDi(oggi));
+  const sett = frequenzaNelPeriodo(presenze, finoAOggi(settimanaDi(oggi), oggi));
   const mese = frequenzaNelPeriodo(presenze, finoAOggi(meseDi(oggi), oggi));
   const vuoto = { p: 0, r: 0, g: 0, a: 0, pct: null };
   const out = {};
@@ -2278,10 +2278,18 @@ const perCognome = (x, y) =>
   String(x.cognome || '').localeCompare(String(y.cognome || ''), 'it')
   || String(x.nome || '').localeCompare(String(y.nome || ''), 'it');
 
-// Gli atleti del report: quelli del gruppo, in ordine di cognome.
-function atletiDelReport(atleti, codici, fasce) {
-  return (atleti || []).filter((a) => atletaNelGruppo(a, codici, fasce)).sort(perCognome);
+// Gli atleti del report: quelli del gruppo, in ordine di cognome. Gli
+// archiviati (attivo: false) entrano solo se hanno almeno una
+// rilevazione nel periodo contato — `conRilevazioni`, gli id — e portano
+// `archiviato: true`: chi è uscito a metà stagione resta nei mesi in cui
+// c'era, gli altri non fanno elenco.
+function atletiDelReport(atleti, codici, fasce, conRilevazioni) {
+  return (atleti || [])
+    .filter((a) => atletaNelGruppo(a, codici, fasce))
+    .filter((a) => a.attivo !== false || conRilevazioni.has(a.id))
+    .sort(perCognome);
 }
+const archiviato = (a) => a.attivo === false;
 
 /**
  * Giornaliero: una seduta.
@@ -2291,14 +2299,16 @@ function atletiDelReport(atleti, codici, fasce) {
  *            conti: { p, r, g, a, nonRilevati, pct }, presenti }
  */
 export function reportGiornaliero({ seduta, atleti, codici, fasce, presenze }) {
-  const elenco = seduta?.atleti?.length
-    ? (atleti || []).filter((a) => seduta.atleti.includes(a.id)).sort(perCognome)
-    : atletiDelReport(atleti, codici, fasce);
   const stati = new Map((presenze || [])
     .filter((x) => x.seduta_id === seduta?.id)
     .map((x) => [x.atleta_id, x.stato]));
+  const segnati = new Set(stati.keys());
+  const elenco = seduta?.atleti?.length
+    ? (atleti || []).filter((a) => seduta.atleti.includes(a.id))
+      .filter((a) => a.attivo !== false || segnati.has(a.id)).sort(perCognome)
+    : atletiDelReport(atleti, codici, fasce, segnati);
   const righe = elenco.map((a) => ({
-    atleta_id: a.id, cognome: a.cognome, nome: a.nome, stato: stati.get(a.id) ?? null,
+    atleta_id: a.id, cognome: a.cognome, nome: a.nome, archiviato: archiviato(a), stato: stati.get(a.id) ?? null,
   }));
   const segnate = righe.filter((x) => x.stato)
     .map((x) => ({ atleta_id: 'seduta', stato: x.stato }));
@@ -2334,7 +2344,12 @@ export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, prese
   const posto = new Map(inOrdineDiCreazione(sedute || []).map((s, i) => [s.id, i]));
   const dataDi = (x) => x.data ?? perSeduta.get(x.seduta_id)?.data ?? null;
 
-  const elenco = atletiDelReport(atleti, codici, fasce);
+  const contato = finoAOggi({ da, a }, oggi);
+  const conRilevazioni = new Set((presenze || [])
+    .map((x) => ({ ...x, data: dataDi(x) }))
+    .filter((x) => x.data >= contato.da && x.data <= contato.a)
+    .map((x) => x.atleta_id));
+  const elenco = atletiDelReport(atleti, codici, fasce, conRilevazioni);
   const dentro = new Set(elenco.map((x) => x.id));
   const nelMese = (presenze || [])
     .map((x) => ({ ...x, data: dataDi(x) }))
@@ -2342,11 +2357,11 @@ export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, prese
     .sort((x, y) => (posto.get(x.seduta_id) ?? Infinity) - (posto.get(y.seduta_id) ?? Infinity)
       || String(x.seduta_id).localeCompare(String(y.seduta_id)));
 
-  const frequenze = frequenzaNelPeriodo(nelMese, finoAOggi({ da, a }, oggi));
+  const frequenze = frequenzaNelPeriodo(nelMese, contato);
   const righe = elenco.map((at) => {
     const sue = nelMese.filter((x) => x.atleta_id === at.id);
     return {
-      atleta_id: at.id, cognome: at.cognome, nome: at.nome,
+      atleta_id: at.id, cognome: at.cognome, nome: at.nome, archiviato: archiviato(at),
       caselle: giorni.map((g) => (g.futuro ? null : sue.filter((x) => x.data === g.data).map((x) => x.stato))),
       frequenza: frequenze[at.id] || VUOTO_FREQUENZA(),
     };
@@ -2369,7 +2384,11 @@ export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze
     const mese = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     return { mese, futuro: mese > oggi.slice(0, 7) };
   });
-  const elenco = atletiDelReport(atleti, codici, fasce);
+  const stagioneContata = finoAOggi({ da: `${anno}-09-01`, a: `${anno + 1}-08-31` }, oggi);
+  const conRilevazioni = new Set((presenze || [])
+    .filter((x) => x.data >= stagioneContata.da && x.data <= stagioneContata.a)
+    .map((x) => x.atleta_id));
+  const elenco = atletiDelReport(atleti, codici, fasce, conRilevazioni);
   const dentro = new Set(elenco.map((x) => x.id));
   const sue = (presenze || []).filter((x) => dentro.has(x.atleta_id));
 
@@ -2377,10 +2396,10 @@ export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze
     if (m.futuro) return null;
     return frequenzaNelPeriodo(sue, finoAOggi(meseDi(`${m.mese}-01`), oggi));
   });
-  const totale = frequenzaNelPeriodo(sue, finoAOggi({ da: `${anno}-09-01`, a: `${anno + 1}-08-31` }, oggi));
+  const totale = frequenzaNelPeriodo(sue, stagioneContata);
 
   const righe = elenco.map((at) => ({
-    atleta_id: at.id, cognome: at.cognome, nome: at.nome,
+    atleta_id: at.id, cognome: at.cognome, nome: at.nome, archiviato: archiviato(at),
     mesi: perMese.map((f) => (f ? f[at.id] || VUOTO_FREQUENZA() : null)),
     totale: totale[at.id] || VUOTO_FREQUENZA(),
   }));

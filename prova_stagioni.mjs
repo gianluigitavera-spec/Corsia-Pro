@@ -312,6 +312,12 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
     dice('Appello = frequenzaNelPeriodo sul mese, fino a oggi', app.mese, mese);
     dice('Appello: un giorno futuro del mese non conta', [app.mese.p, app.mese.pct], [1, 67]);
 
+    // Anche la settimana si conta fino a oggi (21/10/2026): mercoledì 21,
+    // la A di giovedì 22 segnata in anticipo non entra.
+    const settFutura = D.frequenzaAppello(
+      [p('2026-10-19', 'P'), p('2026-10-21', 'P'), p('2026-10-22', 'A')], '2026-10-21').x.sett;
+    dice('Appello: un giorno futuro della settimana non conta', [settFutura.a, settFutura.pct], [0, 100]);
+
     // Una regola sola: la colonna Mese dell'Appello e il report mensile
     // dicono lo stesso numero, sugli stessi dati.
     if (typeof D.reportMensile === 'function') {
@@ -435,6 +441,49 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
       const sb = st.righe.find((x) => x.atleta_id === 'b');
       dice('stagione: solo G, totale senza percentuale', sb.totale.pct, null);
       dice('stagione: un mese senza niente ha i conti a zero', sv.mesi[1], vuoto);
+
+      // ---- gli archiviati (21/10/2026) ----
+      // Entrano nel report solo se hanno almeno una rilevazione nel
+      // periodo scelto (fino a oggi), segnati come archiviati. Gli altri
+      // archiviati no: un elenco di nomi senza niente accanto non serve.
+      {
+        const conArchiviati = [
+          ...atleti,
+          { id: 'z', cognome: 'Zeta', nome: 'Ugo', categoria_override: 'ESO_A1', attivo: false },
+          { id: 'k', cognome: 'Kappa', nome: 'Ivo', categoria_override: 'ESO_A2', attivo: false },
+          { id: 'f', cognome: 'Effe', nome: 'Lia', categoria_override: 'ESO_A1', attivo: false },
+        ];
+        const pres = [
+          pr('m1', 'z', 'P', '2026-10-05'), pr('m2', 'z', 'A', '2026-10-12'),   // Zeta: c'era a ottobre
+          pr('x', 'k', 'P', '2026-09-20'),                                       // Kappa: solo a settembre
+          pr('m5', 'f', 'G', '2026-10-23'),                                      // Effe: solo un giorno futuro
+        ];
+        const m = D.reportMensile({ mese: '2026-10', oggi: '2026-10-21', atleti: conArchiviati, codici, sedute, presenze: pres });
+        dice('archiviati: entra chi ha una presenza nel mese, gli altri no',
+          m.righe.map((x) => x.cognome), ['Bianchi', 'Rossi', 'Verdi', 'Zeta']);
+        dice('archiviati: segnato come archiviato',
+          m.righe.map((x) => x.archiviato), [false, false, false, true]);
+        dice('archiviati: e la sua percentuale c\'è', m.righe[3].frequenza.pct, 50);
+        // Il giorno futuro non è "una presenza nel periodo": Effe resta fuori.
+        dice('archiviati: un giorno futuro non basta', m.righe.some((x) => x.atleta_id === 'f'), false);
+
+        // Stagione: Kappa c'era a settembre, quindi entra.
+        const st2 = D.reportStagione({ stagione: '2026/27', oggi: '2026-10-21', atleti: conArchiviati, codici, presenze: pres });
+        dice('archiviati: nella stagione entra chi c\'era in un mese qualunque',
+          st2.righe.filter((x) => x.archiviato).map((x) => x.cognome), ['Kappa', 'Zeta']);
+
+        // Giornaliero: solo chi è stato segnato in quella seduta.
+        const g2 = D.reportGiornaliero({ seduta: s('m1', '2026-10-05'), atleti: conArchiviati, codici, presenze: pres });
+        dice('archiviati: nel giornaliero chi è stato segnato quel giorno',
+          g2.righe.filter((x) => x.archiviato).map((x) => x.cognome), ['Zeta']);
+        // Un archiviato fuori dal gruppo resta fuori anche con le presenze.
+        const fuori = D.reportMensile({
+          mese: '2026-10', oggi: '2026-10-21', codici, sedute,
+          atleti: [{ id: 'q', cognome: 'Qu', nome: 'Ada', categoria_override: 'RAG_1', attivo: false }],
+          presenze: [pr('m1', 'q', 'P', '2026-10-05')],
+        });
+        dice('archiviati: fuori dal gruppo resta fuori', fuori.righe, []);
+      }
 
       // ---- il nome del file ----
       dice('nome file: mensile', D.nomeFileReport({ periodo: '2026-10', gruppi: ['Esordienti A'] }),

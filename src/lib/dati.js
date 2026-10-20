@@ -85,7 +85,9 @@ export async function leggiAtletiTutti(societaId) {
   return ok(
     await sb
       .from('atleti')
-      .select('id, nome, cognome, anno_nascita, attivo, categoria_override')
+      // sesso: senza, un archiviato senza override non avrebbe categoria
+      // e il report presenze lo lascerebbe fuori da ogni gruppo.
+      .select('id, nome, cognome, anno_nascita, sesso, attivo, categoria_override')
       .eq('societa_id', societaId)
   );
 }

@@ -228,6 +228,11 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 .casella-report[data-futuro='true'], .giorno-report[data-futuro='true'],
 .mese-report[data-futuro='true'] { background: rgba(255,255,255,0.025); color: var(--testo-3); }
 .pct-report { font-family: var(--dati); text-align: right !important; font-weight: 600; }
+/* Chi non è più in squadra ma nel periodo c'era. */
+.archiviato-report {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--testo-3); margin-left: 4px; white-space: nowrap;
+}
 /* Solo dentro il report: data-stato c'è anche sulle righe dell'Appello. */
 .foglio-report [data-stato='P'] { color: var(--menta); }
 .foglio-report [data-stato='R'] { color: var(--ciano); }
@@ -757,6 +762,7 @@ textarea { width: 100%; resize: vertical; font-family: var(--corpo); }
   .foglio-report .atleta-report { position: static !important; }
   .foglio-report tr { break-inside: avoid; }
   .foglio-report .nota-report { font-size: 8pt; color: #333 !important; }
+  .foglio-report .archiviato-report { font-size: 6.5pt; color: #555 !important; }
 }
 @page orizzontale { size: A4 landscape; margin: 10mm; }
 

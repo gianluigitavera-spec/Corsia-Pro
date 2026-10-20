@@ -8,8 +8,10 @@
 // si disegna. Il PDF è la stampa del browser, col nome del file di
 // nomeFileReport, come per le sedute.
 //
-// Gli atleti sono quelli che Appello ha già letto (gli attivi); dal
-// database si leggono solo le presenze del periodo scelto.
+// Gli atleti attivi sono quelli che Appello ha già letto; gli archiviati
+// si leggono qui, una volta, perché entrano nel report quando hanno almeno
+// una rilevazione nel periodo (le regole in dominio.js). Dal database si
+// leggono poi solo le presenze del periodo scelto.
 // =====================================================================
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
@@ -30,6 +32,14 @@ const NOMI_STATO = { P: 'Presente', R: 'Ritardo', G: 'Giustificato', A: 'Assente
 const nomeMese = (m) => `${MESI[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 const meseBreve = (m) => MESI_BREVI[Number(m.slice(5, 7)) - 1];
 const percentuale = (pct) => (pct == null ? '—' : `${pct}%`);
+
+// Il nome, con «archiviato» accanto per chi non è più in squadra.
+const Nome = ({ x }) => (
+  <>
+    <b>{x.cognome}</b> {x.nome}
+    {x.archiviato && <span className="archiviato-report"> archiviato</span>}
+  </>
+);
 const ultimoDelMese = (m) => {
   const giorni = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0).getDate();
   return `${m}-${String(giorni).padStart(2, '0')}`;
@@ -44,6 +54,14 @@ export default function ReportPresenze({ societa, atleti, fasce, sedute, gruppi,
   const [gruppo, setGruppo] = useState('testata');            // testata | '' (tutte) | nome
   const [dati, setDati] = useState({ chiave: null, presenze: [], sedute: [] });
   const [errore, setErrore] = useState(null);
+  const [archiviati, setArchiviati] = useState([]);
+
+  useEffect(() => {
+    api.leggiAtletiTutti(societa.id)
+      .then((tutti) => setArchiviati(tutti.filter((a) => a.attivo === false)))
+      .catch(() => setArchiviati([]));
+  }, [societa.id]);
+  const tuttiGliAtleti = useMemo(() => [...(atleti || []), ...archiviati], [atleti, archiviati]);
 
   const nomiGruppo = gruppo === 'testata' ? (gruppi || []) : gruppo ? [gruppo] : [];
   const codici = codiciDelGruppo(nomiGruppo);
@@ -92,11 +110,11 @@ export default function ReportPresenze({ societa, atleti, fasce, sedute, gruppi,
   const pronto = dati.chiave === chiave;
   const report = useMemo(() => {
     if (!pronto) return null;
-    const comune = { atleti, codici, fasce, presenze: dati.presenze };
+    const comune = { atleti: tuttiGliAtleti, codici, fasce, presenze: dati.presenze };
     if (forma === 'giorno') return seduta ? reportGiornaliero({ ...comune, seduta }) : null;
     if (forma === 'mese') return reportMensile({ ...comune, mese, oggi, sedute: dati.sedute });
     return reportStagione({ ...comune, stagione, oggi });
-  }, [pronto, dati, forma, seduta, mese, stagione, oggi, atleti, fasce, codici?.join()]);
+  }, [pronto, dati, forma, seduta, mese, stagione, oggi, tuttiGliAtleti, fasce, codici?.join()]);
 
   const periodo = forma === 'giorno' ? (seduta?.data || '') : forma === 'mese' ? mese : stagione;
   const titoloPeriodo = forma === 'giorno'
@@ -197,7 +215,7 @@ function Giornaliero({ r }) {
           <tbody>
             {r.righe.map((x) => (
               <tr key={x.atleta_id}>
-                <td><b>{x.cognome}</b> {x.nome}</td>
+                <td><Nome x={x} /></td>
                 <td className="stato-report" data-stato={x.stato || ''}>
                   {x.stato ? NOMI_STATO[x.stato] : 'non rilevato'}
                 </td>
@@ -229,7 +247,7 @@ function Mensile({ r }) {
         <tbody>
           {r.righe.map((x) => (
             <tr key={x.atleta_id}>
-              <td className="atleta-report"><b>{x.cognome}</b> {x.nome}</td>
+              <td className="atleta-report"><Nome x={x} /></td>
               {x.caselle.map((c, i) => (
                 <td key={i} className="casella-report" data-futuro={c === null}>
                   {(c || []).map((s, k) => <span key={k} data-stato={s}>{s}</span>)}
@@ -261,7 +279,7 @@ function Stagione({ r }) {
         <tbody>
           {r.righe.map((x) => (
             <tr key={x.atleta_id}>
-              <td className="atleta-report"><b>{x.cognome}</b> {x.nome}</td>
+              <td className="atleta-report"><Nome x={x} /></td>
               {x.mesi.map((f, i) => (
                 <td key={i} className="mese-report mono" data-futuro={f === null}>
                   {f === null ? '' : percentuale(f.pct)}
