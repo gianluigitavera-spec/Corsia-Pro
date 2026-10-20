@@ -490,10 +490,12 @@ export async function salvaBenessere(riga) {
 
 
 // ----------------------------------------------------------- frequenza
-// v_frequenza conta con altre regole (ultimi 7 e 30 giorni, G fra i
-// presenti). Dal rilascio dopo la 0.57.0 Appello la usa solo per Tot. e
-// Rit.; Sett. e Mese li calcola frequenzaAppello (dominio.js) sulle
-// presenze di leggiPresenzePeriodo.
+// v_frequenza: Appello la usa solo per Tot. e Rit.; Sett. e Mese li
+// calcola frequenzaAppello (dominio.js) sulle presenze di
+// leggiPresenzePeriodo. Dalla 034, da eseguire il giorno del rilascio,
+// la vista conta con le stesse regole (G fuori dal conto); prima, G
+// stava fra i presenti. Le sue finestre _sett e _mese restano gli
+// ultimi 7 e 30 giorni, e l'app non le legge più.
 export async function leggiFrequenza(societaId) {
   return ok(await sb.from('v_frequenza').select('*').eq('societa_id', societaId));
 }

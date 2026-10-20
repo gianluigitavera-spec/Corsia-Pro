@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarRange } from 'lucide-react';
 import * as api from '../lib/dati';
-import { metriPerSpecializzazione, sedutaNelGruppo, atletaNelGruppo } from '../lib/dominio';
+import { metriPerSpecializzazione, sedutaNelGruppo, atletaNelGruppo, frequenzaNelPeriodo } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 import { BarreImpilate, BarreOrizzontali, km } from './Grafici';
 import Confronto from './Confronto';
@@ -104,20 +104,28 @@ export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGr
   const kmScarto = kmSedute - kmProgrammati;
 
   // ------------------------------------------------ righe per atleta
-  const perAtleta = useMemo(() => Object.values(
-    righe.reduce((acc, r) => {
-      const k = r.atleta_id;
-      acc[k] ??= { nome: `${r.cognome} ${r.nome}`, spec: r.specializzazione, nuotati: 0, previsti: 0, rilevate: 0, presenze: 0, ritardi: 0 };
-      acc[k].nuotati += r.metri_nuotati || 0;
-      acc[k].previsti += r.metri_previsti || 0;
-      acc[k].rilevate += 1;
-      if (['P', 'R', 'G'].includes(r.stato)) acc[k].presenze += 1;
-      if (r.stato === 'R') acc[k].ritardi += 1;
-      return acc;
-    }, {})
-  ).sort((x, y) => y.nuotati - x.nuotati), [righe]);
+  // La frequenza conta come in Appello, con la stessa funzione
+  // (frequenzaNelPeriodo in dominio.js): R è presenza, G non entra nel
+  // conto, senza denominatore niente percentuale. Le righe arrivano già
+  // sul periodo scelto, quindi niente limiti di data qui.
+  const perAtleta = useMemo(() => {
+    const frequenze = frequenzaNelPeriodo(righe);
+    return Object.values(
+      righe.reduce((acc, r) => {
+        const k = r.atleta_id;
+        acc[k] ??= { atleta_id: k, nome: `${r.cognome} ${r.nome}`, spec: r.specializzazione, nuotati: 0, previsti: 0, ritardi: 0 };
+        acc[k].nuotati += r.metri_nuotati || 0;
+        acc[k].previsti += r.metri_previsti || 0;
+        if (r.stato === 'R') acc[k].ritardi += 1;
+        return acc;
+      }, {})
+    ).map((x) => {
+      const f = frequenze[x.atleta_id] || { p: 0, r: 0, a: 0, pct: null };
+      return { ...x, presenze: f.p + f.r, rilevate: f.p + f.r + f.a, pct: f.pct };
+    }).sort((x, y) => y.nuotati - x.nuotati);
+  }, [righe]);
 
-  const freq = (r) => (r.rilevate ? Math.round((r.presenze / r.rilevate) * 100) : null);
+  const freq = (r) => r.pct;
   const tintaFreq = (p) => p == null ? 'var(--testo-3)'
     : p >= 90 ? 'var(--menta)' : p >= 75 ? 'var(--ciano)' : p >= 60 ? 'var(--ambra)' : 'var(--rosso)';
 
@@ -144,8 +152,11 @@ export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGr
     { chiave: 'nonclass', nome: 'Senza zona', colore: TINTA_FAMIGLIA.altro },
   ];
 
-  const freqMedia = perAtleta.length
-    ? Math.round(perAtleta.reduce((t, x) => t + (freq(x) || 0), 0) / perAtleta.length) : null;
+  // La media sugli atleti che una percentuale ce l'hanno: chi ha solo
+  // giustificati non ha frequenza, e contarlo come 0% abbassava la media.
+  const conFrequenza = perAtleta.filter((x) => freq(x) != null);
+  const freqMedia = conFrequenza.length
+    ? Math.round(conFrequenza.reduce((t, x) => t + freq(x), 0) / conFrequenza.length) : null;
 
   if (errore) return <div className="avviso errore">{errore}</div>;
 

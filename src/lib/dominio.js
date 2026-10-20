@@ -1886,28 +1886,45 @@ const percentualePresenza = ({ p, r, a }) => {
 };
 
 /**
+ * Il conto, su un periodo qualunque. È la regola sola: l'Appello la usa
+ * per la settimana e il mese, Volumi per il periodo che scegli.
+ *
+ * @param presenze  [{ atleta_id, data, stato }], una per seduta segnata
+ * @param periodo   { da, a } 'AAAA-MM-GG', estremi compresi; senza, tutte
+ *                  le righe che arrivano
+ * @returns { [atleta_id]: { p, r, g, a, pct } }
+ */
+export function frequenzaNelPeriodo(presenze, periodo) {
+  const { da, a } = periodo || {};
+  const conti = {};
+  for (const x of presenze || []) {
+    const k = String(x?.stato || '').toLowerCase();
+    if (!['p', 'r', 'g', 'a'].includes(k)) continue;
+    if ((da || a) && !x.data) continue;
+    if (da && x.data < da) continue;
+    if (a && x.data > a) continue;
+    (conti[x.atleta_id] ||= { p: 0, r: 0, g: 0, a: 0 })[k] += 1;
+  }
+  for (const o of Object.values(conti)) o.pct = percentualePresenza(o);
+  return conti;
+}
+
+/**
+ * Sett. e Mese dell'Appello: la stessa regola, due volte.
+ *
  * @param presenze  [{ atleta_id, data, stato }], una per seduta segnata
  * @param oggi      'AAAA-MM-GG'
  * @returns { [atleta_id]: { sett: {p,r,g,a,pct}, mese: {p,r,g,a,pct} } }
  */
 export function frequenzaAppello(presenze, oggi) {
-  const periodi = { sett: settimanaDi(oggi), mese: meseDi(oggi) };
-  const conti = {};
-  for (const x of presenze || []) {
-    const k = String(x?.stato || '').toLowerCase();
-    if (!['p', 'r', 'g', 'a'].includes(k) || !x.data) continue;
-    const o = (conti[x.atleta_id] ||= {
-      sett: { p: 0, r: 0, g: 0, a: 0 }, mese: { p: 0, r: 0, g: 0, a: 0 },
-    });
-    for (const [nome, { da, a }] of Object.entries(periodi)) {
-      if (x.data >= da && x.data <= a) o[nome][k] += 1;
-    }
+  const sett = frequenzaNelPeriodo(presenze, settimanaDi(oggi));
+  const mese = frequenzaNelPeriodo(presenze, meseDi(oggi));
+  const vuoto = { p: 0, r: 0, g: 0, a: 0, pct: null };
+  const out = {};
+  for (const id of new Set([...Object.keys(sett), ...Object.keys(mese)])) {
+    out[id] = { sett: sett[id] || { ...vuoto }, mese: mese[id] || { ...vuoto } };
   }
-  for (const o of Object.values(conti)) {
-    o.sett.pct = percentualePresenza(o.sett);
-    o.mese.pct = percentualePresenza(o.mese);
-  }
-  return conti;
+  return out;
 }
 
 export function copiaSeduta(seduta, nuovaData) {

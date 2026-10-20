@@ -278,6 +278,48 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
       D.periodoFrequenza('2026-10-21'), { da: '2026-10-01', a: '2026-10-31' });
     dice('periodo: febbraio bisestile', D.periodoFrequenza('2028-02-15'), { da: '2028-02-01', a: '2028-02-29' });
   }
+
+  // --- la stessa regola su un periodo qualunque: Volumi ---
+  // Volumi sceglie il periodo (settimana, mese, intervallo, stagione) e
+  // la frequenza per atleta deve contare come l'Appello: la stessa
+  // funzione, non una copia — due regole scritte in due posti divergono.
+  if (typeof D.frequenzaNelPeriodo !== 'function') {
+    male++; console.error('✗ frequenza: manca in dominio.js frequenzaNelPeriodo');
+  } else {
+    const p = (data, stato, atleta_id = 'x') => ({ atleta_id, data, stato });
+    const righe = [
+      p('2026-09-30', 'A'),                       // fuori dal periodo
+      p('2026-10-05', 'P'), p('2026-10-06', 'R'), p('2026-10-07', 'G'), p('2026-10-08', 'A'),
+      p('2026-10-31', 'P'),                       // ultimo giorno, dentro
+      p('2026-11-01', 'A'),                       // fuori dal periodo
+    ];
+    const ottobre = D.frequenzaNelPeriodo(righe, { da: '2026-10-01', a: '2026-10-31' }).x;
+    dice('periodo: P, R, P su P, R, P, A — G fuori', [ottobre.p, ottobre.r, ottobre.g, ottobre.a, ottobre.pct], [2, 1, 1, 1, 75]);
+    // Senza limiti: tutte le righe che arrivano (Volumi le passa già
+    // filtrate sul periodo scelto).
+    const tutte = D.frequenzaNelPeriodo(righe).x;
+    dice('periodo senza limiti: tutte le righe', [tutte.a, tutte.pct], [3, 50]);
+    dice('periodo: solo G, nessuna percentuale',
+      D.frequenzaNelPeriodo([p('2026-10-07', 'G')]).x.pct, null);
+    // L'Appello è la stessa funzione, due volte.
+    const oggi = '2026-10-21';
+    const app = D.frequenzaAppello(righe, oggi).x;
+    const settimana = D.frequenzaNelPeriodo(righe, { da: '2026-10-19', a: '2026-10-25' }).x;
+    const mese = D.frequenzaNelPeriodo(righe, { da: '2026-10-01', a: '2026-10-31' }).x;
+    dice('Appello = frequenzaNelPeriodo sulla settimana', app.sett, settimana ?? { p: 0, r: 0, g: 0, a: 0, pct: null });
+    dice('Appello = frequenzaNelPeriodo sul mese', app.mese, mese);
+  }
+
+  // Volumi non deve contare per conto suo: la guardia sta sul sorgente,
+  // perché il conto sta dentro un componente React che qui non si monta.
+  const { readFileSync } = await import('node:fs');
+  const volumi = readFileSync('./src/componenti/Volumi.jsx', 'utf8');
+  if (!/frequenzaNelPeriodo/.test(volumi)) {
+    male++; console.error('✗ frequenza: Volumi.jsx non usa frequenzaNelPeriodo');
+  }
+  if (/\['P',\s*'R',\s*'G'\]/.test(volumi)) {
+    male++; console.error('✗ frequenza: Volumi.jsx conta ancora G fra le presenze, per conto suo');
+  }
 }
 
 if (male) {

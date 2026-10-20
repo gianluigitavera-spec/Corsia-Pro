@@ -8,7 +8,9 @@ import {
 
 // Quattro stati. In Sett. e Mese (frequenzaAppello in dominio.js) il
 // ritardo è una presenza, l'assenza no, e il giustificato non entra nel
-// conto. Tot. viene ancora da v_frequenza, che conta G fra i presenti.
+// conto. Tot. viene da v_frequenza, che conta con le stesse regole dalla
+// migrazione 034 — da eseguire il giorno del rilascio: prima di allora
+// Tot. conta ancora G fra i presenti.
 // Il ritardo si conta anche a parte, nella colonna Rit.
 
 // La data di oggi sul telefono. toISOString è in UTC: fra mezzanotte e
@@ -85,12 +87,12 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
   useEffect(() => {
     if (!seduteDelGruppo.length) { setSedutaId(''); return; }
     if (seduteDelGruppo.some((s) => s.id === sedutaId)) return;
-    const oggi = new Date().toISOString().slice(0, 10);
+    const oggi = oggiQui();
     setSedutaId((seduteDelGruppo.find((s) => s.data === oggi) || seduteDelGruppo[0]).id);
   }, [seduteDelGruppo, sedutaId]);
 
   const seduta = sedute.find((s) => s.id === sedutaId);
-  const oggiIso = new Date().toISOString().slice(0, 10);
+  const oggiIso = oggiQui();
 
   useEffect(() => {
     if (!sedutaId) return;
@@ -254,10 +256,10 @@ export default function Appello({ societa, fasce, puoScrivere, codiciGruppi }) {
       </div>
 
       <p style={{ fontSize: 12, color: 'var(--testo-3)', marginTop: 12 }}>
-        Sett. e Mese: presenti e ritardi su presenti, ritardi e assenti. Il giustificato non
-        entra nel conto, e senza nessun appello la percentuale è «—». La settimana riparte ogni
-        lunedì, il mese è quello del calendario. Tot. conta ancora il giustificato come presenza.
-        La colonna Rit. è il totale dei ritardi, che restano presenze ma si vedono.
+        Presenti e ritardi su presenti, ritardi e assenti: il giustificato non entra nel conto,
+        e senza nessun appello la percentuale è «—». La settimana riparte ogni lunedì, il mese è
+        quello del calendario, Tot. è tutto lo storico. La colonna Rit. è il totale dei ritardi,
+        che restano presenze ma si vedono.
       </p>
 
       {seduta && (
