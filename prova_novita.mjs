@@ -212,16 +212,20 @@ dice('recupero: registro vuoto', novitaDiRecupero('0.54.0', []), []);
       dice('dalla 0.56.12: due voci', mostra(t), ['0.57.0', '0.56.13']);
     }
 
-    // --- niente da annunciare: si segna subito ---
-    // Una voce senza annuncia non deve restare in agguato per la volta
-    // dopo: senza pannello non c'è una chiusura che la segni.
+    // --- una patch silenziosa: niente pannello, e NON si segna ---
+    // Dal 21/10/2026 la voce senza annuncio accende il pallino sul badge
+    // (vedi sotto) e resta "non vista" finché non si apre il registro.
+    // Segnarla all'apertura spegnerebbe il pallino prima che qualcuno
+    // l'abbia visto. Il pannello no: si apre da solo solo per annuncia.
     {
       const silenziosa = [{ versione: '0.57.1', voci: ['correzione'] }, ...REG];
       const t = { magazzino: { [CHIAVE]: '0.57.0' }, giaUsata: true, pannello: [] };
-      const d = D.novitaAllApertura({ versione: '0.57.1', cambiamenti: silenziosa, vistaPrima: '0.57.0', giaUsata: true });
-      if (d.segnaOra) t.magazzino[CHIAVE] = '0.57.1';
-      dice('voce senza annuncio: nessun pannello', d.voci, []);
-      dice('voce senza annuncio: segnata subito', t.magazzino[CHIAVE], '0.57.1');
+      for (let giro = 0; giro < 2; giro++) {        // anche rigirando, niente
+        const d = D.novitaAllApertura({ versione: '0.57.1', cambiamenti: silenziosa, vistaPrima: t.magazzino[CHIAVE], giaUsata: true });
+        if (d.segnaOra) t.magazzino[CHIAVE] = '0.57.1';
+        dice(`voce senza annuncio (giro ${giro + 1}): nessun pannello`, d.voci, []);
+      }
+      dice('voce senza annuncio: non segnata all\'apertura', t.magazzino[CHIAVE], '0.57.0');
     }
 
     // --- prima apertura in assoluto: niente, e si segna ---
@@ -281,7 +285,9 @@ dice('recupero: registro vuoto', novitaDiRecupero('0.54.0', []), []);
     dice('pallino: vista più vecchia, novità annunciata', pallino('0.57.0', '0.56.13'), true);
     dice('pallino: salto di più versioni', pallino('0.57.0', '0.56.12'), true);
     // Più vecchia, ma in mezzo solo una voce senza annuncio: niente.
-    dice('pallino: voce senza annuncio', pallino('0.57.1', '0.57.0'), false);
+    // Più vecchia, con in mezzo solo una voce senza annuncio: il pallino
+    // c'è lo stesso (dal 21/10/2026) — il pannello no, vedi sotto.
+    dice('pallino: voce senza annuncio lo accende', pallino('0.57.1', '0.57.0'), true);
     // Mai vista: chi apre l'app per la prima volta non ha arretrati…
     dice('pallino: mai vista, prima apertura', pallino('0.57.0', null, false), false);
     // …chi la usava prima che gli annunci esistessero sì, una voce.
@@ -290,13 +296,32 @@ dice('recupero: registro vuoto', novitaDiRecupero('0.54.0', []), []);
     // ripiega sulla corrente.
     dice('pallino: vista sconosciuta, corrente annunciata', pallino('0.57.0', '0.40.0'), true);
 
-    // Pallino e pannello dicono la stessa cosa, in ogni caso.
-    for (const [versione, vista, usata] of [
-      ['0.57.0', '0.57.0', true], ['0.57.0', '0.56.13', true], ['0.57.1', '0.57.0', true],
-      ['0.57.0', null, false], ['0.57.0', null, true], ['0.57.1', '0.56.13', true],
+    // Pallino e pannello: il pannello si apre solo per le voci con
+    // annuncio, il pallino per qualunque voce non vista. Quindi dove c'è
+    // il pannello c'è sempre il pallino, non il contrario: la patch
+    // silenziosa accende il pallino e basta.
+    for (const [versione, vista, usata, pannello, acceso] of [
+      ['0.57.0', '0.57.0', true, false, false],      // già vista: niente
+      ['0.57.0', '0.56.13', true, true, true],       // annunciata: tutti e due
+      ['0.57.1', '0.57.0', true, false, true],       // silenziosa: solo il pallino
+      ['0.57.1', '0.56.13', true, true, true],       // silenziosa + annunciata
+      ['0.57.0', null, false, false, false],         // prima apertura: niente
+      ['0.57.0', null, true, true, true],            // app già usata: il recupero
     ]) {
       const voci = N.novitaAllApertura({ versione, cambiamenti: REG, vistaPrima: vista, giaUsata: usata }).voci;
-      dice(`pallino e pannello d'accordo (${vista} → ${versione})`, pallino(versione, vista, usata), voci.length > 0);
+      dice(`pannello (${vista} → ${versione})`, voci.length > 0, pannello);
+      dice(`pallino (${vista} → ${versione})`, pallino(versione, vista, usata), acceso);
+    }
+
+    // La silenziosa si segna aprendo il registro: pallino spento, e
+    // all'avvio dopo resta spento.
+    if (typeof N.novitaAllAperturaRegistro === 'function') {
+      const vista = N.novitaAllAperturaRegistro('0.57.1').segna;
+      dice('silenziosa: aperto il registro, il pallino sparisce', pallino('0.57.1', vista), false);
+      const d = N.novitaAllApertura({ versione: '0.57.1', cambiamenti: REG, vistaPrima: vista, giaUsata: true });
+      dice('silenziosa: all\'avvio dopo, nessun pannello', d.voci, []);
+      dice('silenziosa: e il pallino resta spento',
+        pallino('0.57.1', d.segnaOra ? '0.57.1' : vista), false);
     }
 
     // Sparisce aprendo il registro o chiudendo il pannello: tutti e due

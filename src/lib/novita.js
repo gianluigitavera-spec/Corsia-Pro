@@ -28,6 +28,18 @@ export const TETTO_NOVITA = 5;
  * @param vistaPrima   l'ultima versione già annunciata, o null se non c'è
  */
 export function novitaDaMostrare(versione, cambiamenti, vistaPrima) {
+  return vociNonViste(versione, cambiamenti, vistaPrima)
+    .filter((c) => c.annuncia === true)
+    .slice(0, TETTO_NOVITA);
+}
+
+/**
+ * Tutte le voci non ancora viste, con o senza annuncio: dalla versione
+ * che gira (compresa) fino a quella già vista (esclusa). È il confine
+ * solo: il pannello ne tiene le annunciate (novitaDaMostrare), il
+ * pallino sul badge le guarda tutte (pallinoNovita).
+ */
+export function vociNonViste(versione, cambiamenti, vistaPrima) {
   const registro = Array.isArray(cambiamenti) ? cambiamenti : [];
 
   // Prima apertura in assoluto: non si annuncia niente. Chi entra per la
@@ -57,10 +69,7 @@ export function novitaDaMostrare(versione, cambiamenti, vistaPrima) {
 
   if (fine <= inizio) return [];
 
-  return registro
-    .slice(inizio, fine)
-    .filter((c) => c.annuncia === true)
-    .slice(0, TETTO_NOVITA);
+  return registro.slice(inizio, fine);
 }
 
 /**
@@ -99,9 +108,13 @@ export function novitaDiRecupero(versione, cambiamenti) {
 //
 // Ora il calcolo non scrive niente quando c'è qualcosa da mostrare: può
 // girare quante volte vuole e dà sempre le stesse voci. Si segna subito
-// solo quando non c'è niente da mostrare (prima apertura, una voce senza
-// annuncio, versione già vista): senza pannello non arriverebbe nessuna
-// chiusura a segnarla, e la voce resterebbe in agguato per la volta dopo.
+// solo quando non resta NIENTE di non visto (prima apertura in assoluto,
+// versione già vista, versione che il registro non conosce).
+//
+// Le patch silenziose (voci senza annuncio) dal 21/10/2026 non si segnano
+// più all'apertura: il pannello non si apre per loro, ma il pallino sul
+// badge sì, e resta acceso finché non si apre il registro. Segnarle qui
+// lo spegnerebbe prima che qualcuno le abbia viste.
 //
 // Se l'app si chiude col pannello aperto, la versione non è segnata e il
 // pannello torna alla prossima apertura: non visto vuol dire non visto.
@@ -122,7 +135,18 @@ export function novitaAllApertura({ versione, cambiamenti, vistaPrima, giaUsata,
   const voci = vistaPrima
     ? novitaDaMostrare(versione, cambiamenti, vistaPrima)
     : (giaUsata ? novitaDiRecupero(versione, cambiamenti) : []);
-  return { voci, segnaOra: voci.length === 0 };
+  const restano = nonVisteAllApertura({ versione, cambiamenti, vistaPrima, giaUsata });
+  return { voci, segnaOra: voci.length === 0 && restano.length === 0 };
+}
+
+// Le voci non viste come le vede chi apre l'app: senza versione salvata,
+// chi la usa per la prima volta non ha arretrati; chi la usava prima che
+// gli annunci esistessero ha davanti la versione che gira.
+function nonVisteAllApertura({ versione, cambiamenti, vistaPrima, giaUsata }) {
+  if (vistaPrima) return vociNonViste(versione, cambiamenti, vistaPrima);
+  if (!giaUsata) return [];
+  const registro = Array.isArray(cambiamenti) ? cambiamenti : [];
+  return registro.filter((c) => c.versione === versione);
 }
 
 // La chiusura del pannello: è lei a segnare la versione come vista.
@@ -131,20 +155,21 @@ export const novitaAllaChiusura = (versione) => ({ segna: versione });
 // ---------------------------------------------------------------------
 // IL PALLINO SUL BADGE DELLA VERSIONE (deciso il 20/10/2026)
 //
-// Il badge in testata apre «Cosa è cambiato». Se ci sono novità
-// annunciate non ancora viste ci compare un pallino. Dice la stessa cosa
-// del pannello — "c'è qualcosa che non hai visto" — e quindi segue la
-// stessa regola, non una sua: il pallino c'è quando il pannello si
-// aprirebbe. Due regole scritte in due posti divergono, e il pallino
-// acceso con il pannello che non arriva (o il contrario) sarebbe peggio
-// di niente.
+// Il badge in testata apre «Cosa è cambiato». Se c'è qualcosa nel
+// registro che non hai ancora visto ci compare un pallino. Dal 21/10/2026
+// vale per QUALUNQUE voce non vista, anche senza annuncio: il pannello si
+// apre da solo solo per quelle con annuncia: true, il pallino per tutte.
+// Quindi dove c'è il pannello c'è il pallino, non il contrario — una
+// patch silenziosa accende il pallino e basta.
+//
+// Il confine fra visto e non visto è uno solo (vociNonViste), per il
+// pannello e per il pallino: cambia solo cosa ne tengono.
 //
 // Sparisce quando la versione è segnata vista: chiudendo il pannello
 // (novitaAllaChiusura) o aprendo il registro.
 // ---------------------------------------------------------------------
 export function pallinoNovita({ versione, cambiamenti, vistaPrima, giaUsata }) {
-  return novitaAllApertura({ versione, cambiamenti, vistaPrima, giaUsata, tutorialAperto: false })
-    .voci.length > 0;
+  return nonVisteAllApertura({ versione, cambiamenti, vistaPrima, giaUsata }).length > 0;
 }
 
 // Aprire il registro è vedere le novità: le stesse voci, più tutte le

@@ -83,7 +83,7 @@ export default function App() {
   const [statoTutorial, setStatoTutorial] = useState(null);
   const tutorial = statoTutorial !== null;
   const [novita, setNovita] = useState([]);
-  const [pallino, setPallino] = useState(false);   // novità annunciate non ancora viste
+  const [pallino, setPallino] = useState(false);   // voci del registro non ancora viste
   const [ricarica, setRicarica] = useState(0);
 
   const [stagione, setStagione] = useState(stagioneCorrente());
@@ -172,8 +172,9 @@ export default function App() {
         localStorage.removeItem('corsiapro:prova-scrittura');
       }
       setNovita(d.voci);
-      // Il pallino sul badge: la stessa regola del pannello, sulla
-      // versione vista com'è adesso (appena segnata, se lo è stata).
+      // Il pallino sul badge: qualunque voce non vista, anche senza annuncio
+      // (il pannello invece solo per quelle annunciate). Sulla versione vista
+      // com'è adesso: appena segnata, se lo è stata.
       setPallino(pallinoNovita({
         versione: VERSIONE,
         cambiamenti: CAMBIAMENTI,
