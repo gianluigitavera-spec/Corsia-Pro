@@ -20,6 +20,17 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.58.0',
+    data: '2026-10-21',
+    annuncia: true,
+    voci: [
+      'Appello: nuovo Report presenze per giorno, mese e stagione, anche in PDF',
+      'Percentuali presenze: il giustificato non conta, il ritardo vale presenza. Settimana da lunedì e mese di calendario, fino a oggi',
+      'Tocca la versione in alto per rivedere le novità: un pallino ti avvisa quando ce ne sono',
+      'Il tutorial si apre una volta sola: lo ritrovi col punto interrogativo',
+    ],
+  },
+  {
     versione: '0.57.0',
     data: '2026-10-20',
     annuncia: true,
