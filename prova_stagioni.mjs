@@ -310,6 +310,122 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
     dice('Appello = frequenzaNelPeriodo sul mese', app.mese, mese);
   }
 
+  // --- il report presenze (deciso il 19/10/2026): giornaliero, mensile,
+  // stagione. Stessa regola di frequenzaNelPeriodo, filtro per gruppo
+  // con atletaNelGruppo, giorni e mesi futuri vuoti. ---
+  {
+    const servono = ['reportGiornaliero', 'reportMensile', 'reportStagione', 'nomeFileReport'];
+    const mancano = servono.filter((f) => typeof D[f] !== 'function');
+    if (mancano.length) {
+      male++; console.error(`✗ report: mancano in dominio.js ${mancano.join(', ')}`);
+    } else {
+      // Tre atleti degli Esordienti A, uno dei Ragazzi (fuori dal gruppo).
+      const atleti = [
+        { id: 'v', cognome: 'Verdi', nome: 'Anna', categoria_override: 'ESO_A1' },
+        { id: 'b', cognome: 'Bianchi', nome: 'Luca', categoria_override: 'ESO_A2' },
+        { id: 'r', cognome: 'Rossi', nome: 'Marta', categoria_override: 'ESO_A1' },
+        { id: 'g', cognome: 'Gialli', nome: 'Piero', categoria_override: 'RAG_1' },
+      ];
+      const codici = D.codiciDelGruppo(['Esordienti A']);
+      const s = (id, data, created_at = `${data}T07:00:00+00:00`, extra = {}) => ({ id, data, created_at, titolo: id, ...extra });
+      const pr = (seduta_id, atleta_id, stato, data) => ({ seduta_id, atleta_id, stato, data });
+      const vuoto = { p: 0, r: 0, g: 0, a: 0, pct: null };
+
+      // ---- giornaliero ----
+      const seduta = s('s1', '2026-10-20');
+      const gio = D.reportGiornaliero({
+        seduta, atleti, codici,
+        presenze: [pr('s1', 'v', 'P', '2026-10-20'), pr('s1', 'b', 'A', '2026-10-20'), pr('s1', 'g', 'P', '2026-10-20'),
+          pr('altra', 'r', 'P', '2026-10-20')],
+      });
+      dice('giornaliero: il gruppo, in ordine di cognome',
+        gio.righe.map((x) => [x.cognome, x.stato]), [['Bianchi', 'A'], ['Rossi', null], ['Verdi', 'P']]);
+      dice('giornaliero: il conto dei presenti', [gio.presenti, gio.conti.a, gio.conti.nonRilevati, gio.conti.pct], [1, 1, 1, 50]);
+      // La doppia: l'elenco della seduta vince sul gruppo, come in Appello.
+      const doppia = D.reportGiornaliero({ seduta: { ...seduta, atleti: ['v', 'g'] }, atleti, codici, presenze: [] });
+      dice('giornaliero: la seduta per pochi vince sul gruppo', doppia.righe.map((x) => x.id ?? x.atleta_id), ['g', 'v']);
+      dice('giornaliero: nessun rilevato, nessuna percentuale', doppia.conti.pct, null);
+
+      // ---- mensile: ottobre 2026, oggi il 21 ----
+      const sedute = [
+        s('m1', '2026-10-05'), s('m2', '2026-10-12'), s('m3', '2026-10-15'),
+        // due sedute il 20: mattina e pomeriggio
+        s('m4am', '2026-10-20', '2026-10-20T06:00:00+00:00'), s('m4pm', '2026-10-20', '2026-10-20T15:00:00+00:00'),
+        s('m5', '2026-10-23'),                         // futura
+      ];
+      const presenze = [
+        // Verdi: P, A, P, e il 20 pomeriggio A — scritte in disordine
+        pr('m4pm', 'v', 'A', '2026-10-20'), pr('m1', 'v', 'P', '2026-10-05'),
+        pr('m2', 'v', 'A', '2026-10-12'), pr('m4am', 'v', 'P', '2026-10-20'),
+        // un G segnato in anticipo per il 23: il giorno è futuro
+        pr('m5', 'v', 'G', '2026-10-23'),
+        // Bianchi: solo giustificati
+        pr('m1', 'b', 'G', '2026-10-05'), pr('m2', 'b', 'G', '2026-10-12'),
+        // Rossi: entrata il 15, prima non c'era
+        pr('m3', 'r', 'P', '2026-10-15'), pr('m4am', 'r', 'P', '2026-10-20'), pr('m4pm', 'r', 'A', '2026-10-20'),
+        // Gialli: fuori dal gruppo
+        pr('m1', 'g', 'P', '2026-10-05'),
+      ];
+      const mese = D.reportMensile({ mese: '2026-10', oggi: '2026-10-21', atleti, codici, sedute, presenze });
+      const riga = (id) => mese.righe.find((x) => x.atleta_id === id);
+      const casella = (id, giorno) => riga(id).caselle[giorno - 1];
+
+      dice('mensile: 31 giorni', mese.giorni.length, 31);
+      dice('mensile: dal 22 i giorni sono futuri',
+        [mese.giorni[20].futuro, mese.giorni[21].futuro, mese.giorni[30].futuro], [false, true, true]);
+      dice('mensile: solo il gruppo, in ordine di cognome', mese.righe.map((x) => x.cognome), ['Bianchi', 'Rossi', 'Verdi']);
+
+      // Mese con giorni futuri: la casella futura è vuota anche con un
+      // G già segnato, e la percentuale non lo guarda.
+      dice('mensile: giorno futuro vuoto', casella('v', 23), null);
+      dice('mensile: un giorno passato senza appello è vuoto ma non futuro', casella('v', 6), []);
+      // Due sedute nello stesso giorno: tutti e due gli stati, in ordine
+      // di creazione delle sedute (mattina, poi pomeriggio).
+      dice('mensile: due sedute il 20, in ordine', casella('v', 20), ['P', 'A']);
+      dice('mensile: e tutte e due contano', [riga('v').frequenza.p, riga('v').frequenza.a, riga('v').frequenza.pct], [2, 2, 50]);
+      // Solo G: le caselle li mostrano, la percentuale non c'è.
+      dice('mensile: solo G, le caselle', [casella('b', 5), casella('b', 12)], [['G'], ['G']]);
+      dice('mensile: solo G, nessuna percentuale', riga('b').frequenza.pct, null);
+      // Entrata a metà mese: prima del 15 niente, e la percentuale è
+      // sulle sue sedute, non abbassata dai giorni in cui non c'era.
+      dice('mensile: entrata il 15, prima vuoto', [casella('r', 5), casella('r', 12)], [[], []]);
+      dice('mensile: entrata il 15, 2 su 3', riga('r').frequenza.pct, 67);
+
+      // ---- stagione 2026/27, oggi il 15 gennaio 2027: scavalca l'anno ----
+      const presenzeStagione = [
+        pr('a', 'v', 'P', '2026-09-10'), pr('b', 'v', 'A', '2026-09-17'),
+        pr('c', 'v', 'P', '2026-12-18'),
+        pr('d', 'v', 'P', '2027-01-08'), pr('e', 'v', 'A', '2027-01-20'),   // il 20 è futuro
+        pr('f', 'v', 'P', '2026-08-31'),                                    // stagione prima
+        pr('a', 'b', 'G', '2026-09-10'),
+      ];
+      const st = D.reportStagione({ stagione: '2026/27', oggi: '2027-01-15', atleti, codici, presenze: presenzeStagione });
+      dice('stagione: dodici mesi, da settembre ad agosto',
+        [st.mesi.length, st.mesi[0].mese, st.mesi[3].mese, st.mesi[4].mese, st.mesi[11].mese],
+        [12, '2026-09', '2026-12', '2027-01', '2027-08']);
+      dice('stagione: dopo gennaio i mesi sono futuri',
+        [st.mesi[4].futuro, st.mesi[5].futuro], [false, true]);
+      const sv = st.righe.find((x) => x.atleta_id === 'v');
+      dice('stagione: settembre 50, ottobre senza appelli, dicembre 100, gennaio fino a oggi 100',
+        [sv.mesi[0].pct, sv.mesi[1].pct, sv.mesi[3].pct, sv.mesi[4].pct], [50, null, 100, 100]);
+      dice('stagione: i mesi futuri sono vuoti', sv.mesi[5], null);
+      dice('stagione: il totale, da settembre a oggi', [sv.totale.p, sv.totale.a, sv.totale.pct], [3, 1, 75]);
+      const sb = st.righe.find((x) => x.atleta_id === 'b');
+      dice('stagione: solo G, totale senza percentuale', sb.totale.pct, null);
+      dice('stagione: un mese senza niente ha i conti a zero', sv.mesi[1], vuoto);
+
+      // ---- il nome del file ----
+      dice('nome file: mensile', D.nomeFileReport({ periodo: '2026-10', gruppi: ['Esordienti A'] }),
+        'CorsiaPro_Presenze_2026-10_EsordientiA');
+      dice('nome file: stagione, senza la barra', D.nomeFileReport({ periodo: '2026/27', gruppi: ['Esordienti A'] }),
+        'CorsiaPro_Presenze_2026-27_EsordientiA');
+      dice('nome file: giornaliero, due gruppi', D.nomeFileReport({ periodo: '2026-10-20', gruppi: ['Esordienti A', 'Esordienti B'] }),
+        'CorsiaPro_Presenze_2026-10-20_EsordientiA-EsordientiB');
+      dice('nome file: tutte le categorie', D.nomeFileReport({ periodo: '2026-10', gruppi: [] }),
+        'CorsiaPro_Presenze_2026-10_Tutti');
+    }
+  }
+
   // Volumi non deve contare per conto suo: la guardia sta sul sorgente,
   // perché il conto sta dentro un componente React che qui non si monta.
   const { readFileSync } = await import('node:fs');

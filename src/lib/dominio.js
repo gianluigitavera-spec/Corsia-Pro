@@ -2233,6 +2233,165 @@ export const atletaNelGruppo = (atleta, codici, fasce) =>
   !codici || codici.includes(categoriaAtleta(atleta, fasce));
 
 // ---------------------------------------------------------------------
+// IL REPORT PRESENZE (deciso il 19/10/2026) — tre forme
+//
+//   giornaliero  una seduta: gli atleti con lo stato, e il conto
+//   mensile      atleti × giorni del mese, lo stato in ogni casella e la
+//                percentuale del mese
+//   stagione     atleti × mesi, da settembre ad agosto, la percentuale di
+//                ogni mese e il totale
+//
+// Una regola sola, quella di frequenzaNelPeriodo: (P + R) / (P + R + A),
+// G fuori dal conto, nessuna percentuale senza denominatore. Il gruppo
+// si sceglie come nel resto dell'app (atletaNelGruppo).
+//
+// I giorni e i mesi FUTURI restano vuoti e non entrano nella
+// percentuale, anche se c'è uno stato già segnato (un G messo in
+// anticipo): il report dice cosa è successo, non cosa si prevede.
+//
+// Due sedute nello stesso giorno: la casella porta tutti e due gli
+// stati, nell'ordine di creazione delle sedute (in archivio non c'è un
+// orario), e tutti e due contano. Un atleta entrato a metà mese ha le
+// caselle vuote prima di entrare, e la sua percentuale è sulle sue
+// sedute: i giorni in cui non c'era non lo abbassano, perché non c'è
+// nessuno stato da contare.
+//
+// Qui niente interfaccia e niente database: le righe arrivano da fuori
+// (le presenze con la data della seduta, come le dà
+// leggiPresenzePeriodo).
+// ---------------------------------------------------------------------
+const VUOTO_FREQUENZA = () => ({ p: 0, r: 0, g: 0, a: 0, pct: null });
+
+const perCognome = (x, y) =>
+  String(x.cognome || '').localeCompare(String(y.cognome || ''), 'it')
+  || String(x.nome || '').localeCompare(String(y.nome || ''), 'it');
+
+// Gli atleti del report: quelli del gruppo, in ordine di cognome.
+function atletiDelReport(atleti, codici, fasce) {
+  return (atleti || []).filter((a) => atletaNelGruppo(a, codici, fasce)).sort(perCognome);
+}
+
+const minimo = (x, y) => (x < y ? x : y);
+
+/**
+ * Giornaliero: una seduta.
+ * Se la seduta è per pochi atleti (le doppie, seduta.atleti), l'elenco è
+ * il suo e vince sul gruppo, come in Appello.
+ * @returns { data, titolo, righe: [{ atleta_id, cognome, nome, stato }],
+ *            conti: { p, r, g, a, nonRilevati, pct }, presenti }
+ */
+export function reportGiornaliero({ seduta, atleti, codici, fasce, presenze }) {
+  const elenco = seduta?.atleti?.length
+    ? (atleti || []).filter((a) => seduta.atleti.includes(a.id)).sort(perCognome)
+    : atletiDelReport(atleti, codici, fasce);
+  const stati = new Map((presenze || [])
+    .filter((x) => x.seduta_id === seduta?.id)
+    .map((x) => [x.atleta_id, x.stato]));
+  const righe = elenco.map((a) => ({
+    atleta_id: a.id, cognome: a.cognome, nome: a.nome, stato: stati.get(a.id) ?? null,
+  }));
+  const segnate = righe.filter((x) => x.stato)
+    .map((x) => ({ atleta_id: 'seduta', stato: x.stato }));
+  const f = frequenzaNelPeriodo(segnate).seduta || VUOTO_FREQUENZA();
+  return {
+    data: seduta?.data ?? null,
+    titolo: seduta?.titolo ?? '',
+    righe,
+    conti: { p: f.p, r: f.r, g: f.g, a: f.a, nonRilevati: righe.filter((x) => !x.stato).length, pct: f.pct },
+    presenti: f.p + f.r,
+  };
+}
+
+/**
+ * Mensile: atleti × giorni del mese.
+ * @param mese     'AAAA-MM'
+ * @param oggi     'AAAA-MM-GG': i giorni dopo sono futuri
+ * @param sedute   per l'ordine di due sedute nello stesso giorno
+ * @returns { mese, giorni: [{ data, numero, futuro }],
+ *            righe: [{ atleta_id, cognome, nome, caselle, frequenza }] }
+ *   caselle[i]: null se il giorno è futuro, altrimenti gli stati di quel
+ *   giorno ([] se nessun appello)
+ */
+export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, presenze }) {
+  const { da, a } = meseDi(`${mese}-01`);
+  const ultimo = Number(a.slice(8, 10));
+  const giorni = Array.from({ length: ultimo }, (_, i) => {
+    const data = `${mese}-${String(i + 1).padStart(2, '0')}`;
+    return { data, numero: i + 1, futuro: data > oggi };
+  });
+
+  const perSeduta = new Map((sedute || []).map((s) => [s.id, s]));
+  const posto = new Map(inOrdineDiCreazione(sedute || []).map((s, i) => [s.id, i]));
+  const dataDi = (x) => x.data ?? perSeduta.get(x.seduta_id)?.data ?? null;
+
+  const elenco = atletiDelReport(atleti, codici, fasce);
+  const dentro = new Set(elenco.map((x) => x.id));
+  const nelMese = (presenze || [])
+    .map((x) => ({ ...x, data: dataDi(x) }))
+    .filter((x) => dentro.has(x.atleta_id) && x.data >= da && x.data <= a)
+    .sort((x, y) => (posto.get(x.seduta_id) ?? Infinity) - (posto.get(y.seduta_id) ?? Infinity)
+      || String(x.seduta_id).localeCompare(String(y.seduta_id)));
+
+  const frequenze = frequenzaNelPeriodo(nelMese, { da, a: minimo(a, oggi) });
+  const righe = elenco.map((at) => {
+    const sue = nelMese.filter((x) => x.atleta_id === at.id);
+    return {
+      atleta_id: at.id, cognome: at.cognome, nome: at.nome,
+      caselle: giorni.map((g) => (g.futuro ? null : sue.filter((x) => x.data === g.data).map((x) => x.stato))),
+      frequenza: frequenze[at.id] || VUOTO_FREQUENZA(),
+    };
+  });
+  return { mese, giorni, righe };
+}
+
+/**
+ * Stagione: atleti × mesi, da settembre ad agosto.
+ * @param stagione  '2026/27'
+ * @param oggi      'AAAA-MM-GG': i mesi dopo sono futuri, quello in corso
+ *                  si conta fino a oggi
+ * @returns { stagione, mesi: [{ mese, futuro }],
+ *            righe: [{ atleta_id, cognome, nome, mesi: [freq|null], totale }] }
+ */
+export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze }) {
+  const anno = annoInizialeDi(stagione);
+  const mesi = Array.from({ length: 12 }, (_, k) => {
+    const d = new Date(anno, 8 + k, 1, 12);
+    const mese = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return { mese, futuro: mese > oggi.slice(0, 7) };
+  });
+  const elenco = atletiDelReport(atleti, codici, fasce);
+  const dentro = new Set(elenco.map((x) => x.id));
+  const sue = (presenze || []).filter((x) => dentro.has(x.atleta_id));
+
+  const perMese = mesi.map((m) => {
+    if (m.futuro) return null;
+    const { da, a } = meseDi(`${m.mese}-01`);
+    return frequenzaNelPeriodo(sue, { da, a: minimo(a, oggi) });
+  });
+  const totale = frequenzaNelPeriodo(sue, { da: `${anno}-09-01`, a: minimo(`${anno + 1}-08-31`, oggi) });
+
+  const righe = elenco.map((at) => ({
+    atleta_id: at.id, cognome: at.cognome, nome: at.nome,
+    mesi: perMese.map((f) => (f ? f[at.id] || VUOTO_FREQUENZA() : null)),
+    totale: totale[at.id] || VUOTO_FREQUENZA(),
+  }));
+  return { stagione, mesi, righe };
+}
+
+/**
+ * Il nome del file: «CorsiaPro_Presenze_2026-10_EsordientiA».
+ * Il periodo è il giorno, il mese o la stagione (la barra di "2026/27"
+ * diventa un trattino); i gruppi senza spazi, uniti da un trattino;
+ * nessun gruppo: «Tutti». I caratteri non validi nei nomi di file se ne
+ * vanno, come in nomeFileSeduta.
+ */
+export function nomeFileReport({ periodo, gruppi }) {
+  const pulito = (t) => String(t ?? '').replace(/[\\/:*?"<>|\u0000-\u001F\u007F]+/g, '-');
+  const parte = (gruppi || []).map((g) => pulito(g).replace(/\s+/g, '')).filter(Boolean).join('-') || 'Tutti';
+  return ['CorsiaPro', 'Presenze', pulito(periodo).replace(/\s+/g, ''), parte].filter(Boolean).join('_');
+}
+
+// ---------------------------------------------------------------------
 // STAGIONI — partono a settembre. "2025/26", "2026/27", ...
 // ---------------------------------------------------------------------
 export function stagioneDa(annoIniziale) {
