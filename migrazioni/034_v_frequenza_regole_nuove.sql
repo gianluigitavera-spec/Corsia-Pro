@@ -1,9 +1,17 @@
 -- 034 — v_frequenza conta con le regole del 19/10/2026
 --
--- NON ANCORA ESEGUITA. Si esegue il giorno del rilascio, insieme alla
--- versione dell'app che la legge: la vista la usa anche l'app già
--- pubblicata (Appello, colonne Sett., Mese, Tot.), e cambiarla prima
--- vorrebbe dire cambiare i numeri a chi ha ancora la versione vecchia.
+-- ESEGUITA a mano dal pannello Supabase il 22/10/2026, un passo alla
+-- volta, dopo il deploy della 0.58.0, e verificata: 16 colonne con le
+-- tre pct_* in coda; confronto con le presenze ricontate vuoto; nessun
+-- pct_tot con zero rilevate; fotografia di atleti e ritardi identica
+-- prima e dopo (541 · 2 · 5 · 11); nessuna vista senza security_invoker
+-- e nessuna tabella senza RLS. Questo file esiste perché la catena resti
+-- ripetibile su un ambiente pulito.
+--
+-- Andava eseguita il giorno del rilascio, insieme alla versione dell'app
+-- che la legge: la vista la usava anche l'app già pubblicata (Appello,
+-- colonne Sett., Mese, Tot.), e cambiarla prima avrebbe cambiato i
+-- numeri a chi aveva ancora la versione vecchia.
 --
 -- Le regole, le stesse di frequenzaAppello in dominio.js:
 --   - percentuale = (P + R) / (P + R + A), solo sulle sedute dove

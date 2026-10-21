@@ -143,12 +143,13 @@ dettaglio è nel file della 030. Infine la 033: le fasce d'età della
 Propaganda compresi (27 righe per stagione, confronto riga per riga
 vuoto). Solo dati: `schema.sql` non cambia.
 
-**Scritta e NON eseguita: la 034** (`v_frequenza` con le regole del
-19/10: G fuori dal conto, R presenza, percentuale null senza
-denominatore, tre colonne `pct_*` in coda). Si esegue **il giorno del
-rilascio**, insieme all'app che la legge: la vista la usa anche l'app
-già pubblicata, e cambiarla prima cambierebbe i numeri a chi ha la
-versione vecchia.
+**Eseguita a mano e verificata il 22/10/2026: la 034** (`v_frequenza`
+con le regole del 19/10: G fuori dal conto, R presenza, percentuale
+null senza denominatore, tre colonne `pct_*` in coda), dopo il deploy
+della 0.58.0 che la legge. Confronto con le presenze ricontate vuoto,
+fotografia di atleti e ritardi identica. Le finestre `_sett` e
+`_mese` della vista restano gli ultimi 7 e 30 giorni: l'app non le
+legge più, Sett. e Mese li calcola lei.
 
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026
