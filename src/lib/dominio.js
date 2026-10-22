@@ -2925,8 +2925,9 @@ export const etichetteDelGiorno = (sedute) => (sedute || []).map(etichettaCalend
 // IL NOME DEL PDF DELLA SEDUTA
 //
 // Il PDF è la stampa del browser, che come nome del file propone il
-// titolo della pagina. «CorsiaPro_GG-MM-AA_Titolo», e senza titolo
-// «CorsiaPro_GG-MM-AA». I caratteri che Windows, macOS o iOS rifiutano
+// titolo della pagina. «CorsiaPro_Titolo_GG-MM-AA», e senza titolo
+// «CorsiaPro_GG-MM-AA». Il titolo prima della data dal 23/10/2026: nella
+// cartella dei file si cerca per titolo, e la data lo segue. I caratteri che Windows, macOS o iOS rifiutano
 // in un nome di file (\ / : * ? " < > | e quelli di controllo, a capo
 // compreso) diventano un trattino, uno solo per gruppo. Punti, spazi e
 // trattini in fondo si tolgono: Windows i punti li toglierebbe da sé, e
@@ -2940,7 +2941,7 @@ export function nomeFileSeduta(seduta) {
     .replace(/[\s.-]+$/, '');
   const m = String(seduta?.data ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const data = m ? `${m[3]}-${m[2]}-${m[1].slice(2)}` : '';
-  return ['CorsiaPro', data, pulito].filter(Boolean).join('_');
+  return ['CorsiaPro', pulito, data].filter(Boolean).join('_');
 }
 
 // L'ordine delle sedute dello stesso giorno: quello di creazione. In

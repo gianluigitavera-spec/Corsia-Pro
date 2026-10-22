@@ -450,33 +450,35 @@ const MISTA = [
 
 // ------------------------------------------------ il nome del PDF della seduta
 // Il PDF è la stampa del browser, che propone come nome il titolo della
-// pagina: «CorsiaPro_GG-MM-AA_Titolo». I caratteri che Windows, macOS e
-// iOS non accettano in un nome di file si sostituiscono.
+// pagina: «CorsiaPro_Titolo_GG-MM-AA». Dal 23/10/2026 il titolo viene
+// prima della data: nella cartella dei file si cerca per titolo. I
+// caratteri che Windows, macOS e iOS non accettano in un nome di file
+// si sostituiscono.
 {
   const D = await import('./src/lib/dominio.js');
   if (typeof D.nomeFileSeduta !== 'function') {
     male++; console.error('✗ PDF: manca in dominio.js nomeFileSeduta');
   } else {
     const n = (titolo, data = '2026-10-19') => D.nomeFileSeduta({ data, titolo });
-    dice('PDF: titolo pieno', n('Aerobico lungo'), 'CorsiaPro_19-10-26_Aerobico lungo');
+    dice('PDF: titolo pieno', n('Aerobico lungo'), 'CorsiaPro_Aerobico lungo_19-10-26');
     for (const vuoto of ['', null, undefined, '   ']) {
       dice(`PDF: titolo ${JSON.stringify(vuoto)}`, n(vuoto), 'CorsiaPro_19-10-26');
     }
     // Ogni carattere non valido (\ / : * ? " < > | e i caratteri di
     // controllo) diventa un trattino; più di seguito, uno solo.
-    dice('PDF: la barra e i due punti', n('A1/A2: base'), 'CorsiaPro_19-10-26_A1-A2- base');
-    dice('PDF: tutti i non validi', n('a\\b/c:d*e?f"g<h>i|j'), 'CorsiaPro_19-10-26_a-b-c-d-e-f-g-h-i-j');
-    dice('PDF: di seguito, un trattino solo', n('Soglia ??? fine'), 'CorsiaPro_19-10-26_Soglia - fine');
-    dice('PDF: un trattino in fondo se ne va', n('Soglia?'), 'CorsiaPro_19-10-26_Soglia');
-    dice('PDF: a capo e tabulazioni', n('Riga uno\nriga\tdue'), 'CorsiaPro_19-10-26_Riga uno-riga-due');
+    dice('PDF: la barra e i due punti', n('A1/A2: base'), 'CorsiaPro_A1-A2- base_19-10-26');
+    dice('PDF: tutti i non validi', n('a\\b/c:d*e?f"g<h>i|j'), 'CorsiaPro_a-b-c-d-e-f-g-h-i-j_19-10-26');
+    dice('PDF: di seguito, un trattino solo', n('Soglia ??? fine'), 'CorsiaPro_Soglia - fine_19-10-26');
+    dice('PDF: un trattino in fondo se ne va', n('Soglia?'), 'CorsiaPro_Soglia_19-10-26');
+    dice('PDF: a capo e tabulazioni', n('Riga uno\nriga\tdue'), 'CorsiaPro_Riga uno-riga-due_19-10-26');
     // Windows toglie da sé punti e spazi in fondo: meglio toglierli qui
     // che ritrovarsi un nome diverso da quello mostrato.
-    dice('PDF: punti e spazi in fondo', n('Tecnica... '), 'CorsiaPro_19-10-26_Tecnica');
+    dice('PDF: punti e spazi in fondo', n('Tecnica... '), 'CorsiaPro_Tecnica_19-10-26');
     dice('PDF: solo caratteri non validi vale vuoto', n('///'), 'CorsiaPro_19-10-26');
-    dice('PDF: gli accenti restano', n('Velocità · C3'), 'CorsiaPro_19-10-26_Velocità · C3');
-    dice('PDF: spazi doppi', n('Aerobico   lungo'), 'CorsiaPro_19-10-26_Aerobico lungo');
+    dice('PDF: gli accenti restano', n('Velocità · C3'), 'CorsiaPro_Velocità · C3_19-10-26');
+    dice('PDF: spazi doppi', n('Aerobico   lungo'), 'CorsiaPro_Aerobico lungo_19-10-26');
     // Il giorno e il mese a due cifre, l'anno con le ultime due.
-    dice('PDF: giorno e mese a due cifre', n('X', '2027-01-05'), 'CorsiaPro_05-01-27_X');
+    dice('PDF: giorno e mese a due cifre', n('X', '2027-01-05'), 'CorsiaPro_X_05-01-27');
     // Senza data (una bozza mai datata) il nome resta valido, senza data.
     dice('PDF: senza data', n('Aerobico lungo', ''), 'CorsiaPro_Aerobico lungo');
     dice('PDF: senza data né titolo', n('', null), 'CorsiaPro');
