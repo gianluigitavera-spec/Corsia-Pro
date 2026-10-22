@@ -39,13 +39,28 @@ export function sedutaInTesto(seduta, { nomeSquadra } = {}) {
   return r.join('\n');
 }
 
+// PROVA iOS (ramo prova-ios, non per sviluppo): su iOS 27.0.1, dall'app
+// installata sulla Home, «Invia» non fa niente. Qui l'errore non si
+// inghiotte più: torna a chi chiama, che lo mostra a schermo col nome
+// esatto, insieme a come è aperta l'app (installata o Safari).
+const comeAperta = () => {
+  const installata = window.navigator.standalone === true
+    || window.matchMedia?.('(display-mode: standalone)').matches;
+  return installata ? 'app installata' : 'browser';
+};
+
 export async function condividiSeduta(seduta, opzioni) {
   const testo = sedutaInTesto(seduta, opzioni);
   const titolo = `${seduta.titolo || 'Seduta'} — ${dataIt(seduta.data)}`;
-  if (navigator.share) {
-    try { await navigator.share({ title: titolo, text: testo }); return 'condiviso'; }
-    catch { /* annullato dall'utente */ return null; }
+  if (!navigator.share) {
+    try { await navigator.clipboard.writeText(testo); } catch { /* sotto */ }
+    return { errore: `navigator.share non disponibile (${comeAperta()}). Testo copiato negli appunti, se il telefono l'ha permesso.` };
   }
-  await navigator.clipboard.writeText(testo);
-  return 'copiato';
+  try {
+    await navigator.share({ title: titolo, text: testo });
+    return 'condiviso';
+  } catch (e) {
+    // AbortError è anche il tasto Annulla: in prova si mostra comunque.
+    return { errore: `navigator.share: ${e?.name || 'errore senza nome'} — ${e?.message || 'nessun messaggio'} (${comeAperta()})` };
+  }
 }

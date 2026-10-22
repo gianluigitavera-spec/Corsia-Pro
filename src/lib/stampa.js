@@ -10,15 +10,14 @@
 // Un posto solo, per le sedute (nomeFileSeduta) e per il report presenze
 // (nomeFileReport): il nome lo decide dominio.js, qui si stampa e basta.
 // =====================================================================
+// PROVA iOS (ramo prova-ios, non per sviluppo): sull'app installata il PDF
+// esce come «CorsiaPro». Per capire se il titolo lo rimettiamo noi troppo
+// presto (afterprint e focus possono arrivare subito su iOS) o se l'app
+// installata usa il suo nome comunque, qui il titolo resta cambiato per
+// 60 secondi, senza afterprint né focus.
 export function stampaConNome(nome) {
   const prima = document.title;
   document.title = nome;
-  const rimetti = () => {
-    document.title = prima;
-    window.removeEventListener('afterprint', rimetti);
-    window.removeEventListener('focus', rimetti);
-  };
-  window.addEventListener('afterprint', rimetti);
-  window.addEventListener('focus', rimetti);
+  setTimeout(() => { document.title = prima; }, 60000);
   window.print();
 }
