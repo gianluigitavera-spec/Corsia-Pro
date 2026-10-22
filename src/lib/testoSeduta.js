@@ -39,28 +39,37 @@ export function sedutaInTesto(seduta, { nomeSquadra } = {}) {
   return r.join('\n');
 }
 
-// PROVA iOS (ramo prova-ios, non per sviluppo): su iOS 27.0.1, dall'app
-// installata sulla Home, «Invia» non fa niente. Qui l'errore non si
-// inghiotte più: torna a chi chiama, che lo mostra a schermo col nome
-// esatto, insieme a come è aperta l'app (installata o Safari).
+// Su iOS 27, dall'app installata sulla Home, «Invia» non faceva niente:
+// l'errore della condivisione veniva inghiottito insieme ad «Annulla».
+// Dalla 0.58.1 «Annulla» (AbortError) resta in silenzio, ogni altro
+// errore torna a chi chiama col suo nome e messaggio, e accanto si dice
+// se l'app è aperta installata o nel browser: è quello che serve sapere
+// quando arriva una segnalazione dal campo.
 const comeAperta = () => {
   const installata = window.navigator.standalone === true
     || window.matchMedia?.('(display-mode: standalone)').matches;
   return installata ? 'app installata' : 'browser';
 };
 
+const descriviErrore = (via, e) =>
+  `${via}: ${e?.name || 'errore senza nome'} — ${e?.message || 'nessun messaggio'} (${comeAperta()})`;
+
 export async function condividiSeduta(seduta, opzioni) {
   const testo = sedutaInTesto(seduta, opzioni);
   const titolo = `${seduta.titolo || 'Seduta'} — ${dataIt(seduta.data)}`;
-  if (!navigator.share) {
-    try { await navigator.clipboard.writeText(testo); } catch { /* sotto */ }
-    return { errore: `navigator.share non disponibile (${comeAperta()}). Testo copiato negli appunti, se il telefono l'ha permesso.` };
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: titolo, text: testo });
+      return 'condiviso';
+    } catch (e) {
+      if (e?.name === 'AbortError') return null;
+      return { errore: descriviErrore('Invio non riuscito', e) };
+    }
   }
   try {
-    await navigator.share({ title: titolo, text: testo });
-    return 'condiviso';
+    await navigator.clipboard.writeText(testo);
+    return 'copiato';
   } catch (e) {
-    // AbortError è anche il tasto Annulla: in prova si mostra comunque.
-    return { errore: `navigator.share: ${e?.name || 'errore senza nome'} — ${e?.message || 'nessun messaggio'} (${comeAperta()})` };
+    return { errore: descriviErrore('Condivisione non disponibile e copia non riuscita', e) };
   }
 }

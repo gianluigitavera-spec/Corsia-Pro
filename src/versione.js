@@ -20,6 +20,13 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.58.1',
+    data: '2026-10-23',
+    voci: [
+      'PDF e Invio: messaggi più chiari quando qualcosa non va',
+    ],
+  },
+  {
     versione: '0.58.0',
     data: '2026-10-21',
     annuncia: true,

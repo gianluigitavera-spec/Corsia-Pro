@@ -664,7 +664,7 @@ export default function EditorSeduta({
           onClick={async () => {
             const esito = await condividiSeduta(seduta, { nomeSquadra: societa.nome });
             if (esito === 'copiato') setMessaggio({ tipo: 'ok', testo: 'Seduta copiata: incollala dove vuoi.' });
-            // PROVA iOS: l'errore esatto a schermo invece del silenzio.
+            // «Annulla» torna null e non dice niente; ogni altro errore si vede.
             if (esito?.errore) setMessaggio({ tipo: 'errore', testo: esito.errore });
           }}
         >
