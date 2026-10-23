@@ -485,6 +485,101 @@ const MISTA = [
   }
 }
 
+// ------------------------------------------------ il contenuto del foglio
+// foglioSeduta() dice cosa c'è sul foglio della seduta; FoglioStampa lo
+// disegna per la stampa, e il PDF generato dall'app lo leggerà uguale.
+// Un posto solo, o al primo ritocco i due fogli raccontano sedute
+// diverse. Le sedute partono dal testo, come arrivano in archivio.
+{
+  const D = await import('./src/lib/dominio.js');
+  if (typeof D.foglioSeduta !== 'function') {
+    male++; console.error('✗ foglio: manca in dominio.js foglioSeduta');
+  } else {
+    const CATEGORIE = [{ codice: 'ES_A', nome: 'Esordienti A' }];
+    const SOCIETA = { nome: 'Nuoto Prova' };
+    const dalTesto = (testo) => sedutaDaLettura(analizzaTesto(testo).sezioni);
+
+    // La seduta piena: comune, un blocco ×3 chiuso da una riga vuota, due
+    // rami, la palestra. In mezzo una sezione vuota (un titolo lasciato
+    // lì) e in fondo una sezione senza titolo: il numero della sezione è
+    // la sua posizione, anche quando una prima non si stampa.
+    const sezioni = dalTesto([
+      'Riscaldamento', '400 stile @7:00', '4x50 gambe @1:00', '',
+      'Parte centrale', '3x', '8x50 @45" A2', '', '200 sciolto', '',
+      'Velocità', '6x25 sprint @1:00 C3', '',
+      'Mezzofondo', '4x200 @3:00 B1', '',
+      'Palestra', '3x10 piegamenti',
+    ].join('\n'));
+    sezioni.splice(1, 0, { titolo: 'Da scrivere', destinatari: ['*'], serie: [] });
+    sezioni.push({ titolo: '', destinatari: ['*'], serie: [
+      { notazione: '100 sciolto', metri: 100, recupero: '', zona: 'A1', note: 'somma letta: 100 · pinne' },
+    ] });
+    const piena = {
+      titolo: 'Aerobico e rami', data: '2026-10-19', categorie: ['ES_A'],
+      note: 'Portare le pinne', sezioni,
+    };
+    const fo = D.foglioSeduta(piena, { societa: SOCIETA, categorie: CATEGORIE });
+
+    dice('foglio: titolo', fo.titolo, 'Aerobico e rami');
+    // 400@7:00 + 4x50@1:00 + 8x50@45" tre volte + palestra 20' = 2940 s
+    // in comune, più il ramo più lungo (4x200@3:00 = 720): 61'.
+    dice('foglio: sotto il titolo', fo.sottotitolo, "lunedì 19 ottobre 2026 · Esordienti A · ~1h 01'");
+    dice('foglio: società', fo.societa, 'Nuoto Prova');
+    dice('foglio: le sezioni stampate, la vuota no',
+      fo.sezioni.map((z) => [z.indice, z.titolo, z.destinatari, z.metri]),
+      [[0, 'RISCALDAMENTO', null, '600 m'], [2, 'PARTE CENTRALE', null, '1400 m'],
+        [3, 'VELOCITÀ', 'Velocità', '150 m'], [4, 'MEZZOFONDO', 'Mezzofondo', '800 m'],
+        [5, 'PALESTRA', null, "a secco · 20'"], [6, 'SEZIONE 7', null, '100 m']]);
+    dice('foglio: righe del riscaldamento', fo.sezioni[0].righe, [
+      { tipo: 'lavoro', indice: 0, notazione: '400 stile @7:00', tag: '', recupero: '@7:00', zona: 'A1', metri: '400 m', inBlocco: false },
+      { tipo: 'lavoro', indice: 1, notazione: '4x50 gambe @1:00', tag: '', recupero: '@1:00', zona: 'A1', metri: '200 m', inBlocco: false },
+    ]);
+    // L'apertura prende la riga per sé, la figlia è rientrata, la fine
+    // del blocco non si stampa: lo dice il rientro, che lì smette.
+    dice('foglio: il blocco', fo.sezioni[1].righe, [
+      { tipo: 'blocco', indice: 0, testo: '×3' },
+      { tipo: 'lavoro', indice: 1, notazione: '8x50 @45" A2', tag: '', recupero: '@0:45', zona: 'A2', metri: '1200 m', inBlocco: true },
+      { tipo: 'lavoro', indice: 3, notazione: '200 sciolto', tag: '', recupero: '', zona: 'A1', metri: '200 m', inBlocco: false },
+    ]);
+    // A secco: niente metri sulla riga, la durata nella testa.
+    dice('foglio: la palestra', fo.sezioni[4].righe, [
+      { tipo: 'lavoro', indice: 0, notazione: '3x10 piegamenti', tag: '', recupero: '', zona: '', metri: '', inBlocco: false },
+    ]);
+    // Il tag senza i promemoria del lettore (notaLeggibile).
+    dice('foglio: il tag', fo.sezioni[5].righe[0].tag, 'pinne');
+    // Due rami: un totale per ramo, comune compreso. E Generale, perché
+    // c'è una parte comune: è chi non fa nessun ramo, e nuota solo quella.
+    dice('foglio: totali per specializzazione', fo.totali, [
+      { nome: 'Velocità', metri: 2250, testo: '2250 m' },
+      { nome: 'Mezzofondo', metri: 2900, testo: '2900 m' },
+      { nome: 'Generale', metri: 2100, testo: '2100 m' },
+    ]);
+    dice('foglio: note', fo.note, 'Portare le pinne');
+
+    // Un gruppo che non usa le specializzazioni: un totale solo, «Totale».
+    const esordienti = D.foglioSeduta(
+      { titolo: 'Tecnica', data: '2026-10-20', sezioni: dalTesto('Riscaldamento\n400 stile\n\nCentrale\n8x50 @1:00') },
+      { societa: SOCIETA, categorie: CATEGORIE });
+    dice('foglio: un ramo solo, Generale, si chiama Totale', esordienti.totali, [{ nome: 'Totale', metri: 800, testo: '800 m' }]);
+    dice('foglio: senza categorie e senza note', [esordienti.sottotitolo, esordienti.note], ["martedì 20 ottobre 2026 · ~8'", null]);
+
+    // Un ramo solo che non è Generale: porta il suo nome.
+    const soloVel = D.foglioSeduta({ data: '2026-10-20', sezioni: dalTesto('Velocità\n8x25 sprint @1:00') }, {});
+    dice('foglio: un ramo solo, col suo nome', soloVel.totali, [{ nome: 'Velocità', metri: 200, testo: '200 m' }]);
+
+    // La bozza vuota: il foglio resta valido.
+    const vuota = D.foglioSeduta({ sezioni: [] }, {});
+    dice('foglio: la bozza vuota', vuota,
+      { titolo: 'Seduta di allenamento', sottotitolo: '', societa: '', sezioni: [], totali: [], note: null });
+
+    // Le migliaia come le stampa oggi FoglioStampa: toLocaleString, che
+    // in italiano il punto lo mette solo da 10.000. A schermo e in stampa
+    // non deve cambiare niente; metriConPunto è un'altra decisione.
+    const lunga = D.foglioSeduta({ sezioni: dalTesto('Centrale\n12x1000 @15:00') }, {});
+    dice('foglio: diecimila', lunga.totali, [{ nome: 'Totale', metri: 12000, testo: '12.000 m' }]);
+  }
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

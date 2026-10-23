@@ -3014,3 +3014,85 @@ export function inOreMinuti(secondi) {
   const m = Math.round(secondi / 60);
   return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}'` : `${m}'`;
 }
+
+// ---------------------------------------------------------------------
+// IL FOGLIO DELLA SEDUTA
+//
+// Cosa c'è sul foglio, già scritto come va stampato: FoglioStampa lo
+// disegna per la stampa del browser, e il PDF generato dall'app leggerà
+// la stessa cosa. Un posto solo, o al primo ritocco i due fogli
+// raccontano sedute diverse. Le regole sono quelle che FoglioStampa
+// aveva dentro di sé fino alla 0.58.2, spostate senza cambiarle:
+//
+//   - le specializzazioni sono quelle che la seduta nomina davvero, e lo
+//     stesso elenco fa la durata in testata e i totali in fondo, o i due
+//     numeri racconterebbero sedute diverse;
+//   - una sezione senza righe non si stampa, ma il suo posto conta: la
+//     sezione senza titolo dopo di lei resta «Sezione N» con la sua
+//     posizione vera;
+//   - l'apertura di un blocco prende la riga per sé («×3»), le righe del
+//     blocco sono rientrate, la fine del blocco non si stampa;
+//   - una specializzazione sola è tutta la seduta: «Totale» se è
+//     Generale, col suo nome se è un ramo. Il conto NON si fa
+//     confrontando i totali fra loro: due rami possono valere gli stessi
+//     metri e restare due lavori diversi. Totali a zero non si stampano;
+//   - le migliaia con toLocaleString, come prima (il punto da 10.000):
+//     metriConPunto è un'altra decisione, da prendere apposta.
+//
+// Ogni sezione e ogni riga porta `indice`, la sua posizione nella
+// seduta: serve da chiave a chi disegna, e dice dove stava.
+// ---------------------------------------------------------------------
+export function foglioSeduta(seduta, { societa, categorie } = {}) {
+  const nomeCategoria = (c) => categorie?.find((x) => x.codice === c)?.nome || c;
+  const specializzazioni = specializzazioniDaSezioni(seduta?.sezioni);
+  const durata = durataStimata(seduta?.sezioni, specializzazioni);
+  const sottotitolo = [
+    dataItLunga(seduta?.data),
+    seduta?.categorie?.length ? ` · ${seduta.categorie.map(nomeCategoria).join(', ')}` : '',
+    durata.secondi ? ` · ~${inOreMinuti(durata.secondi)}` : '',
+  ].join('');
+
+  const sezioni = [];
+  (seduta?.sezioni || []).forEach((sez, i) => {
+    if (!(sez.serie || []).length) return;
+    const dest = sez.destinatari?.length ? sez.destinatari : [TUTTI];
+    const metri = (sez.serie || []).reduce((tot, s) => tot + (Number(s.metri) || 0), 0);
+    const righe = [];
+    (sez.serie || []).forEach((s, j) => {
+      if (s.chiudeBlocco) return;
+      if (s.apreBlocco > 1) { righe.push({ tipo: 'blocco', indice: j, testo: `×${s.apreBlocco}` }); return; }
+      righe.push({
+        tipo: 'lavoro', indice: j,
+        notazione: s.notazione ?? '',
+        tag: notaLeggibile(s.note),
+        recupero: s.recupero || '',
+        zona: s.zona || '',
+        metri: s.metri ? `${s.metri} m` : '',
+        inBlocco: !!s.moltiplicato,
+      });
+    });
+    sezioni.push({
+      indice: i,
+      titolo: (sez.titolo || `Sezione ${i + 1}`).toUpperCase(),
+      destinatari: dest.includes(TUTTI) ? null : dest.join(', '),
+      metri: eSecco(sez) ? `a secco${sez.durataMin ? ` · ${sez.durataMin}'` : ''}` : `${metri} m`,
+      righe,
+    });
+  });
+
+  const nomeTotale = (spec) =>
+    (specializzazioni.length === 1 && spec === 'Generale' ? 'Totale' : spec);
+  const totali = specializzazioni
+    .map((spec) => ({ nome: nomeTotale(spec), metri: metriPerSpecializzazione(seduta?.sezioni, spec) }))
+    .filter((r) => r.metri)
+    .map((r) => ({ ...r, testo: `${r.metri.toLocaleString('it-IT')} m` }));
+
+  return {
+    titolo: seduta?.titolo || 'Seduta di allenamento',
+    sottotitolo,
+    societa: societa?.nome ?? '',
+    sezioni,
+    totali,
+    note: seduta?.note || null,
+  };
+}
