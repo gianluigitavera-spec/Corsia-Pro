@@ -50,7 +50,7 @@ export function provaPdfCondiviso() {
   const dove = comeAperta();
   let file;
   try {
-    file = new File([pdfMinuscolo('CorsiaPro - prova PDF del 23-10-26')], NOME, { type: 'application/pdf' });
+    file = new window.File([pdfMinuscolo('CorsiaPro - prova PDF del 23-10-26')], NOME, { type: 'application/pdf' });
   } catch (e) {
     return Promise.resolve({ tipo: 'errore', testo: `File non creato: ${e?.name || 'errore senza nome'} — ${e?.message || 'nessun messaggio'} (${dove})` });
   }
