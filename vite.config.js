@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8'));
 
+// jsPDF e le sue dipendenze: fuori dal pezzo «librerie» (vedi sotto).
+const SOLO_PDF = /node_modules[\\/](jspdf|fflate|fast-png|iobuffer|pako|@babel[\\/]runtime|html2canvas|dompurify|canvg|core-js|raf|rgbcolor|stackblur-canvas|svg-pathdata|performance-now|css-line-break|text-segmentation|utrie|base64-arraybuffer)[\\/]/;
+
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -28,7 +31,15 @@ export default defineConfig({
         // Il motivo del taglio resta intatto: le librerie non le tocchiamo
         // quasi mai, quindi il loro nome non cambia e restano in cache. Una
         // release nostra fa scaricare solo il nostro codice.
+        //
+        // TRANNE jsPDF e quello che si porta dietro: serve solo al PDF
+        // condiviso dal telefono, e si carica a parte (lib/pdfCondividi.js).
+        // Dentro «librerie» lo scaricherebbe chiunque, a ogni avvio. Rollup
+        // gli fa un pezzo suo, che si chiede solo quando serve; html2canvas,
+        // canvg e dompurify, che jsPDF chiede solo per disegnare l'HTML,
+        // restano pezzi che nessuno chiede mai.
         manualChunks(id) {
+          if (SOLO_PDF.test(id)) return undefined;
           return id.includes('node_modules') ? 'librerie' : undefined;
         },
       },

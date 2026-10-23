@@ -11,7 +11,7 @@ import {
   ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
   durataPerSpecializzazione, specializzazioniDaSezioni, specializzazioniDiAtleti,
   specializzazioniConLavoroDedicato,
-  eSecco, sezioneSeccaVuota, nomeFileSeduta,
+  eSecco, sezioneSeccaVuota, nomeFileSeduta, foglioSeduta,
   apertureNude, applicaAperturaBlocco, figlieDelBlocco, ricalcolaBlocchi, annotaLettura,
   svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
   svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
@@ -24,8 +24,7 @@ import RevisioneTesto from './RevisioneTesto';
 import { condividiSeduta } from '../lib/testoSeduta';
 import Lavagna from './Lavagna';
 import FoglioStampa from './FoglioStampa';
-import { stampaConNome } from '../lib/stampa';
-import { provaPdfCondiviso } from '../lib/pdfProva';
+import { pdfSeduta, precaricaPdf, condivideFile } from '../lib/pdfCondividi';
 
 function coloreSezione(sezione, zone) {
   // Il lavoro a terra ha la sua striscia gialla: si distingue a colpo
@@ -43,9 +42,6 @@ function coloreSezione(sezione, zone) {
 
 const metriIt = (m) => (Number(m) || 0).toLocaleString('it-IT');
 
-// Il PDF è la stampa del browser, col nome del file al posto del titolo
-// della pagina (lib/stampa.js, la stessa del report presenze).
-const stampaSeduta = (seduta) => stampaConNome(nomeFileSeduta(seduta));
 const conSegno = (m) => (m > 0 ? `+${metriIt(m)}` : m < 0 ? `−${metriIt(-m)}` : '0');
 
 // Perché una riga del controllo non ha il tasto, o perché va guardata da
@@ -80,7 +76,6 @@ const muovi = (arr, da, a) => {
 
 export default function EditorSeduta({
   societa, zone, puoScrivere, categorie, fasce, apertura, consumaApertura, codiciGruppi,
-  provaPdf = false,
 }) {
   const [elenco, setElenco] = useState([]);
   const [copia, setCopia] = useState(null);   // { seduta } oppure {} per la settimana
@@ -281,6 +276,14 @@ export default function EditorSeduta({
   );
   const [ricontrollate, setRicontrollate] = useState([]);   // { delta, zona } per riga aggiornata
   useEffect(() => { setRicontrollate([]); }, [seduta?.id]);
+
+  // Il PDF da condividere: jsPDF e i caratteri arrivano appena si apre una
+  // seduta, così al tocco di «PDF» il file è pronto (lib/pdfCondividi.js).
+  // Solo sui telefoni: sul computer il PDF resta la stampa.
+  const sedutaAperta = !!seduta;
+  useEffect(() => {
+    if (sedutaAperta && condivideFile()) precaricaPdf().catch(() => {});
+  }, [sedutaAperta]);
 
   // Si lavora su una copia della seduta che si vede: il delta annotato è
   // quello della funzione che ha scritto, non una stima fatta a parte.
@@ -657,7 +660,14 @@ export default function EditorSeduta({
         <button className="mini" onClick={() => setLavagna(true)} title="Lavagna a bordo vasca">
           <Presentation size={14} style={{ verticalAlign: -2 }} /> Lavagna
         </button>
-        <button className="mini" onClick={() => stampaSeduta(seduta)} title="Stampa o salva in PDF">
+        <button
+          className="mini"
+          title="Il PDF della seduta: da condividere sul telefono, da stampare sul computer"
+          onClick={async () => {
+            const esito = await pdfSeduta(foglioSeduta(seduta, { societa, categorie }), nomeFileSeduta(seduta));
+            if (esito) setMessaggio(esito);
+          }}
+        >
           <Printer size={14} style={{ verticalAlign: -2 }} /> PDF
         </button>
         <button
@@ -672,14 +682,6 @@ export default function EditorSeduta({
         >
           <Share2 size={14} style={{ verticalAlign: -2 }} /> Invia
         </button>
-        {/* PROVA iOS, passo 0 del PDF: solo per chi fa le prove (pdfProva.js). */}
-        {provaPdf && <button
-          className="mini"
-          title="Prova: condivide un PDF minuscolo come file"
-          onClick={() => { provaPdfCondiviso().then(setMessaggio); }}
-        >
-          <Share2 size={14} style={{ verticalAlign: -2 }} /> PDF prova
-        </button>}
         <div style={{ flex: 1 }} />
         {seduta.id && puoScrivere && (
           <button

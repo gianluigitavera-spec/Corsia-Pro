@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node sincronizza_versione.mjs && npx eslint src && node controlla_import.mjs && node prova_analizzatore.mjs && node prova_stagioni.mjs && node prova_novita.mjs && node prova_svolto.mjs && node prova_blocchi.mjs && node prova_import.mjs && node prova_categorie.mjs && node prova_riepilogo.mjs && node prova_controllo.mjs && vite build",
+    "build": "node sincronizza_versione.mjs && npx eslint src && node controlla_import.mjs && node prova_analizzatore.mjs && node prova_stagioni.mjs && node prova_novita.mjs && node prova_svolto.mjs && node prova_blocchi.mjs && node prova_import.mjs && node prova_categorie.mjs && node prova_riepilogo.mjs && node prova_controllo.mjs && node prova_pdf.mjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "jspdf": "4.2.1",
     "lucide-react": "^0.462.0",
     "papaparse": "^5.4.1",
     "react": "^18.3.1",

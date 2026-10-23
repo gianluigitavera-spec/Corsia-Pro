@@ -22,7 +22,6 @@ import Feedback from './componenti/Feedback';
 import SenzaSquadra from './componenti/SenzaSquadra';
 import Tutorial from './componenti/Tutorial';
 import Novita from './componenti/Novita';
-import { vedeProvaPdf } from './lib/pdfProva';
 
 const SCHEDE = [
   { id: 'dashboard', nome: 'Dashboard', Icona: LayoutDashboard },
@@ -361,7 +360,6 @@ export default function App() {
               societa={societa} zone={zone} categorie={categorie} fasce={fasce} puoScrivere={puoScrivere}
               codiciGruppi={codiciGruppi}
               apertura={apertura} consumaApertura={consumaApertura}
-              provaPdf={vedeProvaPdf(sessione.user?.email)}
             />
           )}
           {scheda === 'appello' && <Appello societa={societa} fasce={fasce} puoScrivere={puoScrivere}
