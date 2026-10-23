@@ -199,6 +199,7 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 }
 /* ------------------------------------------------- report presenze */
 .scelte-report { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.casella-archiviati { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--testo-2); cursor: pointer; }
 .gruppo-pastiglie { display: inline-flex; gap: 6px; }
 .foglio-report { padding: 16px 18px; }
 .testata-report {

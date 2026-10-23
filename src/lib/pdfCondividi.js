@@ -1,8 +1,9 @@
 // =====================================================================
 // IL TASTO «PDF»: CONDIVIDERE IL FILE, O STAMPARE
 //
-// Dove il telefono condivide file, il PDF lo scrive l'app (pdfSeduta.js)
-// e va al foglio di condivisione già col suo nome. Altrove — il computer,
+// Per la seduta e per il report presenze. Dove il telefono condivide
+// file, il PDF lo scrive l'app (pdfSeduta.js, pdfReport.js) e va al
+// foglio di condivisione già col suo nome. Altrove — il computer,
 // i browser che non condividono file — resta la stampa di sempre
 // (stampa.js), che lì funziona e il nome lo propone già.
 //
@@ -18,6 +19,7 @@ import regular from '../assets/font/PublicSans-Regular-pdf.ttf?url';
 import semibold from '../assets/font/PublicSans-SemiBold-pdf.ttf?url';
 import bold from '../assets/font/PublicSans-Bold-pdf.ttf?url';
 import { creaPdfSeduta } from './pdfSeduta';
+import { creaPdfReport } from './pdfReport';
 import { stampaConNome } from './stampa';
 
 // Il telefono: condivide file e si usa col dito. Sul computer Chrome e
@@ -64,10 +66,10 @@ const descrivi = (e) => `${e?.name || 'errore senza nome'} — ${e?.message || '
 /**
  * Il tasto «PDF». Torna null quando non c'è niente da dire (condiviso,
  * annullato, stampa aperta), altrimenti { tipo, testo } da mostrare.
- * @param foglio  foglioSeduta(seduta, ...): lo stesso del foglio di stampa
- * @param nome    nomeFileSeduta(seduta), senza estensione
+ * @param crea  (JsPDF, caratteri) → il documento jsPDF
+ * @param nome  il nome del file, senza estensione
  */
-export async function pdfSeduta(foglio, nome) {
+async function condividiPdf(crea, nome) {
   if (!condivideFile()) { stampaConNome(nome); return null; }
 
   // Di solito è già qui. Se no si aspetta: con la cache del service
@@ -82,7 +84,7 @@ export async function pdfSeduta(foglio, nome) {
 
   let file;
   try {
-    const { doc } = creaPdfSeduta(pdf.JsPDF, foglio, pdf.caratteri, { titolo: nome });
+    const doc = crea(pdf.JsPDF, pdf.caratteri);
     file = new window.File([doc.output('blob')], `${nome}.pdf`, { type: 'application/pdf' });
   } catch (e) {
     return { tipo: 'errore', testo: `PDF non creato: ${descrivi(e)}` };
@@ -100,3 +102,14 @@ export async function pdfSeduta(foglio, nome) {
     return { tipo: 'errore', testo: `PDF non condiviso: ${descrivi(e)}` };
   }
 }
+
+/** La seduta: foglioSeduta(seduta, ...), e nomeFileSeduta(seduta). */
+export const pdfSeduta = (foglio, nome) => condividiPdf(
+  (JsPDF, caratteri) => creaPdfSeduta(JsPDF, foglio, caratteri, { titolo: nome }).doc, nome);
+
+/**
+ * Il report presenze: quello che dominio.js ha calcolato e lo schermo
+ * mostra, la forma, la testata come a schermo, e nomeFileReport(...).
+ */
+export const pdfReport = (report, forma, testata, nome) => condividiPdf(
+  (JsPDF, caratteri) => creaPdfReport(JsPDF, report, forma, testata, caratteri, { titolo: nome }).doc, nome);

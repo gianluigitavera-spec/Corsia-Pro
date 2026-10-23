@@ -442,10 +442,12 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
       dice('stagione: solo G, totale senza percentuale', sb.totale.pct, null);
       dice('stagione: un mese senza niente ha i conti a zero', sv.mesi[1], vuoto);
 
-      // ---- gli archiviati (21/10/2026) ----
-      // Entrano nel report solo se hanno almeno una rilevazione nel
-      // periodo scelto (fino a oggi), segnati come archiviati. Gli altri
-      // archiviati no: un elenco di nomi senza niente accanto non serve.
+      // ---- gli archiviati (21/10/2026, 23/10/2026) ----
+      // Di default FUORI dal report (23/10). Con «mostra anche gli
+      // archiviati» (mostraArchiviati) entrano solo se hanno almeno una
+      // rilevazione nel periodo scelto (fino a oggi), segnati come
+      // archiviati. Gli altri archiviati no: un elenco di nomi senza
+      // niente accanto non serve.
       {
         const conArchiviati = [
           ...atleti,
@@ -458,7 +460,27 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
           pr('x', 'k', 'P', '2026-09-20'),                                       // Kappa: solo a settembre
           pr('m5', 'f', 'G', '2026-10-23'),                                      // Effe: solo un giorno futuro
         ];
-        const m = D.reportMensile({ mese: '2026-10', oggi: '2026-10-21', atleti: conArchiviati, codici, sedute, presenze: pres });
+        // Di default nessun archiviato, in nessuna delle tre forme, anche
+        // con le presenze nel periodo. I numeri degli altri non cambiano.
+        const m0 = D.reportMensile({ mese: '2026-10', oggi: '2026-10-21', atleti: conArchiviati, codici, sedute, presenze: pres });
+        dice('archiviati: di default fuori dal mese', m0.righe.map((x) => x.cognome), ['Bianchi', 'Rossi', 'Verdi']);
+        const st0 = D.reportStagione({ stagione: '2026/27', oggi: '2026-10-21', atleti: conArchiviati, codici, presenze: pres });
+        dice('archiviati: di default fuori dalla stagione', st0.righe.some((x) => x.archiviato), false);
+        const g0 = D.reportGiornaliero({ seduta: s('m1', '2026-10-05'), atleti: conArchiviati, codici, presenze: pres });
+        dice('archiviati: di default fuori dal giorno', g0.righe.some((x) => x.archiviato), false);
+        // Nel giorno contano anche i conti in testa: Zeta era presente, ma
+        // fuori dall'elenco non entra nemmeno fra i presenti.
+        const g0con = D.reportGiornaliero({ seduta: s('m1', '2026-10-05'), atleti: conArchiviati, codici, presenze: pres, mostraArchiviati: true });
+        dice('archiviati: di default fuori anche dai conti del giorno', g0.presenti, g0con.presenti - 1);
+        // Una seduta per pochi atleti (le doppie) segue la stessa regola.
+        const doppia = { ...s('m1', '2026-10-05'), atleti: ['z', 'v'] };
+        dice('archiviati: di default fuori anche dalle doppie',
+          D.reportGiornaliero({ seduta: doppia, atleti: conArchiviati, codici, presenze: pres }).righe.map((x) => x.atleta_id), ['v']);
+        dice('archiviati: nelle doppie tornano con la casella',
+          D.reportGiornaliero({ seduta: doppia, atleti: conArchiviati, codici, presenze: pres, mostraArchiviati: true }).righe.map((x) => x.atleta_id).sort(), ['v', 'z']);
+
+        // Con la casella: le regole di prima.
+        const m = D.reportMensile({ mese: '2026-10', oggi: '2026-10-21', atleti: conArchiviati, codici, sedute, presenze: pres, mostraArchiviati: true });
         dice('archiviati: entra chi ha una presenza nel mese, gli altri no',
           m.righe.map((x) => x.cognome), ['Bianchi', 'Rossi', 'Verdi', 'Zeta']);
         dice('archiviati: segnato come archiviato',
@@ -468,19 +490,19 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
         dice('archiviati: un giorno futuro non basta', m.righe.some((x) => x.atleta_id === 'f'), false);
 
         // Stagione: Kappa c'era a settembre, quindi entra.
-        const st2 = D.reportStagione({ stagione: '2026/27', oggi: '2026-10-21', atleti: conArchiviati, codici, presenze: pres });
+        const st2 = D.reportStagione({ stagione: '2026/27', oggi: '2026-10-21', atleti: conArchiviati, codici, presenze: pres, mostraArchiviati: true });
         dice('archiviati: nella stagione entra chi c\'era in un mese qualunque',
           st2.righe.filter((x) => x.archiviato).map((x) => x.cognome), ['Kappa', 'Zeta']);
 
         // Giornaliero: solo chi è stato segnato in quella seduta.
-        const g2 = D.reportGiornaliero({ seduta: s('m1', '2026-10-05'), atleti: conArchiviati, codici, presenze: pres });
+        const g2 = D.reportGiornaliero({ seduta: s('m1', '2026-10-05'), atleti: conArchiviati, codici, presenze: pres, mostraArchiviati: true });
         dice('archiviati: nel giornaliero chi è stato segnato quel giorno',
           g2.righe.filter((x) => x.archiviato).map((x) => x.cognome), ['Zeta']);
         // Un archiviato fuori dal gruppo resta fuori anche con le presenze.
         const fuori = D.reportMensile({
           mese: '2026-10', oggi: '2026-10-21', codici, sedute,
           atleti: [{ id: 'q', cognome: 'Qu', nome: 'Ada', categoria_override: 'RAG_1', attivo: false }],
-          presenze: [pr('m1', 'q', 'P', '2026-10-05')],
+          presenze: [pr('m1', 'q', 'P', '2026-10-05')], mostraArchiviati: true,
         });
         dice('archiviati: fuori dal gruppo resta fuori', fuori.righe, []);
       }

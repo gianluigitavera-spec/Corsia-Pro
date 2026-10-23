@@ -9,7 +9,10 @@
 // due, col «(segue)» e il numero di pagina.
 import { readFileSync } from 'node:fs';
 import { jsPDF } from 'jspdf';
-import { foglioSeduta } from './src/lib/dominio.js';
+import {
+  foglioSeduta, reportGiornaliero, reportMensile, reportStagione, codiciDelGruppo,
+} from './src/lib/dominio.js';
+import { creaPdfReport } from './src/lib/pdfReport.js';
 import { analizzaTesto } from './src/lib/analizzatore.js';
 import { sedutaDaLettura } from './src/lib/importaTesto.js';
 import {
@@ -164,8 +167,93 @@ const righe = (n, passo = 0) => Array.from({ length: n }, (_, i) => `${4 + ((i +
   vero('pdf vuota: col titolo di ripiego', testiDi(impaginazione.pagine[0]).includes('allenamento'));
 }
 
+// =====================================================================
+// IL REPORT PRESENZE (pdfReport.js), sui report veri di dominio.js
+// =====================================================================
+{
+  const COGNOMI = ['Bianchi', 'Rossi', 'Verdi', 'Esposito', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno'];
+  const atletiN = (n) => Array.from({ length: n }, (_, k) => ({
+    id: 'a' + k, cognome: COGNOMI[k % 10] + (k >= 10 ? ' ' + Math.floor(k / 10) : ''), nome: 'Anna',
+    categoria_override: 'ESO_A1',
+  }));
+  const codici = codiciDelGruppo(['Esordienti A']);
+  // Ottobre 2026: 31 giorni. Sedute il lunedì, mercoledì e venerdì fino
+  // a oggi (il 23); il 14 due sedute, così una casella porta due stati.
+  const giorni = [2, 5, 7, 9, 12, 14, 16, 19, 21, 23];
+  const sedute = giorni.map((g) => ({ id: 's' + g, data: '2026-10-' + String(g).padStart(2, '0'), created_at: '2026-10-' + String(g).padStart(2, '0') + 'T07:00:00+00:00' }));
+  sedute.push({ id: 's14b', data: '2026-10-14', created_at: '2026-10-14T16:00:00+00:00' });
+  const presenzeDi = (atleti) => atleti.flatMap((a, k) => sedute.map((s, i) => ({
+    seduta_id: s.id, atleta_id: a.id, data: s.data, stato: ['P', 'P', 'R', 'A', 'G'][(i + k) % 5],
+  })));
+  const testata = { titolo: 'Presenze · Ottobre 2026', sotto: 'Esordienti A', societa: 'Nuoto Prova' };
+  const pdfReport = (report, forma) => creaPdfReport(jsPDF, report, forma, testata, CARATTERI, { compress: false });
+
+  // ---- il mese: A4 orizzontale, 31 colonne che si leggono
+  const atleti = atletiN(12);
+  const mese = reportMensile({ mese: '2026-10', oggi: '2026-10-23', atleti, codici, sedute, presenze: presenzeDi(atleti) });
+  const { doc: docMese, impaginazione: im } = pdfReport(mese, 'mese');
+  dice('report mese: orizzontale', [im.orientamento, Math.round(docMese.internal.pageSize.getWidth())], ['landscape', 297]);
+  dice('report mese: una pagina con 12 atleti', im.pagine.length, 1);
+  dice('report mese: 31 giorni più nome e percentuale', im.colonne.length, 33);
+  const colGiorno = im.colonne[1];
+  vero('report mese: la colonna di un giorno è larga almeno 6,5 mm', colGiorno >= 6.5);
+  const testiMese = im.pagine[0].filter((d) => d.tipo === 'testo');
+  vero('report mese: i numeri dei giorni ci sono tutti, dall\'1 al 31',
+    Array.from({ length: 31 }, (_, i) => String(i + 1)).every((n) => testiMese.some((d) => d.testo === n && d.peso === 'bold')));
+  // Due sedute lo stesso giorno: la casella porta tutti e due gli stati,
+  // e sta dentro la sua colonna.
+  const doppie = testiMese.filter((d) => /^[PRAG]{2}$/.test(d.testo));
+  vero('report mese: c\'è una casella con due stati', doppie.length > 0);
+  const larga = Math.max(...doppie.map((d) => docMese.setFont('PublicSans', d.peso).setFontSize(d.corpo).getTextWidth(d.testo)));
+  vero('report mese: due stati stanno nella colonna', larga < colGiorno - 1.2);
+  // I giorni futuri: grigi, e senza stati.
+  vero('report mese: i giorni futuri hanno lo sfondo', im.pagine[0].some((d) => d.tipo === 'rettangolo'));
+  const niente = im.pagine.flat().filter((d) => {
+    const xs = d.tipo === 'linea' ? [d.x1, d.x2] : d.tipo === 'rettangolo' ? [d.x, d.x + d.larghezza] : [d.x];
+    const ys = d.tipo === 'linea' ? [d.y1, d.y2] : d.tipo === 'rettangolo' ? [d.y, d.y + d.altezza] : [d.y];
+    return xs.some((x) => x < 10 - 0.01 || x > 287 + 0.01) || ys.some((y) => y < 10 - 0.01 || y > 210 - 8);
+  });
+  dice('report mese: niente fuori dai margini', niente.map((d) => d.testo || d.tipo), []);
+  vero('report mese: un PDF', docMese.output().startsWith('%PDF-'));
+
+  // ---- tanti atleti: la tabella continua, coi titoli, e c'è 1/2
+  const tanti = atletiN(45);
+  const meseLungo = reportMensile({ mese: '2026-10', oggi: '2026-10-23', atleti: tanti, codici, sedute, presenze: presenzeDi(tanti) });
+  const { impaginazione: il } = pdfReport(meseLungo, 'mese');
+  dice('report lungo: due pagine', il.pagine.length, 2);
+  const [q1, q2] = il.pagine.map(testiDi);
+  vero('report lungo: la riga dei titoli su tutte e due', q1.includes('Atleta') && q2.includes('Atleta'));
+  vero('report lungo: 1/2 e 2/2', q1.includes('1/2') && q2.includes('2/2'));
+  dice('report lungo: ogni atleta una volta sola',
+    il.pagine.flat().filter((d) => d.tipo === 'testo' && d.peso === 'bold' && /^(Bianchi|Rossi|Verdi|Esposito|Romano|Colombo|Ricci|Marino|Greco|Bruno)$/.test(d.testo)).length, 45);
+
+  // ---- il giorno e la stagione: verticali
+  const g = reportGiornaliero({ seduta: sedute[0], atleti, codici, presenze: presenzeDi(atleti) });
+  const { doc: docGiorno, impaginazione: ig } = pdfReport(g, 'giorno');
+  dice('report giorno: verticale', [ig.orientamento, Math.round(docGiorno.internal.pageSize.getWidth())], ['portrait', 210]);
+  vero('report giorno: gli stati per esteso', testiDi(ig.pagine[0]).includes('Presente') && testiDi(ig.pagine[0]).includes('Assente'));
+  const st = reportStagione({ stagione: '2026/27', oggi: '2026-10-23', atleti, codici, presenze: presenzeDi(atleti) });
+  const { impaginazione: is } = pdfReport(st, 'stagione');
+  dice('report stagione: verticale, 12 mesi più nome e totale', [is.orientamento, is.colonne.length], ['portrait', 14]);
+  vero('report stagione: i mesi', ['Set', 'Ott', 'Ago', 'Tot.'].every((m) => testiDi(is.pagine[0]).includes(m)));
+
+  // ---- l'archiviato: la scritta accanto al nome, come a schermo
+  const conArchiviato = [...atleti, { id: 'z', cognome: 'Zeta', nome: 'Ugo', categoria_override: 'ESO_A1', attivo: false }];
+  const pres = [...presenzeDi(atleti), { seduta_id: 's2', atleta_id: 'z', data: '2026-10-02', stato: 'P' }];
+  const conZ = reportMensile({ mese: '2026-10', oggi: '2026-10-23', atleti: conArchiviato, codici, sedute, presenze: pres, mostraArchiviati: true });
+  const testiZ = testiDi(pdfReport(conZ, 'mese').impaginazione.pagine[0]);
+  vero('report: «archiviato» accanto al nome', testiZ.includes('Zeta') && testiZ.includes('archiviato'));
+  const senzaZ = reportMensile({ mese: '2026-10', oggi: '2026-10-23', atleti: conArchiviato, codici, sedute, presenze: pres });
+  const testiSenza = testiDi(pdfReport(senzaZ, 'mese').impaginazione.pagine[0]);
+  vero('report: di default l\'archiviato non c\'è', !testiSenza.includes('Zeta') && !testiSenza.includes('archiviato'));
+
+  // ---- nessun atleta: il PDF si fa lo stesso, e lo dice
+  const vuoto = reportMensile({ mese: '2026-10', oggi: '2026-10-23', atleti: [], codici, sedute, presenze: [] });
+  vero('report vuoto: lo dice', testiDi(pdfReport(vuoto, 'mese').impaginazione.pagine[0]).includes('Nessun'));
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);
 }
-console.log('✓ pdf della seduta: tutte le prove passate');
+console.log('✓ pdf della seduta e del report: tutte le prove passate');

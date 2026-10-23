@@ -5,13 +5,15 @@
 // mese, stagione), il periodo e il gruppo — di default quello in
 // testata. Le regole stanno tutte in dominio.js (reportGiornaliero,
 // reportMensile, reportStagione), sotto prova: qui si legge, si sceglie e
-// si disegna. Il PDF è la stampa del browser, col nome del file di
-// nomeFileReport, come per le sedute.
+// si disegna. Il PDF, come per le sedute: sul telefono lo scrive l'app
+// (pdfReport.js) e va al foglio di condivisione, sul computer è la stampa
+// del browser; il nome è sempre quello di nomeFileReport.
 //
-// Gli atleti attivi sono quelli che Appello ha già letto; gli archiviati
-// si leggono qui, una volta, perché entrano nel report quando hanno almeno
-// una rilevazione nel periodo (le regole in dominio.js). Dal database si
-// leggono poi solo le presenze del periodo scelto.
+// Gli atleti attivi sono quelli che Appello ha già letto. Gli archiviati
+// di default non ci sono; con «mostra anche gli archiviati» entrano quelli
+// che hanno almeno una rilevazione nel periodo (le regole in dominio.js),
+// e si leggono qui, una volta. Dal database si leggono poi solo le
+// presenze del periodo scelto.
 // =====================================================================
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
@@ -21,17 +23,10 @@ import {
   stagioneCorrente, stagioneDa, annoInizialeDi,
   reportGiornaliero, reportMensile, reportStagione, nomeFileReport,
 } from '../lib/dominio';
-import { stampaConNome } from '../lib/stampa';
-
-const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
-  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-const MESI_BREVI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-const GIORNI_BREVI = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
-const NOMI_STATO = { P: 'Presente', R: 'Ritardo', G: 'Giustificato', A: 'Assente' };
-
-const nomeMese = (m) => `${MESI[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
-const meseBreve = (m) => MESI_BREVI[Number(m.slice(5, 7)) - 1];
-const percentuale = (pct) => (pct == null ? '—' : `${pct}%`);
+import {
+  nomeMese, meseBreve, giornoBreve, percentuale, statoPerEsteso, riepilogoGiorno, NOTA_REPORT,
+} from '../lib/etichetteReport';
+import { pdfReport, precaricaPdf, condivideFile } from '../lib/pdfCondividi';
 
 // Il nome, con «archiviato» accanto per chi non è più in squadra.
 const Nome = ({ x }) => (
@@ -55,6 +50,14 @@ export default function ReportPresenze({ societa, atleti, fasce, sedute, gruppi,
   const [dati, setDati] = useState({ chiave: null, presenze: [], sedute: [] });
   const [errore, setErrore] = useState(null);
   const [archiviati, setArchiviati] = useState([]);
+  const [mostraArchiviati, setMostraArchiviati] = useState(false);
+  const [messaggio, setMessaggio] = useState(null);
+
+  // Il PDF da condividere: jsPDF e i caratteri arrivano all'apertura del
+  // report, così al tocco di «PDF» il file è pronto. Solo sui telefoni.
+  useEffect(() => {
+    if (condivideFile()) precaricaPdf().catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.leggiAtletiTutti(societa.id)
@@ -110,17 +113,26 @@ export default function ReportPresenze({ societa, atleti, fasce, sedute, gruppi,
   const pronto = dati.chiave === chiave;
   const report = useMemo(() => {
     if (!pronto) return null;
-    const comune = { atleti: tuttiGliAtleti, codici, fasce, presenze: dati.presenze };
+    const comune = { atleti: tuttiGliAtleti, codici, fasce, presenze: dati.presenze, mostraArchiviati };
     if (forma === 'giorno') return seduta ? reportGiornaliero({ ...comune, seduta }) : null;
     if (forma === 'mese') return reportMensile({ ...comune, mese, oggi, sedute: dati.sedute });
     return reportStagione({ ...comune, stagione, oggi });
-  }, [pronto, dati, forma, seduta, mese, stagione, oggi, tuttiGliAtleti, fasce, codici?.join()]);
+  }, [pronto, dati, forma, seduta, mese, stagione, oggi, tuttiGliAtleti, fasce, codici?.join(), mostraArchiviati]);
 
   const periodo = forma === 'giorno' ? (seduta?.data || '') : forma === 'mese' ? mese : stagione;
   const titoloPeriodo = forma === 'giorno'
     ? (seduta ? `${dataItLunga(seduta.data)}${seduta.titolo ? ` · ${seduta.titolo}` : ''}` : '')
     : forma === 'mese' ? nomeMese(mese) : `Stagione ${stagione}`;
   const nomeGruppo = nomiGruppo.length ? nomiGruppo.join(' · ') : 'Tutte le categorie';
+  const titoloReport = `Presenze · ${titoloPeriodo || '—'}`;
+
+  const pdf = async () => {
+    setMessaggio(null);
+    const esito = await pdfReport(report, forma,
+      { titolo: titoloReport, sotto: nomeGruppo, societa: societa.nome },
+      nomeFileReport({ periodo, gruppi: nomiGruppo }));
+    if (esito) setMessaggio(esito);
+  };
 
   return (
     <>
@@ -133,8 +145,8 @@ export default function ReportPresenze({ societa, atleti, fasce, sedute, gruppi,
         <button
           className="mini"
           disabled={!report}
-          onClick={() => stampaConNome(nomeFileReport({ periodo, gruppi: nomiGruppo }))}
-          title="Stampa o salva in PDF"
+          onClick={pdf}
+          title="Il PDF del report: da condividere sul telefono, da stampare sul computer"
         >
           <Printer size={14} style={{ verticalAlign: -2 }} /> PDF
         </button>
@@ -172,14 +184,24 @@ export default function ReportPresenze({ societa, atleti, fasce, sedute, gruppi,
           <option value="">Tutte le categorie</option>
           {RAGGRUPPAMENTI.map((r) => <option key={r.nome} value={r.nome}>{r.nome}</option>)}
         </select>
+
+        <label className="casella-archiviati">
+          <input type="checkbox" checked={mostraArchiviati} onChange={(e) => setMostraArchiviati(e.target.checked)} />
+          {' '}mostra anche gli archiviati
+        </label>
       </div>
 
       {errore && <div className="avviso errore solo-schermo" style={{ marginBottom: 12 }}>{errore}</div>}
+      {messaggio && (
+        <div className={`avviso solo-schermo ${messaggio.tipo === 'errore' ? 'errore' : ''}`} style={{ marginBottom: 12 }}>
+          {messaggio.testo}
+        </div>
+      )}
 
       <div className="foglio-report scheda" data-forma={forma}>
         <div className="testata-report">
           <div>
-            <h2>Presenze · {titoloPeriodo || '—'}</h2>
+            <h2>{titoloReport}</h2>
             <p>{nomeGruppo}</p>
           </div>
           <p className="societa-report">{societa.nome}</p>
@@ -191,11 +213,7 @@ export default function ReportPresenze({ societa, atleti, fasce, sedute, gruppi,
         {report && forma === 'mese' && <Mensile r={report} />}
         {report && forma === 'stagione' && <Stagione r={report} />}
 
-        <p className="nota-report">
-          Percentuale: presenti e ritardi su presenti, ritardi e assenti. Il giustificato non entra
-          nel conto; «—» vuol dire nessun appello da contare. I giorni e i mesi che devono ancora
-          venire restano vuoti.
-        </p>
+        <p className="nota-report">{NOTA_REPORT}</p>
       </div>
     </>
   );
@@ -205,10 +223,7 @@ function Giornaliero({ r }) {
   if (!r.righe.length) return <p className="nota-report">Nessun atleta in questo gruppo.</p>;
   return (
     <>
-      <p className="riepilogo-report mono">
-        {r.presenti} presenti · {r.conti.a} assenti · {r.conti.g} giustificati
-        {r.conti.nonRilevati ? ` · ${r.conti.nonRilevati} non rilevati` : ''} · {percentuale(r.conti.pct)}
-      </p>
+      <p className="riepilogo-report mono">{riepilogoGiorno(r)}</p>
       <div className="scorre-report">
         <table className="tabella-report">
           <thead><tr><th>Atleta</th><th>Stato</th></tr></thead>
@@ -217,7 +232,7 @@ function Giornaliero({ r }) {
               <tr key={x.atleta_id}>
                 <td><Nome x={x} /></td>
                 <td className="stato-report" data-stato={x.stato || ''}>
-                  {x.stato ? NOMI_STATO[x.stato] : 'non rilevato'}
+                  {statoPerEsteso(x.stato)}
                 </td>
               </tr>
             ))}
@@ -238,7 +253,7 @@ function Mensile({ r }) {
             <th className="atleta-report">Atleta</th>
             {r.giorni.map((g) => (
               <th key={g.data} className="giorno-report" data-futuro={g.futuro}>
-                <span>{GIORNI_BREVI[new Date(`${g.data}T12:00`).getDay()]}</span>{g.numero}
+                <span>{giornoBreve(g.data)}</span>{g.numero}
               </th>
             ))}
             <th className="pct-report">%</th>

@@ -2278,18 +2278,23 @@ const perCognome = (x, y) =>
   String(x.cognome || '').localeCompare(String(y.cognome || ''), 'it')
   || String(x.nome || '').localeCompare(String(y.nome || ''), 'it');
 
-// Gli atleti del report: quelli del gruppo, in ordine di cognome. Gli
-// archiviati (attivo: false) entrano solo se hanno almeno una
+// Gli atleti del report: quelli del gruppo, in ordine di cognome.
+//
+// Gli archiviati (attivo: false) di default NON ci sono (23/10/2026): il
+// report è della squadra di oggi. Con la casella «mostra anche gli
+// archiviati» (`mostraArchiviati`) entrano quelli che hanno almeno una
 // rilevazione nel periodo contato — `conRilevazioni`, gli id — e portano
 // `archiviato: true`: chi è uscito a metà stagione resta nei mesi in cui
 // c'era, gli altri non fanno elenco.
-function atletiDelReport(atleti, codici, fasce, conRilevazioni) {
+const archiviato = (a) => a.attivo === false;
+const archiviatoAmmesso = (a, conRilevazioni, mostraArchiviati) =>
+  !archiviato(a) || (mostraArchiviati === true && conRilevazioni.has(a.id));
+function atletiDelReport(atleti, codici, fasce, conRilevazioni, mostraArchiviati) {
   return (atleti || [])
     .filter((a) => atletaNelGruppo(a, codici, fasce))
-    .filter((a) => a.attivo !== false || conRilevazioni.has(a.id))
+    .filter((a) => archiviatoAmmesso(a, conRilevazioni, mostraArchiviati))
     .sort(perCognome);
 }
-const archiviato = (a) => a.attivo === false;
 
 /**
  * Giornaliero: una seduta.
@@ -2298,15 +2303,15 @@ const archiviato = (a) => a.attivo === false;
  * @returns { data, titolo, righe: [{ atleta_id, cognome, nome, stato }],
  *            conti: { p, r, g, a, nonRilevati, pct }, presenti }
  */
-export function reportGiornaliero({ seduta, atleti, codici, fasce, presenze }) {
+export function reportGiornaliero({ seduta, atleti, codici, fasce, presenze, mostraArchiviati = false }) {
   const stati = new Map((presenze || [])
     .filter((x) => x.seduta_id === seduta?.id)
     .map((x) => [x.atleta_id, x.stato]));
   const segnati = new Set(stati.keys());
   const elenco = seduta?.atleti?.length
     ? (atleti || []).filter((a) => seduta.atleti.includes(a.id))
-      .filter((a) => a.attivo !== false || segnati.has(a.id)).sort(perCognome)
-    : atletiDelReport(atleti, codici, fasce, segnati);
+      .filter((a) => archiviatoAmmesso(a, segnati, mostraArchiviati)).sort(perCognome)
+    : atletiDelReport(atleti, codici, fasce, segnati, mostraArchiviati);
   const righe = elenco.map((a) => ({
     atleta_id: a.id, cognome: a.cognome, nome: a.nome, archiviato: archiviato(a), stato: stati.get(a.id) ?? null,
   }));
@@ -2332,7 +2337,7 @@ export function reportGiornaliero({ seduta, atleti, codici, fasce, presenze }) {
  *   caselle[i]: null se il giorno è futuro, altrimenti gli stati di quel
  *   giorno ([] se nessun appello)
  */
-export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, presenze }) {
+export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, presenze, mostraArchiviati = false }) {
   const { da, a } = meseDi(`${mese}-01`);
   const ultimo = Number(a.slice(8, 10));
   const giorni = Array.from({ length: ultimo }, (_, i) => {
@@ -2349,7 +2354,7 @@ export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, prese
     .map((x) => ({ ...x, data: dataDi(x) }))
     .filter((x) => x.data >= contato.da && x.data <= contato.a)
     .map((x) => x.atleta_id));
-  const elenco = atletiDelReport(atleti, codici, fasce, conRilevazioni);
+  const elenco = atletiDelReport(atleti, codici, fasce, conRilevazioni, mostraArchiviati);
   const dentro = new Set(elenco.map((x) => x.id));
   const nelMese = (presenze || [])
     .map((x) => ({ ...x, data: dataDi(x) }))
@@ -2377,7 +2382,7 @@ export function reportMensile({ mese, oggi, atleti, codici, fasce, sedute, prese
  * @returns { stagione, mesi: [{ mese, futuro }],
  *            righe: [{ atleta_id, cognome, nome, mesi: [freq|null], totale }] }
  */
-export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze }) {
+export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze, mostraArchiviati = false }) {
   const anno = annoInizialeDi(stagione);
   const mesi = Array.from({ length: 12 }, (_, k) => {
     const d = new Date(anno, 8 + k, 1, 12);
@@ -2388,7 +2393,7 @@ export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze
   const conRilevazioni = new Set((presenze || [])
     .filter((x) => x.data >= stagioneContata.da && x.data <= stagioneContata.a)
     .map((x) => x.atleta_id));
-  const elenco = atletiDelReport(atleti, codici, fasce, conRilevazioni);
+  const elenco = atletiDelReport(atleti, codici, fasce, conRilevazioni, mostraArchiviati);
   const dentro = new Set(elenco.map((x) => x.id));
   const sue = (presenze || []).filter((x) => dentro.has(x.atleta_id));
 
