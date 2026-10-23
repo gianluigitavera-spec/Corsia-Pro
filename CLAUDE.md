@@ -606,6 +606,12 @@ voce per voce — una regola automatica dovrebbe indovinare cosa è
 importante, e indovinerebbe male. Senza il campo la voce resta solo nel
 registro consultabile, e non interrompe nessuno a bordo vasca.
 
+**Il push si fa solo dopo una build verde, nello stesso comando:**
+`npm run build && git push ...`. Con due comandi separati, o legati da
+`;`, il push parte anche quando la build si è fermata: il 23/10/2026
+`3159488` è arrivato su `prova-ios` con ESLint rosso. Vale anche per
+commit e merge che precedono un push: tutto dietro `&&`.
+
 **Prima di pacchettizzare si esegue `npm run build`**, che è la catena
 completa: allineamento versione, eslint, controllo import, 61 prove
 dell'analizzatore, prove stagioni, build Vite col guardiano sui chunk

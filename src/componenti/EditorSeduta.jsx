@@ -80,6 +80,7 @@ const muovi = (arr, da, a) => {
 
 export default function EditorSeduta({
   societa, zone, puoScrivere, categorie, fasce, apertura, consumaApertura, codiciGruppi,
+  provaPdf = false,
 }) {
   const [elenco, setElenco] = useState([]);
   const [copia, setCopia] = useState(null);   // { seduta } oppure {} per la settimana
@@ -671,14 +672,14 @@ export default function EditorSeduta({
         >
           <Share2 size={14} style={{ verticalAlign: -2 }} /> Invia
         </button>
-        {/* PROVA iOS, passo 0 del PDF: solo sul ramo prova-ios. */}
-        <button
+        {/* PROVA iOS, passo 0 del PDF: solo per chi fa le prove (pdfProva.js). */}
+        {provaPdf && <button
           className="mini"
           title="Prova: condivide un PDF minuscolo come file"
           onClick={() => { provaPdfCondiviso().then(setMessaggio); }}
         >
           <Share2 size={14} style={{ verticalAlign: -2 }} /> PDF prova
-        </button>
+        </button>}
         <div style={{ flex: 1 }} />
         {seduta.id && puoScrivere && (
           <button

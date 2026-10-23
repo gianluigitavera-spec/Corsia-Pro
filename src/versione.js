@@ -20,6 +20,13 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.58.2',
+    data: '2026-10-23',
+    voci: [
+      'Nomi dei file di PDF e report: prima il titolo, poi la data',
+    ],
+  },
+  {
     versione: '0.58.1',
     data: '2026-10-23',
     voci: [

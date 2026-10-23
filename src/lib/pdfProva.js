@@ -1,5 +1,10 @@
 // =====================================================================
-// PROVA iOS, PASSO 0 DEL PDF (ramo prova-ios, non per sviluppo)
+// PROVA iOS, PASSO 0 DEL PDF
+//
+// In produzione dalla 0.58.2, ma visibile a un utente solo: chi fa le
+// prove sul campo (PROVA_PDF_PER). Per tutti gli altri il tasto non
+// esiste. Nascondere il tasto non protegge niente, e non serve: crea un
+// file di una riga e non legge né scrive dati.
 //
 // Prima di costruire il PDF della seduta generato dall'app, una domanda
 // sola: dall'app installata su iOS 27 il foglio di condivisione accetta
@@ -12,6 +17,10 @@
 // =====================================================================
 
 const NOME = 'CorsiaPro_prova_23-10-26.pdf';
+
+export const PROVA_PDF_PER = 'gianluigitavera@gmail.com';
+export const vedeProvaPdf = (email) =>
+  String(email ?? '').trim().toLowerCase() === PROVA_PDF_PER;
 
 // Un PDF 1.4 valido: catalogo, pagine, una pagina A4, Helvetica, una riga.
 // Solo ASCII, così le posizioni della tabella xref sono byte esatti.
