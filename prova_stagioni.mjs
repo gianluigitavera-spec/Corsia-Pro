@@ -486,14 +486,21 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
       }
 
       // ---- il nome del file ----
+      // Dal 23/10/2026 come la seduta: prima il gruppo, poi il periodo,
+      // con le date come nel nome della seduta (GG-MM-AA, MM-AA) e la
+      // stagione col trattino.
       dice('nome file: mensile', D.nomeFileReport({ periodo: '2026-10', gruppi: ['Esordienti A'] }),
-        'CorsiaPro_Presenze_2026-10_EsordientiA');
+        'CorsiaPro_Presenze_EsordientiA_10-26');
       dice('nome file: stagione, senza la barra', D.nomeFileReport({ periodo: '2026/27', gruppi: ['Esordienti A'] }),
-        'CorsiaPro_Presenze_2026-27_EsordientiA');
+        'CorsiaPro_Presenze_EsordientiA_2026-27');
       dice('nome file: giornaliero, due gruppi', D.nomeFileReport({ periodo: '2026-10-20', gruppi: ['Esordienti A', 'Esordienti B'] }),
-        'CorsiaPro_Presenze_2026-10-20_EsordientiA-EsordientiB');
+        'CorsiaPro_Presenze_EsordientiA-EsordientiB_20-10-26');
       dice('nome file: tutte le categorie', D.nomeFileReport({ periodo: '2026-10', gruppi: [] }),
-        'CorsiaPro_Presenze_2026-10_Tutti');
+        'CorsiaPro_Presenze_Tutti_10-26');
+      dice('nome file: gennaio, a due cifre', D.nomeFileReport({ periodo: '2027-01', gruppi: ['Ragazzi'] }),
+        'CorsiaPro_Presenze_Ragazzi_01-27');
+      dice('nome file: giorno a una cifra', D.nomeFileReport({ periodo: '2027-01-05', gruppi: ['Ragazzi'] }),
+        'CorsiaPro_Presenze_Ragazzi_05-01-27');
     }
   }
 

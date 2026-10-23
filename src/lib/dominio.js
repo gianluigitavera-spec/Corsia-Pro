@@ -2407,16 +2407,23 @@ export function reportStagione({ stagione, oggi, atleti, codici, fasce, presenze
 }
 
 /**
- * Il nome del file: «CorsiaPro_Presenze_2026-10_EsordientiA».
- * Il periodo è il giorno, il mese o la stagione (la barra di "2026/27"
- * diventa un trattino); i gruppi senza spazi, uniti da un trattino;
- * nessun gruppo: «Tutti». I caratteri non validi nei nomi di file se ne
- * vanno, come in nomeFileSeduta.
+ * Il nome del file: «CorsiaPro_Presenze_EsordientiA_10-26».
+ * Come la seduta, prima il gruppo e poi il periodo (dal 23/10/2026): il
+ * giorno GG-MM-AA, il mese MM-AA, la stagione «2026-27» (la barra di
+ * "2026/27" non sta in un nome di file). I gruppi senza spazi, uniti da
+ * un trattino; nessun gruppo: «Tutti». I caratteri non validi nei nomi di
+ * file se ne vanno, come in nomeFileSeduta.
  */
 export function nomeFileReport({ periodo, gruppi }) {
   const pulito = (t) => String(t ?? '').replace(/[\\/:*?"<>|\u0000-\u001F\u007F]+/g, '-');
   const parte = (gruppi || []).map((g) => pulito(g).replace(/\s+/g, '')).filter(Boolean).join('-') || 'Tutti';
-  return ['CorsiaPro', 'Presenze', pulito(periodo).replace(/\s+/g, ''), parte].filter(Boolean).join('_');
+  const p = String(periodo ?? '').trim();
+  const giorno = p.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const mese = p.match(/^(\d{4})-(\d{2})$/);
+  const quando = giorno ? `${giorno[3]}-${giorno[2]}-${giorno[1].slice(2)}`
+    : mese ? `${mese[2]}-${mese[1].slice(2)}`
+    : pulito(p).replace(/\s+/g, '');
+  return ['CorsiaPro', 'Presenze', parte, quando].filter(Boolean).join('_');
 }
 
 // ---------------------------------------------------------------------
