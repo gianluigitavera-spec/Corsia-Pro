@@ -20,6 +20,15 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.59.1',
+    data: '2026-10-24',
+    annuncia: true,
+    voci: [
+      'Report presenze: anche dal telefono il PDF si apre nella condivisione, pronto da salvare o mandare',
+      'Report presenze: gli atleti archiviati non compaiono più; per vederli spunta «mostra anche gli archiviati»',
+    ],
+  },
+  {
     versione: '0.59.0',
     data: '2026-10-23',
     annuncia: true,
