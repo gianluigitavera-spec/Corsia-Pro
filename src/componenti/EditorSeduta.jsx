@@ -25,6 +25,7 @@ import { condividiSeduta } from '../lib/testoSeduta';
 import Lavagna from './Lavagna';
 import FoglioStampa from './FoglioStampa';
 import { stampaConNome } from '../lib/stampa';
+import { provaPdfCondiviso } from '../lib/pdfProva';
 
 function coloreSezione(sezione, zone) {
   // Il lavoro a terra ha la sua striscia gialla: si distingue a colpo
@@ -669,6 +670,14 @@ export default function EditorSeduta({
           }}
         >
           <Share2 size={14} style={{ verticalAlign: -2 }} /> Invia
+        </button>
+        {/* PROVA iOS, passo 0 del PDF: solo sul ramo prova-ios. */}
+        <button
+          className="mini"
+          title="Prova: condivide un PDF minuscolo come file"
+          onClick={() => { provaPdfCondiviso().then(setMessaggio); }}
+        >
+          <Share2 size={14} style={{ verticalAlign: -2 }} /> PDF prova
         </button>
         <div style={{ flex: 1 }} />
         {seduta.id && puoScrivere && (
