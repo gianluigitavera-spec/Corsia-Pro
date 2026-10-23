@@ -20,6 +20,14 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.59.0',
+    data: '2026-10-23',
+    annuncia: true,
+    voci: [
+      'PDF dal telefono: si apre la condivisione con il file già pronto, da salvare, stampare o mandare su WhatsApp',
+    ],
+  },
+  {
     versione: '0.58.2',
     data: '2026-10-23',
     voci: [
