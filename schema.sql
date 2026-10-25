@@ -1,6 +1,6 @@
 -- schema.sql: struttura dello schema squadra, senza dati.
 
--- Generato dal pannello SQL di Supabase il 2026-10-18.
+-- Generato dal pannello SQL di Supabase il 2026-10-25.
 
 set check_function_bodies = false;
 
@@ -8,7 +8,7 @@ create schema if not exists squadra;
 
 -- ===== Enum
 
-create type squadra.famiglia_zona as enum ('aerobico', 'vo2', 'lattacido', 'alattacido', 'altro');
+create type squadra.famiglia_zona as enum ('aerobico', 'vo2', 'lattacido', 'alattacido', 'altro', 'passo_gara');
 create type squadra.fase_periodo as enum ('generale', 'speciale', 'specifica', 'tapering');
 create type squadra.origine_seduta as enum ('manuale', 'swimcoach', 'importata', 'copiata');
 create type squadra.ruolo as enum ('coach', 'collega', 'lettore');
@@ -737,15 +737,18 @@ create or replace view squadra.v_frequenza with (security_invoker=true) as
     a.societa_id,
     a.cognome,
     a.nome,
-    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 6)) AS rilevate_sett,
-    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 6) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'G'::text]))) AS presenti_sett,
+    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 6) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'A'::text]))) AS rilevate_sett,
+    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 6) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text]))) AS presenti_sett,
     count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 6) AND p.stato::text = 'R'::text) AS ritardi_sett,
-    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 29)) AS rilevate_mese,
-    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 29) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'G'::text]))) AS presenti_mese,
+    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 29) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'A'::text]))) AS rilevate_mese,
+    count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 29) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text]))) AS presenti_mese,
     count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 29) AND p.stato::text = 'R'::text) AS ritardi_mese,
-    count(p.seduta_id) AS rilevate_tot,
-    count(p.seduta_id) FILTER (WHERE p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'G'::text])) AS presenti_tot,
-    count(p.seduta_id) FILTER (WHERE p.stato::text = 'R'::text) AS ritardi_tot
+    count(p.seduta_id) FILTER (WHERE p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'A'::text])) AS rilevate_tot,
+    count(p.seduta_id) FILTER (WHERE p.stato::text = ANY (ARRAY['P'::text, 'R'::text])) AS presenti_tot,
+    count(p.seduta_id) FILTER (WHERE p.stato::text = 'R'::text) AS ritardi_tot,
+    round(100.0 * count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 6) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text])))::numeric / NULLIF(count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 6) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'A'::text]))), 0)::numeric)::integer AS pct_sett,
+    round(100.0 * count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 29) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text])))::numeric / NULLIF(count(p.seduta_id) FILTER (WHERE s.data >= (CURRENT_DATE - 29) AND (p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'A'::text]))), 0)::numeric)::integer AS pct_mese,
+    round(100.0 * count(p.seduta_id) FILTER (WHERE p.stato::text = ANY (ARRAY['P'::text, 'R'::text]))::numeric / NULLIF(count(p.seduta_id) FILTER (WHERE p.stato::text = ANY (ARRAY['P'::text, 'R'::text, 'A'::text])), 0)::numeric)::integer AS pct_tot
    FROM squadra.atleti a
      LEFT JOIN squadra.presenze p ON p.atleta_id = a.id
      LEFT JOIN squadra.sedute s ON s.id = p.seduta_id
@@ -1024,7 +1027,6 @@ create policy zone_select on squadra.zone as permissive for select to authentica
 
 -- ===== Grant ad anon e authenticated
 
-grant SELECT on table squadra.atleti to anon;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.atleti to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.benessere to authenticated;
 grant SELECT on table squadra.categorie to anon;
@@ -1036,16 +1038,12 @@ grant DELETE, INSERT, SELECT, UPDATE on table squadra.esercizi_settimana to auth
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.gare to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.impostazioni_stagione to authenticated;
 grant SELECT on table squadra.livelli_zona to authenticated;
-grant SELECT on table squadra.membri to anon;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.membri to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.obiettivi_fase to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.periodizzazione to authenticated;
-grant SELECT on table squadra.presenze to anon;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.presenze to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.richieste to authenticated;
-grant SELECT on table squadra.sedute to anon;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.sedute to authenticated;
-grant SELECT on table squadra.societa to anon;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.societa to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.v_atleti_doppioni to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table squadra.v_benessere to authenticated;

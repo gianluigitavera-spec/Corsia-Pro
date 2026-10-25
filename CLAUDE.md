@@ -157,8 +157,8 @@ della 0.60.0, un passo alla volta: `passo_gara` nell'enum
 90, colore `'indigo'` (le altre zone hanno tutte un colore; in `TINTE`
 è lo stesso `#818CF8` della famiglia) e livello vuoto, come vuole la
 032. Fotografia di `v_carico_zona` identica prima e dopo (3114 righe,
-3073149 m), viste e tabelle tutte protette. `schema.sql` da
-rigenerare: l'enum ha un valore in più.
+3073149 m), viste e tabelle tutte protette. `schema.sql`
+rigenerato lo stesso giorno: `passo_gara` è nell'enum.
 
 La D c'era nell'app anche prima della 035, e il codice resta: la mette
 nell'elenco delle zone `zoneConLaD` (dove App legge le zone), che ora
