@@ -1,8 +1,15 @@
 -- 035 — la D, il passo gara: una famiglia sua e la sua riga in squadra.zone
 --
--- SCRITTA il 24/10/2026, NON ANCORA ESEGUITA. Si esegue a mano dal
--- pannello Supabase, un passo alla volta, il giorno del rilascio che
--- porta la D nel lettore e nei grafici.
+-- SCRITTA il 24/10/2026. ESEGUITA A MANO il 25/10/2026 dal pannello
+-- Supabase, un passo alla volta, dopo il deploy della 0.60.0:
+--   - passo 1: passo_gara nell'enum famiglia_zona;
+--   - passo 2: la D in squadra.zone con ordine 90, colore 'indigo' (non
+--     null: le altre zone hanno tutte un colore) e livello vuoto;
+--   - passi 0 e 4: fotografia di v_carico_zona identica prima e dopo,
+--     3114 righe, 3073149 m;
+--   - passo 5: nessuna vista senza security_invoker, nessuna tabella
+--     senza RLS.
+-- Il file qui sotto è quello eseguito, col colore 'indigo'.
 --
 -- Deciso il 23/10/2026: la D è un'andatura di allenamento, il passo di
 -- una gara (D200 = al passo dei 200). Nei grafici di carico è una
@@ -79,12 +86,13 @@ select unnest(enum_range(null::squadra.famiglia_zona));
 -- =====================================================================
 -- PASSO 2 — la D in squadra.zone
 -- =====================================================================
--- In fondo all'ordine, dieci dopo l'ultima. Colore vuoto: nei grafici la
--- tinta viene dalla famiglia (TINTA_FAMIGLIA in src/lib/colori.js), non
--- da questa colonna. Se il passo 0 mostra che le altre zone hanno tutte
--- un colore, metterne uno dello stesso tipo prima di eseguire.
+-- In fondo all'ordine, dieci dopo l'ultima (è venuto 90). Colore
+-- 'indigo': le altre zone hanno tutte un colore, e 'indigo' è in TINTE
+-- (src/lib/colori.js) con lo stesso #818CF8 della famiglia passo_gara
+-- in TINTA_FAMIGLIA. Chi legge la colonna (la Dashboard, con tinta())
+-- e chi colora per famiglia danno lo stesso colore.
 insert into squadra.zone (codice, nome, famiglia, ordine, colore, livello)
-select 'D', 'Passo gara', 'passo_gara', coalesce(max(ordine), 0) + 10, null, null
+select 'D', 'Passo gara', 'passo_gara', coalesce(max(ordine), 0) + 10, 'indigo', null
   from squadra.zone
 on conflict (codice) do nothing;
 

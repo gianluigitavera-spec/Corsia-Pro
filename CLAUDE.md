@@ -151,17 +151,24 @@ fotografia di atleti e ritardi identica. Le finestre `_sett` e
 `_mese` della vista restano gli ultimi 7 e 30 giorni: l'app non le
 legge più, Sett. e Mese li calcola lei.
 
-**Scritta, NON eseguita: la 035** (24/10/2026). Aggiunge `passo_gara`
-all'enum `famiglia_zona` e inserisce la D in `squadra.zone` con livello
-vuoto, come vuole la 032. Il passo 1 va eseguito da solo. La D però non
-aspetta la 035 per farsi vedere: nell'elenco delle zone la mette il
-codice (`zoneConLaD`, dove App legge le zone), e revisore ed editor
-prendono le voci della tendina da `opzioniZona`, dove la D è «D».
-Nei grafici è una famiglia a sé, `passo_gara`, col suo colore:
-Dashboard e Volumi la riconoscono anche prima della 035
-(`famigliaDiRiga` la completa quando la vista non le dà una famiglia).
-Solo Confronto, che legge `v_fase_confronto` già raggruppata per
-famiglia e senza zona, la conta come «altro» finché la 035 non gira.
+**Eseguita a mano e verificata il 25/10/2026: la 035**, dopo il deploy
+della 0.60.0, un passo alla volta: `passo_gara` nell'enum
+`famiglia_zona` (passo 1, da solo), la D in `squadra.zone` con ordine
+90, colore `'indigo'` (le altre zone hanno tutte un colore; in `TINTE`
+è lo stesso `#818CF8` della famiglia) e livello vuoto, come vuole la
+032. Fotografia di `v_carico_zona` identica prima e dopo (3114 righe,
+3073149 m), viste e tabelle tutte protette. `schema.sql` da
+rigenerare: l'enum ha un valore in più.
+
+La D c'era nell'app anche prima della 035, e il codice resta: la mette
+nell'elenco delle zone `zoneConLaD` (dove App legge le zone), che ora
+trova quella del database e non ne aggiunge una seconda; revisore ed
+editor prendono le voci della tendina da `opzioniZona`, dove la D è
+«D». Nei grafici è una famiglia a sé, `passo_gara`, col suo colore;
+`famigliaDiRiga` la completa quando una riga arriva senza famiglia.
+Confronto, che legge `v_fase_confronto` già raggruppata per famiglia,
+la conta come passo gara da quando c'è la 035: prima la contava come
+«altro».
 Percentuali sempre sulle quattro famiglie; la D ha la sua quota sul
 totale nuotato, distinta dai metri senza zona (`percentualiPerFamiglia`).
 

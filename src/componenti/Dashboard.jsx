@@ -160,8 +160,9 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
           ) : (
             zone.map((z) => {
               const m = perZona[z.codice] || 0;
-              // La D non ha un colore in squadra.zone: prende quello della
-              // sua famiglia, e la sua percentuale è sul totale.
+              // Una zona senza colore in squadra.zone prende quello della
+              // sua famiglia (la D, prima della 035). La D ha la sua
+              // percentuale sul totale.
               const c = z.colore ? tinta(z.colore) : (TINTA_FAMIGLIA[z.famiglia] || tinta(z.colore));
               const passo = z.famiglia === 'passo_gara';
               return (
