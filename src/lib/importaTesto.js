@@ -132,9 +132,6 @@ export function sedutaDaLettura(sezioniLette, correzioni = {}) {
         note: [s.note, (s.modalita || []).join(', '), (s.attrezzi || []).join(', ')]
           .filter(Boolean).join(' · '),
       };
-      // La zona corretta nel revisore non è più la D: la distanza di gara
-      // se ne va, come quando si cambia zona nell'editor (cambiaZona).
-      if (riga.zona !== 'D') { delete riga.garaDistanza; delete riga.garaStile; }
       // Metri scritti a mano nel revisore: la riga smette di essere
       // composizione, come quando li si batte nell'editor (cambiaMetri).
       if (metriCorretti(correzioni, i, j, s)) {

@@ -82,9 +82,9 @@ const ZONE_PAROLE = [
   [/\b(gambe|gb\b|braccia)\b/i, null],       // non decide la zona da sola
 ];
 
-// La D non sta qui: è il passo gara, e si legge con la sua distanza
-// (leggiPassoGara in dominio.js). Qui c'era «\bD\b», che prendeva la D
-// da sola e lasciava fuori D200.
+// La D non sta qui: è il passo gara, e la legge leggiPassoGara in
+// dominio.js, in tutte le sue forme (D, D200, D 200, passo 200). Qui
+// c'era «\bD\b», che prendeva la D da sola e lasciava fuori D200.
 const ZONA_ESPLICITA = /\b(A1|A2|B1|B2\+?|C1|C2|C3)\b/;
 
 // "1 serie x stile", "MX 1x", "1 serie x": è un DESCRITTORE, dice come
@@ -173,7 +173,7 @@ const pulisci = (r) => r.replace(/\s+/g, ' ').trim();
 // blocco è tutto uguale.
 function zonaDelTitolo(riga) {
   const passo = leggiPassoGara(riga);
-  if (passo) return { titolo: pulisci(riga.replace(passo.testo, '')) || riga, zona: 'D', passo };
+  if (passo) return { titolo: pulisci(riga.replace(passo.testo, '')) || riga, zona: 'D' };
   const m = riga.match(ZONA_ESPLICITA);
   if (!m) return { titolo: riga, zona: '' };
   return {
@@ -230,7 +230,7 @@ function trovaAttrezzi(riga) {
 
 function trovaZona(riga) {
   const passo = leggiPassoGara(riga);
-  if (passo) return { zona: 'D', sicura: !passo.dubbio, passo };
+  if (passo) return { zona: 'D', sicura: true };
   const esplicita = riga.match(ZONA_ESPLICITA);
   if (esplicita) return { zona: esplicita[1].replace('+', ''), sicura: true };
   for (const [re, zona] of ZONE_PAROLE) {
@@ -289,11 +289,10 @@ function righeConAndature(riga) {
   for (const pezzo of pezzi) {
     const metri = valoreDelPezzo(senzaPassoGara(pezzo));
     if (!metri) return null;                 // un pezzo non letto: meglio non spezzare
-    const passo = leggiPassoGara(pezzo);
     const z = pezzo.match(ZONA_DEL_PEZZO);
-    const zona = passo ? 'D' : z ? z[1].toUpperCase().replace('+', '') : '';
+    const zona = leggiPassoGara(pezzo) ? 'D' : z ? z[1].toUpperCase().replace('+', '') : '';
     if (zona) zone.add(zona);
-    lette.push({ testo: pezzo, metri, zona, passo });
+    lette.push({ testo: pezzo, metri, zona });
   }
 
   // Una zona sola (o nessuna): la riga resta com'è.
@@ -304,21 +303,6 @@ function righeConAndature(riga) {
   return { moltiplicatore, pezzi: lette };
 }
 
-// La distanza di gara sulla riga letta, accanto alla zona D. Con un
-// dubbio la riga va in revisione e la nota dice perché.
-function conPassoGara(serie, passo) {
-  if (serie.zona !== 'D' || !passo) return serie;
-  if (passo.distanza) {
-    serie.garaDistanza = passo.distanza;
-    if (passo.stile) serie.garaStile = passo.stile;
-  }
-  if (passo.dubbio) {
-    serie.fiducia = 'gialla';
-    serie.note = [serie.note, passo.dubbio].filter(Boolean).join(' · ');
-  }
-  return serie;
-}
-
 // --------------------------------------------------------- il cuore
 export function analizzaTesto(testo) {
   const righe = String(testo || '').split('\n');
@@ -327,11 +311,7 @@ export function analizzaTesto(testo) {
   let gruppo = null;          // blocco aperto da "4x"
   let moltiplicatoreAttivo = 1;
   let zonaCorrente = '';        // dichiarata da una riga di sola zona
-  let garaCorrente = null;      // e, se è la D, il suo passo gara
-  const impostaZona = (zona, passo = null) => {
-    zonaCorrente = zona;
-    garaCorrente = zona === 'D' ? passo : null;
-  };
+  const impostaZona = (zona) => { zonaCorrente = zona; };
   const avvisi = [];
 
   // UNA SEZIONE NUOVA COMINCIA SENZA MOLTIPLICATORE.
@@ -399,12 +379,11 @@ export function analizzaTesto(testo) {
 
     if (!riga) { chiudiGruppo(); chiudiBlocco(); continue; }
 
-    // "D200", "passo 200", "D" da soli: come una riga di sola zona, col
-    // passo gara. Vale zero metri: il 200 è la gara, non un tratto.
-    const soloPasso = soloPassoGara(riga) || (/^\s*D\s*:?\s*$/.test(riga) ? leggiPassoGara(riga) : null);
-    if (soloPasso) {
+    // "D", "D200", "passo 200" da soli: come una riga di sola zona. Vale
+    // zero metri: il 200 è la gara a cui si pensa, non un tratto.
+    if (soloPassoGara(riga)) {
       chiudiGruppo();
-      impostaZona('D', soloPasso);
+      impostaZona('D');
       nuovaSezione(riga.replace(':', '').trim());
       continue;
     }
@@ -454,17 +433,17 @@ export function analizzaTesto(testo) {
     }
     if (/^(lc|lavoro centrale|parte centrale|centrale|pregara)\b/i.test(riga)) {
       chiudiGruppo();
-      const { titolo, zona, passo } = zonaDelTitolo(riga.replace(':', ''));
+      const { titolo, zona } = zonaDelTitolo(riga.replace(':', ''));
       const s = nuovaSezione(titolo);
-      if (zona) { impostaZona(zona, passo); s.zonaEreditata = zona; }
+      if (zona) { impostaZona(zona); s.zonaEreditata = zona; }
       continue;
     }
     // "Garetto:", "Edo/teo", "Salvamento:" → destinatari particolari
     if (/^[A-ZÀ-Ù][\wÀ-ù/ ]{1,24}:?$/.test(riga) && !leggiRiga(riga) && !SOLA_ZONA.test(riga)) {
       chiudiGruppo();
-      const { titolo, zona, passo } = zonaDelTitolo(riga.replace(':', ''));
+      const { titolo, zona } = zonaDelTitolo(riga.replace(':', ''));
       const s = nuovaSezione(titolo);
-      if (zona) { impostaZona(zona, passo); s.zonaEreditata = zona; }
+      if (zona) { impostaZona(zona); s.zonaEreditata = zona; }
       s.particolare = true;
       continue;
     }
@@ -524,11 +503,10 @@ export function analizzaTesto(testo) {
         // Stessa scala di certezza del ciclo principale: solo la zona
         // scritta sul pezzo è "sicura". Quella ereditata o proposta dal
         // titolo resta un'ipotesi — la riga finisce comunque gialla.
-        const sicura = !!p.zona && !p.passo?.dubbio;
+        const sicura = !!p.zona;
         let zona = p.zona || zonaCorrente || '';
-        const passo = p.zona ? p.passo : garaCorrente;
         if (!zona) zona = zonaDaTitolo(sezione.titolo) || '';
-        sezione.serie.push(conPassoGara({
+        sezione.serie.push({
           notazione: p.testo,
           metri: p.metri * molt,
           zona,
@@ -539,7 +517,7 @@ export function analizzaTesto(testo) {
           modalita: trovaModalita(p.testo),
           moltiplicato: molt > 1 ? molt : undefined,
           fiducia: sicura ? 'verde' : 'gialla',
-        }, passo));
+        });
       }
       // E la parentesi chiude il suo: quello che segue è fuori.
       if (molt > 1) sezione.serie.push(fineLetta());
@@ -553,14 +531,14 @@ export function analizzaTesto(testo) {
       moltiplicatoreAttivo = misure.moltiplicatore;
       // "4x A2": la zona scritta qui vale per tutte le righe del blocco.
       const zonaBlocco = trovaZona(riga);
-      if (zonaBlocco.zona) impostaZona(zonaBlocco.zona, zonaBlocco.passo);
-      if (misure.zonaBlocco && misure.zonaBlocco !== zonaBlocco.zona) impostaZona(misure.zonaBlocco);
+      if (zonaBlocco.zona) impostaZona(zonaBlocco.zona);
+      if (misure.zonaBlocco) impostaZona(misure.zonaBlocco);
       gruppo = { moltiplicatore: misure.moltiplicatore, figli: [], padre: null };
       togliFineInCoda();
-      sezione.serie.push(conPassoGara({
+      sezione.serie.push({
         notazione: riga, metri: 0, zona: misure.zonaBlocco || '', senzaMetri: true,
         apreBlocco: misure.moltiplicatore, fiducia: 'verde',
-      }, zonaBlocco.passo));
+      });
       continue;
     }
 
@@ -585,8 +563,8 @@ export function analizzaTesto(testo) {
     // conta la somma dei tratti) e al blocco che un NxD apre.
     const { ripetizioni, distanza } = misure;
     const metriRiga = misure.metri;
-    let { zona, sicura, passo } = trovaZona(riga);
-    if (!zona && zonaCorrente) { zona = zonaCorrente; passo = garaCorrente; sicura = !passo?.dubbio; }
+    let { zona, sicura } = trovaZona(riga);
+    if (!zona && zonaCorrente) { zona = zonaCorrente; sicura = true; }
     // Ultima spiaggia: il titolo della sezione. Non è una lettura sicura
     // quanto le due sopra, quindi "sicura" resta com'è — la riga finisce
     // comunque in fiducia gialla, mai verde.
@@ -620,7 +598,6 @@ export function analizzaTesto(testo) {
     }
     serie.metri = metriRiga * moltiplicatoreAttivo;
     if (moltiplicatoreAttivo > 1) serie.moltiplicato = moltiplicatoreAttivo;
-    conPassoGara(serie, passo);
     sezione.serie.push(serie);
 
     if (gruppo) {

@@ -1,24 +1,19 @@
-// Prove della D come andatura di allenamento: il passo gara (deciso il
-// 23/10/2026). Girano prima di ogni build.
+// Prove della D, il passo gara. Girano prima di ogni build.
 //
-// Le regole, dall'allenatore:
-//   - si scrive sempre con la distanza di gara. D200, D200SL e «passo 200»
-//     si riconoscono ovunque; «D 200» con lo spazio solo nella posizione
-//     della zona (in fondo alla riga, da solo su una riga, nel titolo),
-//     altrove la riga va in revisione;
-//   - le distanze di gara sono 50, 100, 200, 400, 800, 1500: un'altra
-//     distanza non si inventa, la riga va in revisione;
+// Decisione del 25/10/2026, che sostituisce quella del 23: la D è una
+// zona come le altre, il passo gara, SENZA distanza obbligatoria.
+//   - la D da sola è valida, niente revisione;
+//   - D200, D 200, «passo 200» si riconoscono come D; la distanza non si
+//     salva a parte, la tiene il testo;
+//   - nella tendina solo «D»;
 //   - la D non si confonde MAI con DO (dorso) o DE;
-//   - la distanza di gara si salva accanto alla zona (garaDistanza,
-//     garaStile); cambiando zona si toglie;
-//   - stampa e PDF scrivono D200.
-//
-// E una regola che non è dell'allenatore ma della vasca: la D non sposta
-// i metri. «8x50 D200» vale quanto «8x50». Il 200 della D è la gara a cui
-// si pensa, non un tratto da nuotare.
+//   - la D non sposta i metri: «8x50 D200» vale quanto «8x50».
+// Nei grafici la D è una famiglia a sé, passo_gara: percentuali sulle
+// quattro famiglie, la D con la sua quota sul totale.
 import { analizzaTesto } from './src/lib/analizzatore.js';
 import { sedutaDaLettura } from './src/lib/importaTesto.js';
 import * as D from './src/lib/dominio.js';
+import * as C from './src/lib/colori.js';
 
 let male = 0;
 const dice = (cosa, avuto, atteso) => {
@@ -27,102 +22,54 @@ const dice = (cosa, avuto, atteso) => {
   if (a !== b) { male++; console.error(`✗ ${cosa}:\n    atteso ${b}\n    avuto  ${a}`); }
 };
 
-// La prima riga di lavoro letta dal testo, e i campi che contano qui.
 const righeDi = (testo) => analizzaTesto(testo).sezioni.flatMap((s) => s.serie);
-const lettura = (r) => ({
-  zona: r.zona, distanza: r.garaDistanza ?? null, stile: r.garaStile ?? null,
-  metri: r.metri, revisione: r.fiducia !== 'verde',
-});
+const lettura = (r) => ({ zona: r.zona, metri: r.metri, revisione: r.fiducia !== 'verde' });
 const primaRiga = (testo) => lettura(righeDi(testo).find((r) => !r.apreBlocco && !r.chiudeBlocco));
 
 // =====================================================================
-// LE FORME CHE SI RICONOSCONO SEMPRE
+// LE FORME DELLA D: tutte zona D, nessuna in revisione
 // =====================================================================
-dice('D200 in fondo alla riga', primaRiga('8x50 @1:00 D200'),
-  { zona: 'D', distanza: 200, stile: null, metri: 400, revisione: false });
-dice('D200SL: lo stile attaccato', primaRiga('8x50 @1:00 D200SL'),
-  { zona: 'D', distanza: 200, stile: 'SL', metri: 400, revisione: false });
-dice('D100DO: passo 100 dorso', primaRiga('6x50 @1:00 D100DO'),
-  { zona: 'D', distanza: 100, stile: 'DO', metri: 300, revisione: false });
-dice('D200 in mezzo alla riga', primaRiga('8x50 D200 @1:00'),
-  { zona: 'D', distanza: 200, stile: null, metri: 400, revisione: false });
-dice('d200 minuscola: la d seguita da cifre non è altro', primaRiga('8x50 @1:00 d200'),
-  { zona: 'D', distanza: 200, stile: null, metri: 400, revisione: false });
-dice('passo 200', primaRiga('6x50 passo 200 @1:00'),
-  { zona: 'D', distanza: 200, stile: null, metri: 300, revisione: false });
-dice('passo gara 400', primaRiga('4x100 @1:40 passo gara 400'),
-  { zona: 'D', distanza: 400, stile: null, metri: 400, revisione: false });
-dice('passo 1500', primaRiga('3x400 @6:00 passo 1500'),
-  { zona: 'D', distanza: 1500, stile: null, metri: 1200, revisione: false });
-dice('D50', primaRiga('8x25 @1:00 D50'),
-  { zona: 'D', distanza: 50, stile: null, metri: 200, revisione: false });
+for (const [riga, metri] of [
+  ['8x50 @1:00 D', 400],
+  ['8x50 @1:00 D200', 400],
+  ['8x50 @1:00 D200SL', 400],
+  ['8x50 D200 @1:00', 400],
+  ['8x50 @1:00 d200', 400],
+  ['4x100 @2:00 D 200', 400],
+  ['6x50 passo 200 @1:00', 300],
+  ['4x100 @1:40 passo gara 400', 400],
+  ['8x50 @1:00 D150', 400],
+  ['2x100 DO @2:00 D200', 200],
+]) {
+  dice(`«${riga}» è D`, primaRiga(riga), { zona: 'D', metri, revisione: false });
+}
+// La distanza non si salva a parte: la tiene il testo.
+{
+  const r = righeDi('8x50 @1:00 D200SL')[0];
+  dice('la distanza resta nel testo, non in un campo', [r.notazione, 'garaDistanza' in r, 'garaStile' in r],
+    ['8x50 @1:00 D200SL', false, false]);
+}
 
-// «D 200» con lo spazio: nella posizione della zona sì.
-dice('D 200 in fondo alla riga', primaRiga('4x100 @2:00 D 200'),
-  { zona: 'D', distanza: 200, stile: null, metri: 400, revisione: false });
-
-// Da sola su una riga vale per quello che segue, come «C3». E vale zero
+// Da sola su una riga vale per quello che segue, come «C3», e vale zero
 // metri: non è un 200 da nuotare.
-{
-  for (const intestazione of ['D200', 'D 200', 'passo 200', 'Passo 200:']) {
-    const r = righeDi(`${intestazione}\n8x50 @1:00\n4x100 @1:40`);
-    dice(`«${intestazione}» da sola: le righe sotto la ereditano`,
-      r.map((x) => [x.notazione, x.zona, x.garaDistanza ?? null, x.metri]),
-      [['8x50 @1:00', 'D', 200, 400], ['4x100 @1:40', 'D', 200, 400]]);
-  }
+for (const intestazione of ['D', 'D200', 'D 200', 'passo 200', 'Passo 200:']) {
+  const r = righeDi(`${intestazione}\n8x50 @1:00\n4x100 @1:40`);
+  dice(`«${intestazione}» da sola: le righe sotto la ereditano`,
+    r.map((x) => [x.notazione, x.zona, x.metri, x.fiducia]),
+    [['8x50 @1:00', 'D', 400, 'verde'], ['4x100 @1:40', 'D', 400, 'verde']]);
 }
-
-// Nel titolo della sezione.
-{
-  const r = righeDi('Centrale D200\n8x50 @1:00');
-  dice('Centrale D200: la sezione è a passo 200', r.map(lettura),
-    [{ zona: 'D', distanza: 200, stile: null, metri: 400, revisione: false }]);
-}
-
-// Più andature sulla stessa riga: si spezza, e il pezzo D tiene la sua.
-{
-  const r = righeDi('4x(2x50 D200 + 100 A1)').filter((x) => x.metri > 0);
-  dice('4x(2x50 D200 + 100 A1): due andature', r.map((x) => [x.zona, x.garaDistanza ?? null, x.metri]),
-    [['D', 200, 400], ['A1', null, 400]]);
-}
-
-// Il blocco con la D scritta sull'apertura.
-{
-  const r = righeDi('4x D200\n2x50 @1:00\n100 @2:00');
-  dice('4x D200: le righe del blocco a passo 200',
-    r.filter((x) => !x.apreBlocco && !x.chiudeBlocco).map((x) => [x.zona, x.garaDistanza ?? null, x.metri]),
-    [['D', 200, 400], ['D', 200, 400]]);
-}
-
-// Lo stile della riga e la D insieme.
-dice('2x100 DO D200: dorso, a passo 200', primaRiga('2x100 DO @2:00 D200'),
-  { zona: 'D', distanza: 200, stile: null, metri: 200, revisione: false });
-
-// =====================================================================
-// IN REVISIONE
-// =====================================================================
-dice('D 200 fuori dalla posizione della zona', primaRiga('D 200 8x50 @1:00').revisione, true);
-dice('D senza distanza: zona D proposta, da rivedere', primaRiga('8x50 @1:00 D'),
-  { zona: 'D', distanza: null, stile: null, metri: 400, revisione: true });
-dice('D150 non è una distanza di gara', primaRiga('8x50 @1:00 D150'),
-  { zona: 'D', distanza: null, stile: null, metri: 400, revisione: true });
-dice('D200XX: lo stile non si capisce', primaRiga('8x50 @1:00 D200XX'),
-  { zona: 'D', distanza: null, stile: null, metri: 400, revisione: true });
-dice('passo 150 non è una distanza di gara', primaRiga('6x50 passo 150').revisione, true);
-// Dall'archivio vero (il CSV dei blocchi di SwimCoach): due passi gara
-// sulla stessa riga, uno per le 50 e uno per le 25. La D c'è, ma quale
-// distanza va a quale parte lo sa solo chi l'ha scritta: revisione. E il
-// «/100» non deve diventare una scala: i metri restano 300.
-dice('Passo 200/100: due distanze, in revisione',
-  primaRiga('Passo 200/100 CP + arrivo in virata 4x50 4x25'),
-  { zona: 'D', distanza: null, stile: null, metri: 300, revisione: true });
-dice('D200/100: lo stesso', primaRiga('4x50 4x25 D200/100').revisione, true);
-dice('passo 100 dall\'archivio', primaRiga('4x25 Passo 100 CP + arrivi in virata'),
-  { zona: 'D', distanza: 100, stile: null, metri: 100, revisione: false });
-{
-  const n = righeDi('8x50 @1:00 D150')[0].note || '';
-  dice('la riga in revisione dice perché', /150/.test(n) && /gara/.test(n), true);
-}
+dice('Centrale D200: la sezione è a passo gara', righeDi('Centrale D200\n8x50 @1:00').map(lettura),
+  [{ zona: 'D', metri: 400, revisione: false }]);
+dice('4x(2x50 D200 + 100 A1): due andature',
+  righeDi('4x(2x50 D200 + 100 A1)').filter((x) => x.metri > 0).map((x) => [x.zona, x.metri]),
+  [['D', 400], ['A1', 400]]);
+dice('4x D200: le righe del blocco a passo gara',
+  righeDi('4x D200\n2x50 @1:00\n100 @2:00').filter((x) => !x.apreBlocco && !x.chiudeBlocco).map((x) => [x.zona, x.metri]),
+  [['D', 400], ['D', 400]]);
+// Dall'archivio vero: due distanze insieme. È D, e i metri restano quelli
+// che il lettore dava prima (il «200/100» letto come scala: 300).
+dice('Passo 200/100 dall\'archivio', primaRiga('Passo 200/100 CP + arrivo in virata 4x50 4x25').zona, 'D');
+dice('Passo 200/100: i metri di prima', analizzaTesto('Passo 200/100 CP + arrivo in virata 4x50 4x25').metri, 300);
 
 // =====================================================================
 // DO E DE NON SONO MAI D
@@ -139,188 +86,108 @@ for (const [riga, zona] of [
   ['6x50 DE200', ''],
 ]) {
   const r = righeDi(riga)[0];
-  dice(`«${riga}» non è passo gara`, [r.zona === 'D', r.garaDistanza ?? null], [false, null]);
+  dice(`«${riga}» non è D`, r.zona === 'D', false);
   if (zona) dice(`«${riga}» tiene la sua zona`, r.zona, zona);
 }
 
 // =====================================================================
 // LA D NON SPOSTA I METRI
 // =====================================================================
-// Ogni riga con la D vale quanto la stessa riga senza. È la prova che
-// conta di più: il 200 della D non è un tratto, e nella regola del
-// «+ tratto» un numero in coda ferma la somma.
 for (const [conD, senza] of [
   ['8x50 @1:00 D200', '8x50 @1:00'],
+  ['8x50 @1:00 D', '8x50 @1:00'],
   ['6x100 + 100 D200', '6x100 + 100'],
   ['6x100 + 100 passo 200', '6x100 + 100'],
   ['4x(2x50 D200 + 100 A1)', '4x(2x50 + 100 A1)'],
   ['400 D400', '400'],
   ['4x100 @2:00 D 200', '4x100 @2:00'],
   ['3x200 passo gara 800', '3x200'],
-  ['8x50 @1:00 D150', '8x50 @1:00'],
   ['D200', ''],
 ]) {
-  const metri = (t) => analizzaTesto(t).metri;
-  dice(`metri invariati: «${conD}»`, metri(conD), metri(senza));
-  dice(`metri invariati anche nell'editor: «${conD}»`, D.metriDaNotazione(conD), senza ? D.metriDaNotazione(senza) : null);
+  dice(`metri invariati: «${conD}»`, analizzaTesto(conD).metri, analizzaTesto(senza).metri);
+  dice(`metri invariati nell'editor: «${conD}»`, D.metriDaNotazione(conD), senza ? D.metriDaNotazione(senza) : null);
 }
 
 // =====================================================================
-// IN ARCHIVIO: garaDistanza e garaStile passano dal testo all'editor
+// ARCHIVIO, EDITOR, TENDINA
 // =====================================================================
 {
   const [sez] = sedutaDaLettura(analizzaTesto('Centrale\n8x50 @1:00 D200SL\n4x100 @1:40 A2').sezioni);
-  dice('import: la distanza e lo stile arrivano', sez.serie.map((r) => [r.zona, r.garaDistanza ?? null, r.garaStile ?? null]),
-    [['D', 200, 'SL'], ['A2', null, null]]);
-}
+  dice('import: la zona D, la distanza nel testo', sez.serie.map((r) => [r.zona, r.notazione, 'garaDistanza' in r]),
+    [['D', '8x50 @1:00 D200SL', false], ['A2', '4x100 @1:40 A2', false]]);
 
-// =====================================================================
-// L'EDITOR
-// =====================================================================
-{
-  // Scrivendo la notazione con la D, la riga senza zona prende D e la
-  // distanza; quella con una zona scelta a mano non si tocca.
-  const vuota = D.annotaPassoGara({ notazione: '8x50 D200SL', zona: '' });
-  dice('editor: riga senza zona → D200SL', [vuota.zona, vuota.garaDistanza, vuota.garaStile], ['D', 200, 'SL']);
-  const scelta = D.annotaPassoGara({ notazione: '8x50 D200', zona: 'B1' });
-  dice('editor: la zona scelta a mano resta', [scelta.zona, scelta.garaDistanza ?? null], ['B1', null]);
-  const giaD = D.annotaPassoGara({ notazione: '8x50 D400', zona: 'D', garaDistanza: 200 });
-  dice('editor: su una riga già D si aggiorna la distanza', giaD.garaDistanza, 400);
-  const senzaStile = D.annotaPassoGara({ notazione: '8x50 D200', zona: 'D', garaDistanza: 200, garaStile: 'SL' });
-  dice('editor: lo stile tolto dalla notazione se ne va', senzaStile.garaStile ?? null, null);
-  // Una notazione senza D non toglie la distanza a una riga D: magari è
-  // stata scelta dalla tendina.
-  const tendina = D.annotaPassoGara({ notazione: '8x50', zona: 'D', garaDistanza: 100 });
-  dice('editor: notazione senza D, la distanza scelta resta', tendina.garaDistanza, 100);
+  // Nell'editor: scrivendo la D nella notazione la riga senza zona prende
+  // D; una zona scelta a mano non si tocca.
+  dice('editor: riga senza zona → D', D.annotaPassoGara({ notazione: '8x50 D200', zona: '' }).zona, 'D');
+  dice('editor: anche la D da sola', D.annotaPassoGara({ notazione: '8x50 D', zona: '' }).zona, 'D');
+  dice('editor: la zona scelta a mano resta', D.annotaPassoGara({ notazione: '8x50 D200', zona: 'B1' }).zona, 'B1');
+  dice('editor: DO non dà la D', D.annotaPassoGara({ notazione: '8x50 DO', zona: '' }).zona, '');
 
-  // Cambiando zona la distanza si toglie.
-  const r = { zona: 'D', garaDistanza: 200, garaStile: 'SL' };
-  D.cambiaZona(r, 'B1');
-  dice('editor: cambiando zona la distanza si toglie', r, { zona: 'B1' });
-  const r2 = { zona: 'B1' };
-  D.cambiaZona(r2, 'D');
-  dice('editor: scegliendo D dalla tendina, distanza da scrivere', r2, { zona: 'D' });
-  D.cambiaDistanzaGara(r2, 400);
-  dice('editor: la distanza dalla tendina', r2.garaDistanza, 400);
-  D.cambiaDistanzaGara(r2, '');
-  dice('editor: tendina vuota, distanza tolta', 'garaDistanza' in r2, false);
+  // La D da sola è valida: nessun problema da segnalare.
+  const seduta = { data: '2026-10-25', categorie: ['ESO_A1'], sezioni: [{ titolo: 'C', destinatari: ['*'],
+    serie: [{ notazione: '8x50 D', metri: 400, zona: 'D' }] }] };
+  dice('editor: la D è una zona valida', D.validaSeduta(seduta).map((p) => p.msg), []);
 
-  dice('le distanze di gara', D.DISTANZE_GARA, [50, 100, 200, 400, 800, 1500]);
-
-  // La D senza distanza è un problema da segnalare, come la zona mancante.
-  const seduta = (serie) => ({ data: '2026-10-24', categorie: ['ESO_A1'], sezioni: [{ titolo: 'C', destinatari: ['*'], serie }] });
-  const msg = (serie) => D.validaSeduta(seduta(serie), ['A1', 'D']).map((p) => p.msg);
-  dice('editor: D senza distanza va segnalata', msg([{ notazione: '8x50', metri: 400, zona: 'D' }]), ['Passo gara senza distanza di gara']);
-  dice('editor: D con la distanza va bene', msg([{ notazione: '8x50', metri: 400, zona: 'D', garaDistanza: 200 }]), []);
-}
-
-// =====================================================================
-// STAMPA E PDF: D200
-// =====================================================================
-{
-  const fo = D.foglioSeduta({ sezioni: [{ titolo: 'C', destinatari: ['*'], serie: [
-    { notazione: '8x50 D200SL', metri: 400, zona: 'D', garaDistanza: 200, garaStile: 'SL' },
-    { notazione: '4x100', metri: 400, zona: 'D', garaDistanza: 400 },
-    { notazione: '4x50', metri: 200, zona: 'D' },
-    { notazione: '200', metri: 200, zona: 'A1', garaDistanza: 200 },
-  ] }] }, {});
-  dice('foglio: la zona con la gara', fo.sezioni[0].righe.map((r) => r.zona), ['D200SL', 'D400', 'D', 'A1']);
-}
-
-// =====================================================================
-// LA TENDINA: la D c'è sempre, e si legge «D200»
-// =====================================================================
-// La tendina della zona prende le zone dal database, dove la D arriva con
-// la 035. Prima di allora la riga D letta mostrava «—»: nel revisore e
-// nell'editor non si poteva controllare niente, e tutto dipendeva
-// dall'ordine dei passi al rilascio. La D la mette il codice.
-{
-  const DAL_DATABASE = [{ codice: 'A1', nome: 'Aerobico lento', famiglia: 'aerobico', ordine: 10 },
-    { codice: 'B1', nome: 'Soglia', famiglia: 'aerobico', ordine: 30 }];
+  // La tendina: la D c'è sempre, dal codice, e si legge «D». Mai D200.
+  const DAL_DATABASE = [{ codice: 'A1', nome: 'Aerobico lento', famiglia: 'aerobico' }];
   const conD = D.zoneConLaD(DAL_DATABASE);
-  dice('tendina: la D c\'è anche senza la 035', conD.map((z) => z.codice), ['A1', 'B1', 'D']);
-  dice('tendina: con la sua famiglia', conD.find((z) => z.codice === 'D').famiglia, 'passo_gara');
-  // Dopo la 035 la D arriva dal database: una sola, quella del database.
-  const dopo035 = D.zoneConLaD([...DAL_DATABASE, { codice: 'D', nome: 'Passo gara', famiglia: 'passo_gara', ordine: 80 }]);
-  dice('tendina: dopo la 035 una D sola', dopo035.filter((z) => z.codice === 'D').length, 1);
-  dice('tendina: senza zone (senza linea, prima lettura)', D.zoneConLaD(null).map((z) => z.codice), ['D']);
+  dice('tendina: la D c\'è anche senza la 035', conD.map((z) => z.codice), ['A1', 'D']);
+  dice('tendina: dopo la 035 una D sola',
+    D.zoneConLaD([...DAL_DATABASE, { codice: 'D', famiglia: 'passo_gara' }]).filter((z) => z.codice === 'D').length, 1);
+  const etichetta = (riga) => D.opzioniZona(conD, riga).find((o) => o.valore === (riga.zona || ''))?.etichetta;
+  const letta = righeDi('Centrale\n8x50 @1:00 D200')[0];
+  dice('tendina del revisore: «D»', etichetta(letta), 'D');
+  dice('tendina dell\'editor: «D»', etichetta(sedutaDaLettura(analizzaTesto('Centrale\n8x50 @1:00 D200').sezioni)[0].serie[0]), 'D');
+  dice('tendina: mai D200, nemmeno con un campo vecchio', etichetta({ zona: 'D', garaDistanza: 200 }), 'D');
+  dice('tendina: una zona sconosciuta si vede', etichetta({ zona: 'PS' }), 'PS');
 
-  const scelta = (zone, riga) => D.opzioniZona(zone, riga).find((o) => o.valore === (riga.zona || ''))?.etichetta;
-
-  // Una riga D200 importata: nel revisore (la riga letta) e nell'editor
-  // (la riga in archivio) la tendina mostra D200, con le zone del
-  // database di oggi, senza D.
-  const lettura = analizzaTesto('Centrale\n8x50 @1:00 D200\n4x50 @1:00 D');
-  const letta = lettura.sezioni[0].serie[0];
-  dice('revisore: la riga D200 mostra D200', scelta(conD, letta), 'D200');
-  const [sez] = sedutaDaLettura(lettura.sezioni);
-  dice('editor: la riga D200 importata mostra D200', scelta(conD, sez.serie[0]), 'D200');
-  dice('editor: la D senza distanza mostra D', scelta(conD, sez.serie[1]), 'D');
-  dice('tendina: le altre zone col loro codice', scelta(conD, { zona: 'B1' }), 'B1');
-  dice('tendina: la voce vuota', scelta(conD, { zona: '' }), '—');
-  // Una zona che l'elenco non ha si mostra lo stesso, invece di «—».
-  dice('tendina: una zona sconosciuta si vede', scelta(conD, { zona: 'PS' }), 'PS');
-  dice('tendina: la D200SL', scelta(conD, { zona: 'D', garaDistanza: 200, garaStile: 'SL' }), 'D200SL');
-
-  // Nel revisore, correggendo la zona da D a B1 la distanza di gara se ne
-  // va, come nell'editor: accanto a un B1 sarebbe una distanza orfana.
-  const [corretta] = sedutaDaLettura(analizzaTesto('Centrale\n8x50 @1:00 D200SL').sezioni, { '0:0': { zona: 'B1' } });
-  dice('revisore: corretta in B1, la distanza si toglie',
-    [corretta.serie[0].zona, corretta.serie[0].garaDistanza ?? null, corretta.serie[0].garaStile ?? null], ['B1', null, null]);
+  // Stampa e PDF: la zona com'è, «D».
+  const fo = D.foglioSeduta({ sezioni: [{ titolo: 'C', destinatari: ['*'],
+    serie: [{ notazione: '8x50 D200', metri: 400, zona: 'D' }] }] }, {});
+  dice('foglio: la zona D', fo.sezioni[0].righe[0].zona, 'D');
 }
 
 // =====================================================================
-// I GRAFICI: la D è una famiglia a sé, passo_gara
+// I GRAFICI: la D è passo_gara
 // =====================================================================
-// Né aerobico né lattacido. Le percentuali restano sulle quattro
-// famiglie, perché gli obiettivi di fase fanno 100 fra loro; la D ha la
-// sua quota sul TOTALE nuotato, e i metri senza zona restano un'altra
-// cosa: prima finiva tutto in «fuori», e la D si leggeva come «senza zona».
 {
-  const C = await import('./src/lib/colori.js');
-
-  // Dashboard: le chiavi della vista, e nonClassificati per chi non ha famiglia.
   const f = D.percentualiPerFamiglia({
     aerobico: 600, vo2: 200, lattacido: 100, alattacido: 100, passo_gara: 500, nonClassificati: 500,
   });
-  dice('famiglie: il totale è tutto il nuotato', f.totale, 2000);
-  dice('famiglie: le percentuali sulle quattro', [f.classificati, f.pct.aerobico, f.pct.vo2], [1000, 60, 20]);
-  dice('famiglie: le quattro fanno 100',
-    Math.round(D.FAMIGLIE.reduce((t, k) => t + f.pct[k], 0)), 100);
-  dice('famiglie: la D coi suoi metri e la sua quota sul totale', [f.passoGara, f.pctPassoGara], [500, 25]);
-  dice('famiglie: i senza zona sono solo i senza zona', f.senzaZona, 500);
-  // Confronto: la vista chiama «altro» la famiglia mancante.
+  dice('famiglie: le percentuali sulle quattro', [f.totale, f.classificati, f.pct.aerobico], [2000, 1000, 60]);
+  dice('famiglie: la D col suo totale e la sua quota', [f.passoGara, f.pctPassoGara], [500, 25]);
+  dice('famiglie: i senza zona a parte', f.senzaZona, 500);
   const g = D.percentualiPerFamiglia({ aerobico: 300, altro: 100, passo_gara: 100 });
-  dice('famiglie: «altro» è senza zona, la D no', [g.senzaZona, g.passoGara, g.pctPassoGara], [100, 100, 20]);
-  dice('famiglie: niente D, quota zero', D.percentualiPerFamiglia({ aerobico: 100 }).pctPassoGara, 0);
-  dice('famiglie: niente metri, niente divisioni per zero', D.percentualiPerFamiglia({}).pctPassoGara, 0);
+  dice('famiglie: «altro» è senza zona, la D no', [g.senzaZona, g.passoGara], [100, 100]);
+  dice('famiglie: vuoto, zero', D.percentualiPerFamiglia({}).pctPassoGara, 0);
 
-  // Dalla vista la famiglia arriva da squadra.zone: prima della 035 la D
-  // non ce l'ha. La famiglia della riga la completa il codice.
   dice('riga della vista: D senza famiglia è passo gara', D.famigliaDiRiga({ zona: 'D', famiglia: null }), 'passo_gara');
   dice('riga della vista: la famiglia del database vince', D.famigliaDiRiga({ zona: 'B1', famiglia: 'aerobico' }), 'aerobico');
-  dice('riga della vista: senza zona resta senza famiglia', D.famigliaDiRiga({ zona: '', famiglia: null }), null);
 
-  // Il riepilogo dell'editor: la D nella sua famiglia, non fra i non classificati.
   const sezioni = [{ titolo: 'C', destinatari: ['*'], serie: [
-    { notazione: '8x50 D200', metri: 400, zona: 'D', garaDistanza: 200 },
+    { notazione: '12x50 D200', metri: 600, zona: 'D' },
     { notazione: '400', metri: 400, zona: 'A1' },
     { notazione: '200', metri: 200, zona: '' },
   ] }];
-  const zone = D.zoneConLaD([{ codice: 'A1', famiglia: 'aerobico' }]);
-  dice('editor: la D nel riepilogo per famiglia', D.caricoPerFamiglia(sezioni, 'Generale', zone),
-    { aerobico: 400, vo2: 0, lattacido: 0, alattacido: 0, passo_gara: 400, nonClassificati: 200 });
+  dice('editor: la D nel riepilogo per famiglia', D.caricoPerFamiglia(sezioni, 'Generale', D.zoneConLaD([{ codice: 'A1', famiglia: 'aerobico' }])),
+    { aerobico: 400, vo2: 0, lattacido: 0, alattacido: 0, passo_gara: 600, nonClassificati: 200 });
 
-  // Un colore suo, diverso da tutti gli altri.
-  const colore = C.TINTA_FAMIGLIA.passo_gara;
-  dice('colore: la D ne ha uno', typeof colore, 'string');
-  dice('colore: diverso dalle quattro famiglie e dai senza zona',
-    ['aerobico', 'vo2', 'lattacido', 'alattacido', 'altro'].some((k) => C.TINTA_FAMIGLIA[k] === colore), false);
-  // Dashboard e Volumi disegnano le stesse colonne, nello stesso ordine:
-  // le quattro famiglie, poi la D, poi i senza zona.
+  // IL DIFETTO DEL 25/10: in Dashboard la card «Passo gara» diceva 0 m e
+  // la riga D della ripartizione 600. Le righe della Dashboard le fa
+  // zonePerSpecializzazione, che dava la famiglia con l'elenco ZONE del
+  // codice — e lì la D non c'era: la sua riga usciva «nonclass», cioè
+  // senza zona. La card e la riga ora vengono dallo stesso conto.
+  const righe = D.zonePerSpecializzazione(sezioni, 'Generale');
+  dice('dashboard: la riga D ha la famiglia passo gara', righe.find((r) => r.zona === 'D')?.famiglia, 'passo_gara');
+  const r = D.riepilogoCarico(righe);
+  dice('dashboard: la card e la riga D dicono lo stesso numero', [r.famiglie.passoGara, r.perZona.D], [600, 600]);
+  dice('dashboard: i senza zona sono solo i senza zona', r.famiglie.senzaZona, 200);
+  dice('dashboard: il totale', r.famiglie.totale, 1200);
+
+  dice('colore: la D ne ha uno suo',
+    ['aerobico', 'vo2', 'lattacido', 'alattacido', 'altro'].some((k) => C.TINTA_FAMIGLIA[k] === C.TINTA_FAMIGLIA.passo_gara), false);
   dice('grafici: le serie', C.SERIE_FAMIGLIE.map((s) => s.chiave),
     ['aerobico', 'vo2', 'lattacido', 'alattacido', 'passo_gara', 'nonclass']);
-  dice('grafici: la D col suo nome', C.SERIE_FAMIGLIE.find((s) => s.chiave === 'passo_gara').nome, 'Passo gara');
 }
 
 if (male) {

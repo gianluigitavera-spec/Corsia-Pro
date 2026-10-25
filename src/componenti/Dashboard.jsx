@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI, sedutaNelGruppo, percentualiPerFamiglia, famigliaDiRiga } from '../lib/dominio';
+import { SPECIALIZZAZIONI, sedutaNelGruppo, riepilogoCarico, famigliaDiRiga } from '../lib/dominio';
 import { tinta, TINTA_FAMIGLIA, SERIE_FAMIGLIE } from '../lib/colori';
 import Calendario from './Calendario';
 import { BarreImpilate } from './Grafici';
@@ -51,26 +51,16 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
       .finally(() => setCaricamento(false));
   }, [societa.id, spec, giorni, codiciMacro?.join()]);
 
-  const perZona = righe.reduce((acc, r) => {
-    const k = r.zona || '?';
-    acc[k] = (acc[k] || 0) + (r.metri || 0);
-    return acc;
-  }, {});
-
-  // La famiglia la completa famigliaDiRiga: prima della 035 la D arriva
-  // dalla vista senza famiglia, ed è comunque passo gara.
-  const perFamiglia = righe.reduce((acc, r) => {
-    const k = famigliaDiRiga(r) || 'nonClassificati';
-    acc[k] = (acc[k] || 0) + (r.metri || 0);
-    return acc;
-  }, {});
-
+  // Card e ripartizione dallo stesso conto (riepilogoCarico in dominio.js):
+  // il 25/10/2026 la card «Passo gara» diceva 0 m e la riga D 600, perché
+  // le due somme prendevano la famiglia da due posti.
+  //
   // Il volume è tutto quello nuotato; le percentuali sono sui soli metri
-  // classificati (percentualiPerFamiglia in dominio.js). Prima si divideva
+  // delle quattro famiglie (percentualiPerFamiglia). Prima si divideva
   // per il totale e i metri senza zona abbassavano ogni famiglia.
   // Anche le percentuali delle singole zone stanno sullo stesso
   // denominatore: A1 + A2 + B1 devono dare l'aerobico che si legge sopra.
-  const famiglie = percentualiPerFamiglia(perFamiglia);
+  const { perZona, perFamiglia, famiglie } = riepilogoCarico(righe);
   const totale = famiglie.totale;
   const pct = (m) => (famiglie.classificati ? ((m * 100) / famiglie.classificati).toFixed(1) : '0.0');
   const pctFamiglia = (f) => famiglie.pct[f].toFixed(1);

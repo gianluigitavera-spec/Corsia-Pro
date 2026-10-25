@@ -184,7 +184,7 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
                           aria-label="Zona"
                         >
                           {/* Le voci da opzioniZona (dominio.js), come
-                              nell'editor: la D c'è sempre e si legge «D200». */}
+                              nell'editor: la D c'è sempre, ed è «D». */}
                           {opzioniZona(zone, { ...s, zona: valore(i, j, 'zona', s.zona) || '' }).map((o) => (
                             <option key={o.valore || 'vuota'} value={o.valore} title={o.titolo}>{o.etichetta}</option>
                           ))}

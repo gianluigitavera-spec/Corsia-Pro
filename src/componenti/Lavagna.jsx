@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
-import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataIt, eSecco, zonaScritta } from '../lib/dominio';
+import { TUTTI, SPECIALIZZAZIONI, metriPerSpecializzazione, dataIt, eSecco } from '../lib/dominio';
 import { TINTA_FAMIGLIA } from '../lib/colori';
 
 // La lavagna del bordo vasca: una sezione per volta, caratteri grandi,
@@ -74,7 +74,7 @@ export default function Lavagna({ seduta, zone, chiudi }) {
               {s.recupero && <span className="rec mono">{s.recupero}</span>}
               {s.zona && (
                 <span className="zona" style={{ background: TINTA_FAMIGLIA[famiglia(s.zona)] || 'var(--nonclass)' }}>
-                  {zonaScritta(s)}
+                  {s.zona}
                 </span>
               )}
               {s.note && <span className="nota">{s.note}</span>}

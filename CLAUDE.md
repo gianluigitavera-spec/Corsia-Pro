@@ -156,7 +156,7 @@ all'enum `famiglia_zona` e inserisce la D in `squadra.zone` con livello
 vuoto, come vuole la 032. Il passo 1 va eseguito da solo. La D però non
 aspetta la 035 per farsi vedere: nell'elenco delle zone la mette il
 codice (`zoneConLaD`, dove App legge le zone), e revisore ed editor
-prendono le voci della tendina da `opzioniZona`, che la scrive «D200».
+prendono le voci della tendina da `opzioniZona`, dove la D è «D».
 Nei grafici è una famiglia a sé, `passo_gara`, col suo colore:
 Dashboard e Volumi la riconoscono anche prima della 035
 (`famigliaDiRiga` la completa quando la vista non le dà una famiglia).
@@ -219,17 +219,20 @@ B1 soglia anaerobica, B2 massimo consumo di ossigeno, C1 tolleranza lattacida,
 C2 potenza lattacida, C3 velocità alattacida. Altre sigle in uso: PS, BN, ff,
 FP/PF, CP, TC, regr. Crono vale C3 o D a seconda della fase di periodizzazione.
 
-**La D è il passo gara, e si scrive con la distanza** (deciso il
-23/10/2026). D200, D200SL, d200 e «passo 200» si riconoscono ovunque;
-«D 200» con lo spazio solo nella posizione della zona (in fondo alla
-riga, da solo, in fondo al titolo). Le distanze sono 50, 100, 200, 400,
-800, 1500: un'altra, la D senza distanza, due distanze insieme
-(«Passo 200/100») o uno stile sconosciuto mandano la riga in revisione,
-senza inventare. La D non si confonde con DO e DE: vale solo se dopo
-vengono cifre. La distanza si salva sulla riga, `garaDistanza` e
-`garaStile`, accanto a `zona: 'D'`; cambiando zona si toglie; stampa e
-PDF scrivono D200. Tutto in `dominio.js` (`leggiPassoGara`), prove in
-`prova_passo_gara.mjs`.
+**La D è una zona come le altre: il passo gara** (decisione del
+25/10/2026, che sostituisce quella del 23). La distanza della gara NON
+è obbligatoria e non si salva a parte: se c'è, la tiene il testo della
+riga. D, D200, D200SL, d200, «D 200», «passo 200» e «Passo 200/100» si
+riconoscono tutte come D, e nessuna va in revisione. Nella tendina c'è
+solo «D». La D non si confonde con DO e DE: vale da sola o seguita da
+cifre, mai seguita da una lettera. Tutto in `dominio.js`
+(`leggiPassoGara`), prove in `prova_passo_gara.mjs`.
+
+Il 23/10 si era deciso il contrario (distanza obbligatoria, salvata in
+`garaDistanza` e `garaStile`, «D200» in tendina e in stampa): è durato
+due giorni ed è stato tolto. Le righe salvate in quei giorni su
+`sviluppo` possono avere ancora quei due campi: non li legge più
+nessuno.
 
 **La D non sposta i metri.** Il 200 di D200 è la gara, non un tratto:
 `leggiRiga` lo toglie prima di contare (`senzaPassoGara`), altrimenti

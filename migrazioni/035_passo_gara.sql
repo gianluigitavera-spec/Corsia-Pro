@@ -6,9 +6,9 @@
 --
 -- Deciso il 23/10/2026: la D è un'andatura di allenamento, il passo di
 -- una gara (D200 = al passo dei 200). Nei grafici di carico è una
--- categoria a sé: né aerobico né lattacido. La distanza di gara non sta
--- qui: è sulla riga della seduta (garaDistanza, garaStile, nel JSON di
--- sedute.sezioni), accanto alla zona.
+-- categoria a sé: né aerobico né lattacido. Dal 25/10/2026 è una zona
+-- come le altre, senza distanza obbligatoria: la distanza della gara, se
+-- c'è, la tiene il testo della riga.
 --
 -- Cosa fa:
 --   1. aggiunge 'passo_gara' all'enum squadra.famiglia_zona;
