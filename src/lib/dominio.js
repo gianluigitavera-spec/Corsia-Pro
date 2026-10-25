@@ -550,9 +550,137 @@ function trovaMisure(riga) {
 // decide chi chiama — l'import ne fa una riga a zero da rivedere,
 // l'editor non tocca i metri che ci sono scritti.
 // ---------------------------------------------------------------------
+// ---------------------------------------------------------------------
+// LA D: IL PASSO GARA (deciso il 23/10/2026)
+//
+// La D è un'andatura di allenamento: si nuota al passo di una gara. Si
+// scrive SEMPRE con la distanza della gara, perché «a passo gara» senza
+// dire quale non dice niente:
+//
+//   D200, D200SL, d200   ovunque nella riga. La d seguita da cifre non
+//                        può essere altro: DO e DE hanno una lettera dopo
+//   passo 200            ovunque, anche «passo gara 200»
+//   D 200                con lo spazio, SOLO nella posizione della zona:
+//                        in fondo alla riga, da solo, in fondo al titolo.
+//                        Altrove la riga va in revisione
+//   D                    da sola: la zona c'è, la distanza no → revisione
+//
+// Le distanze sono quelle delle gare in vasca. Un'altra (D150) non si
+// corregge e non si arrotonda: la riga va in revisione e la distanza
+// resta vuota. Lo stile si legge solo attaccato al numero (D200SL): con
+// lo spazio, «D200 SL» potrebbe essere lo stile della riga.
+//
+// La D NON SPOSTA I METRI: il 200 di D200 è la gara a cui si pensa, non
+// un tratto da nuotare. Per questo leggiRiga la toglie prima di contare
+// (senzaPassoGara): nella regola del «+ tratto» un numero in coda ferma
+// la somma, e «6x100 + 100 D200» valeva 600 invece di 700. Si toglie
+// SOLO la D scritta in una forma che si riconosce: quella dubbia («D 200»
+// in mezzo alla riga, due distanze insieme) lascia la lettura dei metri
+// com'era prima che la D esistesse, e la riga va comunque in revisione.
+// ---------------------------------------------------------------------
+export const DISTANZE_GARA = [50, 100, 200, 400, 800, 1500];
+const STILI_GARA = { SL: 'SL', DO: 'DO', RA: 'RA', FA: 'FA', DF: 'FA', DE: 'FA', MX: 'MI', MI: 'MI' };
+
+// Le forme, dalla più sicura. Il gruppo 1 è la distanza, il 2 lo stile
+// attaccato (lettere qualunque: quelle sconosciute vanno in revisione).
+// «D200/100» e «passo 200/100» non sono queste: sono PASSO_DOPPIO.
+const D_ATTACCATA = /(?<![A-Za-zÀ-ù0-9])[Dd](\d{2,4})([A-Za-z]{1,3})?(?![A-Za-zÀ-ù0-9])(?!\s*\/\s*\d)/;
+const PASSO_SCRITTO = /(?<![A-Za-zÀ-ù])passo\s+(?:gara\s+)?(\d{2,4})([A-Za-z]{1,3})?(?![A-Za-zÀ-ù0-9])(?!\s*\/\s*\d)/i;
+const D_SPAZIATA_IN_FONDO = /(?<![A-Za-zÀ-ù0-9])D\s+(\d{2,4})([A-Za-z]{1,3})?\s*:?\s*$/;
+const D_SPAZIATA = /(?<![A-Za-zÀ-ù0-9])D\s+(\d{2,4})(?!\d)/;
+const D_SOLA = /(?<![A-Za-zÀ-ù0-9])D(?![A-Za-zÀ-ù0-9])/;
+// Due distanze insieme, «Passo 200/100 CP … 4x50 4x25» (dall'archivio
+// vero): una per le 50, una per le 25. Quale vada a quale parte lo sa
+// solo chi l'ha scritta, quindi revisione. I metri restano quelli che il
+// lettore dava prima: lì il «200/100» lo legge come una scala, 300, che
+// per combinazione è 4x50 + 4x25. Toglierlo li faceva scendere a 100.
+const PASSO_DOPPIO = /(?<![A-Za-zÀ-ù0-9])(?:[Dd]|passo\s+(?:gara\s+)?)(\d{2,4})(?:\s*\/\s*\d{2,4})+(?![A-Za-zÀ-ù0-9])/i;
+// Quelle che si tolgono prima di contare i metri: le forme sicure.
+const D_DA_TOGLIERE = [D_ATTACCATA, PASSO_SCRITTO, D_SPAZIATA_IN_FONDO];
+
+const passoDa = (m, dubbio) => {
+  const distanza = Number(m[1]);
+  const lettere = m[2] ? m[2].toUpperCase() : '';
+  const testo = m[0].trim();
+  if (dubbio) return { distanza: null, stile: null, testo, dubbio };
+  if (!DISTANZE_GARA.includes(distanza)) {
+    return { distanza: null, stile: null, testo, dubbio: `passo gara ${distanza}: non è una distanza di gara` };
+  }
+  if (lettere && !STILI_GARA[lettere]) {
+    return { distanza: null, stile: null, testo, dubbio: `${testo}: stile di gara non riconosciuto` };
+  }
+  return { distanza, stile: lettere ? STILI_GARA[lettere] : null, testo, dubbio: null };
+};
+
+/**
+ * Il passo gara scritto nella riga, se c'è.
+ * @returns null se la riga non parla di D, altrimenti
+ *   { distanza, stile, testo, dubbio }: con `dubbio` la distanza è null e
+ *   la riga va in revisione, col perché.
+ */
+export function leggiPassoGara(riga) {
+  const r = String(riga ?? '');
+  let m = r.match(PASSO_DOPPIO);
+  if (m) return passoDa(m, `${m[0].trim()}: più distanze di gara sulla stessa riga, scrivi una D per riga`);
+  m = r.match(D_ATTACCATA) || r.match(PASSO_SCRITTO) || r.match(D_SPAZIATA_IN_FONDO);
+  if (m) return passoDa(m, null);
+  m = r.match(D_SPAZIATA);
+  if (m) return passoDa(m, `«${m[0].trim()}» con lo spazio vale solo in fondo alla riga: scrivi D${m[1]}`);
+  if (D_SOLA.test(r)) return { distanza: null, stile: null, testo: 'D', dubbio: 'D senza la distanza di gara: scrivi D50, D100, D200…' };
+  return null;
+}
+
+/** La riga senza il passo gara: la D resta come etichetta, il numero no. */
+export function senzaPassoGara(riga) {
+  let r = String(riga ?? '');
+  for (const re of D_DA_TOGLIERE) r = r.replace(new RegExp(re.source, `${re.flags}g`), ' D ');
+  return r;
+}
+
+/** La riga che dice solo il passo gara («D200», «passo 200:»). */
+export const soloPassoGara = (riga) => {
+  const p = leggiPassoGara(riga);
+  return p && p.testo !== 'D' && !senzaPassoGara(riga).replace(/\bD\b/, '').replace(/[\s:]/g, '') ? p : null;
+};
+
+/** Come si scrive la zona sul foglio: D200, D200SL, e le altre com'erano. */
+export const zonaScritta = (riga) => (riga?.zona === 'D' && riga.garaDistanza
+  ? `D${riga.garaDistanza}${riga.garaStile || ''}`
+  : riga?.zona || '');
+
+// Nell'editor: scrivendo la notazione con la D, la riga senza zona (o già
+// D) prende la D e la sua distanza. Una zona scelta a mano non si tocca,
+// come per le zone automatiche dal titolo. Una notazione senza D non
+// toglie una distanza già scritta: può venire dalla tendina.
+export function annotaPassoGara(riga) {
+  if (!riga) return riga;
+  const p = leggiPassoGara(riga.notazione);
+  if (!p?.distanza) return riga;
+  if (riga.zona && riga.zona !== 'D') return riga;
+  riga.zona = 'D';
+  riga.garaDistanza = p.distanza;
+  if (p.stile) riga.garaStile = p.stile; else delete riga.garaStile;
+  return riga;
+}
+
+// La tendina della zona. Cambiando zona la distanza di gara si toglie:
+// accanto a un B1 sarebbe una distanza orfana.
+export function cambiaZona(riga, zona) {
+  riga.zona = zona;
+  if (zona !== 'D') { delete riga.garaDistanza; delete riga.garaStile; }
+  return riga;
+}
+
+export function cambiaDistanzaGara(riga, distanza) {
+  const n = Number(distanza);
+  if (DISTANZE_GARA.includes(n)) riga.garaDistanza = n;
+  else { delete riga.garaDistanza; delete riga.garaStile; }
+  return riga;
+}
+
 export function leggiRiga(riga) {
   if (!riga) return null;
-  const m = trovaMisure(riga);
+  const m = trovaMisure(senzaPassoGara(riga));
   if (!m) return null;
   // L'apertura di un blocco ("3x") non è un lavoro: zero metri, e il
   // fattore lo applica chi sa in quale blocco sta la riga.
@@ -2127,6 +2255,8 @@ export function validaSeduta(seduta, zoneValide = ZONE.map((z) => z.codice)) {
       if (!s.zona) problemi.push({ campo: dove, msg: "Zona non indicata" });
       else if (!zoneValide.includes(s.zona))
         problemi.push({ campo: dove, msg: `Zona "${s.zona}" non riconosciuta` });
+      else if (s.zona === "D" && !s.garaDistanza)
+        problemi.push({ campo: dove, msg: "Passo gara senza distanza di gara" });
     });
   });
 
@@ -3071,7 +3201,7 @@ export function foglioSeduta(seduta, { societa, categorie } = {}) {
         notazione: s.notazione ?? '',
         tag: notaLeggibile(s.note),
         recupero: s.recupero || '',
-        zona: s.zona || '',
+        zona: zonaScritta(s),
         metri: s.metri ? `${s.metri} m` : '',
         inBlocco: !!s.moltiplicato,
       });

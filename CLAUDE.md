@@ -151,6 +151,13 @@ fotografia di atleti e ritardi identica. Le finestre `_sett` e
 `_mese` della vista restano gli ultimi 7 e 30 giorni: l'app non le
 legge più, Sett. e Mese li calcola lei.
 
+**Scritta, NON eseguita: la 035** (24/10/2026). Aggiunge `passo_gara`
+all'enum `famiglia_zona` e inserisce la D in `squadra.zone` con livello
+vuoto, come vuole la 032. Il passo 1 va eseguito da solo. Finché non
+gira, la D letta dal testo non è nell'elenco delle zone: l'editor la
+mostra lo stesso, `validaSeduta` la segnala come zona non riconosciuta e
+nei grafici conta fra i metri senza zona.
+
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026
 (specializzazione Fondo). E non sappiamo quale file abbia inserito i
@@ -204,6 +211,25 @@ programma diverso da zero.
 B1 soglia anaerobica, B2 massimo consumo di ossigeno, C1 tolleranza lattacida,
 C2 potenza lattacida, C3 velocità alattacida. Altre sigle in uso: PS, BN, ff,
 FP/PF, CP, TC, regr. Crono vale C3 o D a seconda della fase di periodizzazione.
+
+**La D è il passo gara, e si scrive con la distanza** (deciso il
+23/10/2026). D200, D200SL, d200 e «passo 200» si riconoscono ovunque;
+«D 200» con lo spazio solo nella posizione della zona (in fondo alla
+riga, da solo, in fondo al titolo). Le distanze sono 50, 100, 200, 400,
+800, 1500: un'altra, la D senza distanza, due distanze insieme
+(«Passo 200/100») o uno stile sconosciuto mandano la riga in revisione,
+senza inventare. La D non si confonde con DO e DE: vale solo se dopo
+vengono cifre. La distanza si salva sulla riga, `garaDistanza` e
+`garaStile`, accanto a `zona: 'D'`; cambiando zona si toglie; stampa e
+PDF scrivono D200. Tutto in `dominio.js` (`leggiPassoGara`), prove in
+`prova_passo_gara.mjs`.
+
+**La D non sposta i metri.** Il 200 di D200 è la gara, non un tratto:
+`leggiRiga` lo toglie prima di contare (`senzaPassoGara`), altrimenti
+nella regola del «+ tratto» fermava la somma — «6x100 + 100 D200»
+valeva 600. Si toglie solo la forma sicura: quella dubbia lascia la
+lettura com'era. Verificato sul CSV dei blocchi di SwimCoach (17934
+letture): zero metri diversi.
 
 **Ogni atleta può fare qualunque zona.** Un velocista fa lavori di C, un
 fondista pure. Non deve esistere nessun filtro che leghi la zona alla

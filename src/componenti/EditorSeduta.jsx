@@ -18,6 +18,7 @@ import {
   metriSvoltiDiRiga, metriSvoltiDiSezione,
   metriDaRicontrollare, applicaRicontrollo, applicaRicontrolloInBlocco, lunediDi,
   inserisciFineBlocco, sciogliBlocco, blocchiDaChiudere, bloccoApertoInFondo, fattoreChiuso,
+  annotaPassoGara, cambiaZona, cambiaDistanzaGara, DISTANZE_GARA,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA, TINTE } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
@@ -178,6 +179,9 @@ export default function EditorSeduta({
       // Il numero del lettore accanto ai metri, anche quando i metri sono
       // scritti a mano: è lo scarto fra i due che dice chi ha deciso.
       annotaLettura(s.sezioni[i], serie);
+      // D200 nella notazione: la riga senza zona (o già D) prende la D e
+      // la distanza di gara. Una zona scelta a mano non si tocca.
+      annotaPassoGara(serie);
       // Se la partenza nasce da un passo base, cambiando la distanza si rifà.
       if (serie.base) {
         try {
@@ -1167,10 +1171,30 @@ export default function EditorSeduta({
                       <>
                         <label className="campo-riga zona">
                           <span className="eti">Zona</span>
-                          <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].zona = e.target.value; })}>
+                          <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { cambiaZona(st.sezioni[i].serie[j], e.target.value); })}>
                             <option value="">—</option>
                             {zone.map((z) => <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>)}
+                            {/* Una zona letta dal testo che l'elenco non ha (la D,
+                                prima della 035): si mostra com'è, invece di far
+                                vedere «—» su una riga che una zona ce l'ha. */}
+                            {s.zona && !zone.some((z) => z.codice === s.zona) && (
+                              <option value={s.zona}>{s.zona}</option>
+                            )}
                           </select>
+                          {/* La D è il passo gara: la distanza della gara sta
+                              accanto, e senza resta da completare. */}
+                          {s.zona === 'D' && (
+                            <select
+                              className="gara-passo"
+                              aria-label="Distanza di gara"
+                              title="Distanza di gara del passo"
+                              value={s.garaDistanza || ''}
+                              onChange={(e) => aggiorna((st) => { cambiaDistanzaGara(st.sezioni[i].serie[j], e.target.value); })}
+                            >
+                              <option value="">gara?</option>
+                              {DISTANZE_GARA.map((d) => <option key={d} value={d}>D{d}</option>)}
+                            </select>
+                          )}
                         </label>
                         <label className="campo-riga metri">
                           <span className="eti">Metri</span>

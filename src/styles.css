@@ -266,6 +266,7 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
 .campo-riga > select, .campo-riga > input { width: 100%; }
 .campo-riga .eti { display: none; }
 .campo-riga .base-passo { margin-top: 4px; align-self: start; }
+.campo-riga .gara-passo { margin-top: 4px; }
 
 /* ------------------------------------------- blocchi ripetuti
    L'apertura non è una riga di lavoro: è l'intestazione del blocco, e
