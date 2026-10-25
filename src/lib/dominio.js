@@ -867,7 +867,7 @@ export function caricoPerZona(sezioni, specializzazione) {
 export function caricoPerFamiglia(sezioni, specializzazione, zone = ZONE) {
   const mappa = Object.fromEntries(zone.map((z) => [z.codice, z.famiglia]));
   const perZona = caricoPerZona(sezioni, specializzazione);
-  const out = { aerobico: 0, vo2: 0, lattacido: 0, alattacido: 0, nonClassificati: 0 };
+  const out = { aerobico: 0, vo2: 0, lattacido: 0, alattacido: 0, passo_gara: 0, nonClassificati: 0 };
   for (const [codice, metri] of Object.entries(perZona)) {
     const fam = mappa[codice];
     if (fam && fam in out) out[fam] += metri;
@@ -885,14 +885,35 @@ export function caricoPerFamiglia(sezioni, specializzazione, zone = ZONE) {
 // `fuori` dice quanti sono, perché chi guarda lo sappia.
 // Qualunque chiave che non sia una delle quattro famiglie è fuori:
 // nonClassificati (Dashboard), altro (v_fase_confronto), nonclass.
+//
+// La D (passo_gara) è fuori dalle percentuali come i senza zona, ma non
+// è la stessa cosa (deciso il 23/10/2026): ha una zona, solo non sta in
+// nessuna delle quattro famiglie. Ha la sua quota sul TOTALE nuotato,
+// `pctPassoGara`, e `senzaZona` conta solo quello che la zona non ce
+// l'ha. `fuori` resta la somma dei due.
 export function percentualiPerFamiglia(metriPerFamiglia) {
   const m = metriPerFamiglia || {};
   const totale = Object.values(m).reduce((t, v) => t + (Number(v) || 0), 0);
   const classificati = FAMIGLIE.reduce((t, f) => t + (Number(m[f]) || 0), 0);
   const pct = Object.fromEntries(FAMIGLIE.map((f) =>
     [f, classificati ? ((Number(m[f]) || 0) * 100) / classificati : 0]));
-  return { totale, classificati, fuori: totale - classificati, pct };
+  const passoGara = Number(m.passo_gara) || 0;
+  const fuori = totale - classificati;
+  return {
+    totale, classificati, fuori, pct,
+    passoGara,
+    pctPassoGara: totale ? (passoGara * 100) / totale : 0,
+    senzaZona: fuori - passoGara,
+  };
 }
+
+// La famiglia di una riga delle viste di carico. La vista la prende da
+// squadra.zone, dove la D arriva con la 035: prima di allora la riga D
+// avrebbe famiglia vuota e finirebbe fra i senza zona. Il codice la
+// completa, come fa zoneConLaD per la tendina; dopo la 035 vince il
+// database.
+export const famigliaDiRiga = (r) =>
+  r?.famiglia || (r?.zona === 'D' ? ZONA_PASSO_GARA.famiglia : null);
 
 // Metri realmente nuotati dalla squadra in una seduta, dati gli atleti
 // presenti (ognuno col proprio percorso).

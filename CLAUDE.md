@@ -157,7 +157,13 @@ vuoto, come vuole la 032. Il passo 1 va eseguito da solo. La D però non
 aspetta la 035 per farsi vedere: nell'elenco delle zone la mette il
 codice (`zoneConLaD`, dove App legge le zone), e revisore ed editor
 prendono le voci della tendina da `opzioniZona`, che la scrive «D200».
-Finché la 035 non gira, nei grafici la D conta fra i metri senza zona.
+Nei grafici è una famiglia a sé, `passo_gara`, col suo colore:
+Dashboard e Volumi la riconoscono anche prima della 035
+(`famigliaDiRiga` la completa quando la vista non le dà una famiglia).
+Solo Confronto, che legge `v_fase_confronto` già raggruppata per
+famiglia e senza zona, la conta come «altro» finché la 035 non gira.
+Percentuali sempre sulle quattro famiglie; la D ha la sua quota sul
+totale nuotato, distinta dai metri senza zona (`percentualiPerFamiglia`).
 
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026

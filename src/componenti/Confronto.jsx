@@ -138,9 +138,27 @@ export default function Confronto({ societa, specializzazione = 'Generale', grup
                     );
                   })
                 )}
-                {haObiettivi && famiglie.fuori > 0 && famiglie.classificati > 0 && (
+                {/* La D, il passo gara: fuori dalle quattro famiglie e dagli
+                    obiettivi, con la sua quota sul totale della fase. Prima
+                    della 035 la vista la chiama «altro», come i senza zona. */}
+                {haObiettivi && famiglie.passoGara > 0 && (
+                  <div className="riga-confronto" style={{ '--c': TINTA_FAMIGLIA.passo_gara }}>
+                    <span className="nome-conf">Passo gara</span>
+                    <span className="piste">
+                      <span className="pista-conf reale">
+                        <i style={{ width: `${Math.min(100, famiglie.pctPassoGara)}%` }} />
+                      </span>
+                    </span>
+                    <span className="mono valori-conf">
+                      <span style={{ color: 'var(--testo-3)' }}>sul totale</span>
+                      <span>{Math.round(famiglie.pctPassoGara)}%</span>
+                    </span>
+                    <span className="mono scarto" />
+                  </div>
+                )}
+                {haObiettivi && famiglie.senzaZona > 0 && famiglie.classificati > 0 && (
                   <p className="nota-obiettivo">
-                    {famiglie.fuori.toLocaleString('it-IT')} m senza zona su{' '}
+                    {famiglie.senzaZona.toLocaleString('it-IT')} m senza zona su{' '}
                     {totale.toLocaleString('it-IT')}: contano nei km, restano fuori dalle percentuali.
                   </p>
                 )}
@@ -151,8 +169,9 @@ export default function Confronto({ societa, specializzazione = 'Generale', grup
 
         <p style={{ fontSize: 12, color: 'var(--testo-3)', marginTop: 12 }}>
           La barra chiara è quello che ti aspettavi, quella piena quello che è stato nuotato.
-          Le percentuali sono sui soli metri con la zona, come gli obiettivi: le serie senza zona
-          contano nei km ma non in nessuna famiglia.
+          Le percentuali sono sui metri delle quattro famiglie, come gli obiettivi: le serie senza
+          zona contano nei km ma non in nessuna famiglia, e il passo gara (D) ha la sua quota sul
+          totale della fase.
         </p>
       </div>
     </div>

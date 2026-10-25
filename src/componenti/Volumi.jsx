@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarRange } from 'lucide-react';
 import * as api from '../lib/dati';
-import { metriPerSpecializzazione, sedutaNelGruppo, atletaNelGruppo, frequenzaNelPeriodo } from '../lib/dominio';
-import { TINTA_FAMIGLIA } from '../lib/colori';
+import { metriPerSpecializzazione, sedutaNelGruppo, atletaNelGruppo, frequenzaNelPeriodo, famigliaDiRiga } from '../lib/dominio';
+import { SERIE_FAMIGLIE } from '../lib/colori';
 import { BarreImpilate, BarreOrizzontali, km } from './Grafici';
 import Confronto from './Confronto';
 
@@ -135,7 +135,8 @@ export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGr
     for (const z of zone) {
       const s = lunedi(z.data);
       m[s] ??= { etichetta: '', valori: {} };
-      const f = z.famiglia || 'nonclass';
+      // famigliaDiRiga: prima della 035 la D arriva senza famiglia.
+      const f = famigliaDiRiga(z) || 'nonclass';
       m[s].valori[f] = (m[s].valori[f] || 0) + (z.metri || 0);
     }
     return Object.entries(m).sort().map(([s, v]) => ({
@@ -144,13 +145,7 @@ export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGr
     }));
   }, [zone]);
 
-  const SERIE = [
-    { chiave: 'aerobico', nome: 'Aerobico', colore: TINTA_FAMIGLIA.aerobico },
-    { chiave: 'vo2', nome: 'VO₂max', colore: TINTA_FAMIGLIA.vo2 },
-    { chiave: 'lattacido', nome: 'Lattacido', colore: TINTA_FAMIGLIA.lattacido },
-    { chiave: 'alattacido', nome: 'Alattacido', colore: TINTA_FAMIGLIA.alattacido },
-    { chiave: 'nonclass', nome: 'Senza zona', colore: TINTA_FAMIGLIA.altro },
-  ];
+  const SERIE = SERIE_FAMIGLIE;
 
   // La media sugli atleti che una percentuale ce l'hanno: chi ha solo
   // giustificati non ha frequenza, e contarlo come 0% abbassava la media.

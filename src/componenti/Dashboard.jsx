@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as api from '../lib/dati';
-import { SPECIALIZZAZIONI, sedutaNelGruppo, percentualiPerFamiglia } from '../lib/dominio';
-import { tinta, TINTA_FAMIGLIA } from '../lib/colori';
+import { SPECIALIZZAZIONI, sedutaNelGruppo, percentualiPerFamiglia, famigliaDiRiga } from '../lib/dominio';
+import { tinta, TINTA_FAMIGLIA, SERIE_FAMIGLIE } from '../lib/colori';
 import Calendario from './Calendario';
 import { BarreImpilate } from './Grafici';
 
@@ -57,8 +57,10 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
     return acc;
   }, {});
 
+  // La famiglia la completa famigliaDiRiga: prima della 035 la D arriva
+  // dalla vista senza famiglia, ed è comunque passo gara.
   const perFamiglia = righe.reduce((acc, r) => {
-    const k = r.famiglia || 'nonClassificati';
+    const k = famigliaDiRiga(r) || 'nonClassificati';
     acc[k] = (acc[k] || 0) + (r.metri || 0);
     return acc;
   }, {});
@@ -72,6 +74,8 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
   const totale = famiglie.totale;
   const pct = (m) => (famiglie.classificati ? ((m * 100) / famiglie.classificati).toFixed(1) : '0.0');
   const pctFamiglia = (f) => famiglie.pct[f].toFixed(1);
+  // La D sta fuori dalle quattro: la sua quota è sul totale nuotato.
+  const pctTotale = (m) => (totale ? ((m * 100) / totale).toFixed(1) : '0.0');
 
   const kpi = [
     { nome: 'Volume totale', valore: (totale / 1000).toFixed(1), unita: 'km', sotto: `${totale.toLocaleString('it-IT')} metri`, tinta: 'var(--ciano)' },
@@ -79,6 +83,7 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
     { nome: 'VO₂max', valore: pctFamiglia('vo2'), unita: '%', sotto: `${(perFamiglia.vo2 || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.vo2 },
     { nome: 'Lattacido', valore: pctFamiglia('lattacido'), unita: '%', sotto: `${(perFamiglia.lattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.lattacido },
     { nome: 'Alattacido', valore: pctFamiglia('alattacido'), unita: '%', sotto: `${(perFamiglia.alattacido || 0).toLocaleString('it-IT')} m`, tinta: TINTA_FAMIGLIA.alattacido },
+    { nome: 'Passo gara', valore: famiglie.pctPassoGara.toFixed(1), unita: '%', sotto: `${famiglie.passoGara.toLocaleString('it-IT')} m sul totale`, tinta: TINTA_FAMIGLIA.passo_gara },
   ];
 
   const massimo = Math.max(1, ...Object.values(perZona));
@@ -94,7 +99,7 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
     for (const r of righe) {
       const s = lunedi(r.data);
       m[s] ??= { valori: {} };
-      const f = r.famiglia || 'nonclass';
+      const f = famigliaDiRiga(r) || 'nonclass';
       m[s].valori[f] = (m[s].valori[f] || 0) + (r.metri || 0);
     }
     return Object.entries(m).sort().map(([s, v]) => ({
@@ -103,13 +108,7 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
     }));
   })();
 
-  const SERIE = [
-    { chiave: 'aerobico', nome: 'Aerobico', colore: TINTA_FAMIGLIA.aerobico },
-    { chiave: 'vo2', nome: 'VO₂max', colore: TINTA_FAMIGLIA.vo2 },
-    { chiave: 'lattacido', nome: 'Lattacido', colore: TINTA_FAMIGLIA.lattacido },
-    { chiave: 'alattacido', nome: 'Alattacido', colore: TINTA_FAMIGLIA.alattacido },
-    { chiave: 'nonclass', nome: 'Senza zona', colore: TINTA_FAMIGLIA.altro },
-  ];
+  const SERIE = SERIE_FAMIGLIE;
 
   return (
     <>
@@ -171,13 +170,18 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
           ) : (
             zone.map((z) => {
               const m = perZona[z.codice] || 0;
-              const c = tinta(z.colore);
+              // La D non ha un colore in squadra.zone: prende quello della
+              // sua famiglia, e la sua percentuale è sul totale.
+              const c = z.colore ? tinta(z.colore) : (TINTA_FAMIGLIA[z.famiglia] || tinta(z.colore));
+              const passo = z.famiglia === 'passo_gara';
               return (
                 <div className="zona-riga" key={z.codice} style={{ '--tinta': c }}>
                   <div className="zona-testa">
                     <span className="nome"><b>{z.codice}</b>{z.nome}</span>
                     <span className="spazio" />
-                    <span className="valore">{m.toLocaleString('it-IT')} m ({pct(m)}%)</span>
+                    <span className="valore">
+                      {m.toLocaleString('it-IT')} m ({passo ? `${pctTotale(m)}% del totale` : `${pct(m)}%`})
+                    </span>
                   </div>
                   <div className="zona-barra">
                     <i style={{ width: `${(m / massimo) * 100}%` }} />
@@ -187,13 +191,19 @@ export default function Dashboard({ societa, zone, categorie, stagione, puoScriv
             })
           )}
 
-          {famiglie.fuori > 0 && (
+          {famiglie.senzaZona > 0 && (
             <div className="avviso" style={{ marginTop: 16 }}>
-              {famiglie.fuori.toLocaleString('it-IT')} metri senza zona su {totale.toLocaleString('it-IT')}:
+              {famiglie.senzaZona.toLocaleString('it-IT')} metri senza zona su {totale.toLocaleString('it-IT')}:
               contano nel volume ma restano fuori dalle percentuali, calcolate sui{' '}
-              {famiglie.classificati.toLocaleString('it-IT')} metri con la zona. Li trovi nelle sedute
-              con la serie priva di zona.
+              {famiglie.classificati.toLocaleString('it-IT')} metri delle quattro famiglie. Li trovi nelle
+              sedute con la serie priva di zona.
             </div>
+          )}
+          {famiglie.passoGara > 0 && (
+            <p style={{ fontSize: 12, color: 'var(--testo-3)', marginTop: 12 }}>
+              Il passo gara (D) non è né aerobico né lattacido: resta fuori dalle percentuali delle
+              quattro famiglie e la sua quota è sul totale nuotato.
+            </p>
           )}
         </div>
       </div>

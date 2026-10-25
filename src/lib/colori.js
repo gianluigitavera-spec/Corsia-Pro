@@ -30,6 +30,19 @@ export const TINTA_FAMIGLIA = {
   vo2: '#FBBF24',
   lattacido: '#F87171',
   alattacido: '#F472B6',
+  // La D, il passo gara: né aerobico né lattacido, un colore suo.
+  passo_gara: '#818CF8',
   altro: '#94A3B8',
   nonClassificati: '#94A3B8',
 };
+
+// Le colonne dei grafici per famiglia, in Dashboard e in Volumi: le
+// stesse, nello stesso ordine. Erano scritte due volte, una per scheda.
+export const SERIE_FAMIGLIE = [
+  { chiave: 'aerobico', nome: 'Aerobico', colore: TINTA_FAMIGLIA.aerobico },
+  { chiave: 'vo2', nome: 'VO₂max', colore: TINTA_FAMIGLIA.vo2 },
+  { chiave: 'lattacido', nome: 'Lattacido', colore: TINTA_FAMIGLIA.lattacido },
+  { chiave: 'alattacido', nome: 'Alattacido', colore: TINTA_FAMIGLIA.alattacido },
+  { chiave: 'passo_gara', nome: 'Passo gara', colore: TINTA_FAMIGLIA.passo_gara },
+  { chiave: 'nonclass', nome: 'Senza zona', colore: TINTA_FAMIGLIA.altro },
+];

@@ -216,9 +216,11 @@ dice('e la settimana piena ne ha due', settimane[1].sedute.length, 2);
     dice('tutto senza zona: percentuali a zero, 500 fuori',
       [tuttoFuori.classificati, tuttoFuori.fuori, tuttoFuori.pct.aerobico], [0, 500, 0]);
 
-    // Niente di niente.
+    // Niente di niente. Dal 25/10/2026 anche la D (passo gara) e i senza
+    // zona contati a parte: tutto a zero.
     dice('vuoto', D.percentualiPerFamiglia({}),
-      { totale: 0, classificati: 0, fuori: 0, pct: { aerobico: 0, vo2: 0, lattacido: 0, alattacido: 0 } });
+      { totale: 0, classificati: 0, fuori: 0, pct: { aerobico: 0, vo2: 0, lattacido: 0, alattacido: 0 },
+        passoGara: 0, pctPassoGara: 0, senzaZona: 0 });
     dice('null', D.percentualiPerFamiglia(null).totale, 0);
   }
 }

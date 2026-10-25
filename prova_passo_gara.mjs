@@ -269,6 +269,60 @@ for (const [conD, senza] of [
     [corretta.serie[0].zona, corretta.serie[0].garaDistanza ?? null, corretta.serie[0].garaStile ?? null], ['B1', null, null]);
 }
 
+// =====================================================================
+// I GRAFICI: la D è una famiglia a sé, passo_gara
+// =====================================================================
+// Né aerobico né lattacido. Le percentuali restano sulle quattro
+// famiglie, perché gli obiettivi di fase fanno 100 fra loro; la D ha la
+// sua quota sul TOTALE nuotato, e i metri senza zona restano un'altra
+// cosa: prima finiva tutto in «fuori», e la D si leggeva come «senza zona».
+{
+  const C = await import('./src/lib/colori.js');
+
+  // Dashboard: le chiavi della vista, e nonClassificati per chi non ha famiglia.
+  const f = D.percentualiPerFamiglia({
+    aerobico: 600, vo2: 200, lattacido: 100, alattacido: 100, passo_gara: 500, nonClassificati: 500,
+  });
+  dice('famiglie: il totale è tutto il nuotato', f.totale, 2000);
+  dice('famiglie: le percentuali sulle quattro', [f.classificati, f.pct.aerobico, f.pct.vo2], [1000, 60, 20]);
+  dice('famiglie: le quattro fanno 100',
+    Math.round(D.FAMIGLIE.reduce((t, k) => t + f.pct[k], 0)), 100);
+  dice('famiglie: la D coi suoi metri e la sua quota sul totale', [f.passoGara, f.pctPassoGara], [500, 25]);
+  dice('famiglie: i senza zona sono solo i senza zona', f.senzaZona, 500);
+  // Confronto: la vista chiama «altro» la famiglia mancante.
+  const g = D.percentualiPerFamiglia({ aerobico: 300, altro: 100, passo_gara: 100 });
+  dice('famiglie: «altro» è senza zona, la D no', [g.senzaZona, g.passoGara, g.pctPassoGara], [100, 100, 20]);
+  dice('famiglie: niente D, quota zero', D.percentualiPerFamiglia({ aerobico: 100 }).pctPassoGara, 0);
+  dice('famiglie: niente metri, niente divisioni per zero', D.percentualiPerFamiglia({}).pctPassoGara, 0);
+
+  // Dalla vista la famiglia arriva da squadra.zone: prima della 035 la D
+  // non ce l'ha. La famiglia della riga la completa il codice.
+  dice('riga della vista: D senza famiglia è passo gara', D.famigliaDiRiga({ zona: 'D', famiglia: null }), 'passo_gara');
+  dice('riga della vista: la famiglia del database vince', D.famigliaDiRiga({ zona: 'B1', famiglia: 'aerobico' }), 'aerobico');
+  dice('riga della vista: senza zona resta senza famiglia', D.famigliaDiRiga({ zona: '', famiglia: null }), null);
+
+  // Il riepilogo dell'editor: la D nella sua famiglia, non fra i non classificati.
+  const sezioni = [{ titolo: 'C', destinatari: ['*'], serie: [
+    { notazione: '8x50 D200', metri: 400, zona: 'D', garaDistanza: 200 },
+    { notazione: '400', metri: 400, zona: 'A1' },
+    { notazione: '200', metri: 200, zona: '' },
+  ] }];
+  const zone = D.zoneConLaD([{ codice: 'A1', famiglia: 'aerobico' }]);
+  dice('editor: la D nel riepilogo per famiglia', D.caricoPerFamiglia(sezioni, 'Generale', zone),
+    { aerobico: 400, vo2: 0, lattacido: 0, alattacido: 0, passo_gara: 400, nonClassificati: 200 });
+
+  // Un colore suo, diverso da tutti gli altri.
+  const colore = C.TINTA_FAMIGLIA.passo_gara;
+  dice('colore: la D ne ha uno', typeof colore, 'string');
+  dice('colore: diverso dalle quattro famiglie e dai senza zona',
+    ['aerobico', 'vo2', 'lattacido', 'alattacido', 'altro'].some((k) => C.TINTA_FAMIGLIA[k] === colore), false);
+  // Dashboard e Volumi disegnano le stesse colonne, nello stesso ordine:
+  // le quattro famiglie, poi la D, poi i senza zona.
+  dice('grafici: le serie', C.SERIE_FAMIGLIE.map((s) => s.chiave),
+    ['aerobico', 'vo2', 'lattacido', 'alattacido', 'passo_gara', 'nonclass']);
+  dice('grafici: la D col suo nome', C.SERIE_FAMIGLIE.find((s) => s.chiave === 'passo_gara').nome, 'Passo gara');
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);
