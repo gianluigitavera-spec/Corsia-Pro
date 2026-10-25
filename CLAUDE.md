@@ -639,9 +639,10 @@ registro consultabile, e non interrompe nessuno a bordo vasca.
 commit e merge che precedono un push: tutto dietro `&&`.
 
 **Prima di pacchettizzare si esegue `npm run build`**, che è la catena
-completa: allineamento versione, eslint, controllo import, 61 prove
-dell'analizzatore, prove stagioni, build Vite col guardiano sui chunk
-circolari. Non si consegna niente senza averla vista passare.
+completa: allineamento versione, eslint, controllo import, poi tutte le
+prove (`prove.mjs`, che esegue ogni `prova_*.mjs` della cartella
+principale), poi la build Vite col guardiano sui chunk circolari. Non si
+consegna niente senza averla vista passare.
 
 Le prove dell'analizzatore sono ancorate a notazione vera, presa da
 allenamenti reali e verificata contro un foglio Excel. Quando si tocca il
@@ -763,18 +764,15 @@ sia il registro. Due vincoli, e sono il punto:
   `novita.js` rifiuta in apertura. Il messaggio chiede conferma, non
   accusa: «0.57.0 è una minor senza annuncio: confermi?».
 
-**Debito: la build elenca i `prova_*.mjs` a mano.** Lo script `build` in
-`package.json` nomina i file uno per uno, quindi una prova nuova resta
-fuori in silenzio — è già successo con `prova_riepilogo.mjs`, scritto e
-non eseguito finché non l'ho aggiunto a mano. È la stessa forma che ci
-ha già morso due volte (l'elenco dei campi da tenere in `conferma()`,
-l'azzeramento di `moltiplicatoreAttivo` in cinque rami su otto): un
-elenco chiuso che qualcuno deve ricordarsi di aggiornare.
-
-Da sostituire con qualcosa che i file li scopra — un runner che fa
-`readdirSync` su `prova_*.mjs`, o `node --test`. Patch sua, non mescolata
-ad altro: cambia come gira tutta la catena, e se sbaglia non se ne
-accorge nessuno finché una prova non smette di girare.
+**Chiuso il 25/10/2026: le prove le trova `prove.mjs`.** Prima lo script
+`build` in `package.json` nominava i `prova_*.mjs` uno per uno: una prova
+nuova restava fuori in silenzio (è successo con `prova_riepilogo.mjs`),
+e il 24/10, con `prova_passo_gara.mjs` aggiunta, la riga era così lunga
+che `npm run build` su Windows si bloccava prima del primo comando, senza
+scrivere niente. Ora `prove.mjs` esegue ogni `prova_*.mjs` della
+cartella principale (non delle sottocartelle), in ordine alfabetico,
+stampando il nome di ognuno, e si ferma al primo che fallisce dicendo
+quale. Una prova nuova si aggiunge creando il file, e basta.
 
 **Da guardare: `pannelloAtleti` non torna mai a `false`.** In
 `EditorSeduta.jsx` si accende quando apri il pannello delle doppie, e
