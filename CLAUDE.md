@@ -172,24 +172,22 @@ la conta come passo gara da quando c'è la 035: prima la contava come
 Percentuali sempre sulle quattro famiglie; la D ha la sua quota sul
 totale nuotato, distinta dai metri senza zona (`percentualiPerFamiglia`).
 
-**Non verificate direttamente**, ma presunte applicate perché l'app usa
-quello che portano: la 025 (colonna `sedute.atleti`) e la 026
-(specializzazione Fondo). E non sappiamo quale file abbia inserito i
-`TEEN_*` e `MAS` in `squadra.categorie`: la 020 mette solo Master, dei
-Teen nel repo non c'è traccia.
+**Risultano applicate da `schema.sql` del 25/10/2026** la 021 (l'indice
+`atleti_chiave_unica`), la 025 (la colonna `sedute.atleti uuid[]`) e la
+026 (Fondo nell'enum `specializzazione`). Prima erano solo presunte,
+perché l'app usa quello che portano.
 
-La 021 nel repo è un file unico. Se corrisponda a quello che è stato
-eseguito davvero lo dirà `schema.sql`, non il file.
+**Resta aperta** l'origine delle righe `TEEN_*` (e `MAS`) in
+`squadra.categorie`: la 020 mette solo Master, dei Teen nel repo non
+c'è traccia. `schema.sql` non la chiude, perché sono dati e non
+struttura.
 
 **Resta aperto** il censimento delle sedute vecchie con sezioni tipo
 "Palestra" **non marcate a secco** e con metri scritti: la 027 non le
 copre, perché filtra sul campo `aSecco` e quelle sezioni non lo hanno.
 Portano metri fantasma dentro i volumi, e per trovarle serve guardare i
-titoli, non il campo.
-
-`schema.sql` da rigenerare e committare: chiude i dubbi su 021, 025, 026 e
-sull'origine dei `TEEN_*`. Il censimento Palestra no: serve una query sui
-titoli delle sezioni.
+titoli, non il campo. Anche questo `schema.sql` non lo chiude: serve una query sui titoli
+delle sezioni.
 
 ---
 
