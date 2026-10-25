@@ -18,7 +18,7 @@ import {
   metriSvoltiDiRiga, metriSvoltiDiSezione,
   metriDaRicontrollare, applicaRicontrollo, applicaRicontrolloInBlocco, lunediDi,
   inserisciFineBlocco, sciogliBlocco, blocchiDaChiudere, bloccoApertoInFondo, fattoreChiuso,
-  annotaPassoGara, cambiaZona, cambiaDistanzaGara, DISTANZE_GARA,
+  annotaPassoGara, cambiaZona, cambiaDistanzaGara, DISTANZE_GARA, opzioniZona,
 } from '../lib/dominio';
 import { TINTA_FAMIGLIA, TINTE } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
@@ -1172,14 +1172,11 @@ export default function EditorSeduta({
                         <label className="campo-riga zona">
                           <span className="eti">Zona</span>
                           <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { cambiaZona(st.sezioni[i].serie[j], e.target.value); })}>
-                            <option value="">—</option>
-                            {zone.map((z) => <option key={z.codice} value={z.codice} title={z.nome}>{z.codice}</option>)}
-                            {/* Una zona letta dal testo che l'elenco non ha (la D,
-                                prima della 035): si mostra com'è, invece di far
-                                vedere «—» su una riga che una zona ce l'ha. */}
-                            {s.zona && !zone.some((z) => z.codice === s.zona) && (
-                              <option value={s.zona}>{s.zona}</option>
-                            )}
+                            {/* Le voci da opzioniZona (dominio.js), come nel
+                                revisore: la D c'è sempre e si legge «D200». */}
+                            {opzioniZona(zone, s).map((o) => (
+                              <option key={o.valore || 'vuota'} value={o.valore} title={o.titolo}>{o.etichetta}</option>
+                            ))}
                           </select>
                           {/* La D è il passo gara: la distanza della gara sta
                               accanto, e senza resta da completare. */}

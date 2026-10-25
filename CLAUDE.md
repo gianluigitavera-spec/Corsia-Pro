@@ -153,10 +153,11 @@ legge più, Sett. e Mese li calcola lei.
 
 **Scritta, NON eseguita: la 035** (24/10/2026). Aggiunge `passo_gara`
 all'enum `famiglia_zona` e inserisce la D in `squadra.zone` con livello
-vuoto, come vuole la 032. Il passo 1 va eseguito da solo. Finché non
-gira, la D letta dal testo non è nell'elenco delle zone: l'editor la
-mostra lo stesso, `validaSeduta` la segnala come zona non riconosciuta e
-nei grafici conta fra i metri senza zona.
+vuoto, come vuole la 032. Il passo 1 va eseguito da solo. La D però non
+aspetta la 035 per farsi vedere: nell'elenco delle zone la mette il
+codice (`zoneConLaD`, dove App legge le zone), e revisore ed editor
+prendono le voci della tendina da `opzioniZona`, che la scrive «D200».
+Finché la 035 non gira, nei grafici la D conta fra i metri senza zona.
 
 **Non verificate direttamente**, ma presunte applicate perché l'app usa
 quello che portano: la 025 (colonna `sedute.atleti`) e la 026

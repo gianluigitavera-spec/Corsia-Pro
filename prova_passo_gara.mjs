@@ -227,6 +227,48 @@ for (const [conD, senza] of [
   dice('foglio: la zona con la gara', fo.sezioni[0].righe.map((r) => r.zona), ['D200SL', 'D400', 'D', 'A1']);
 }
 
+// =====================================================================
+// LA TENDINA: la D c'è sempre, e si legge «D200»
+// =====================================================================
+// La tendina della zona prende le zone dal database, dove la D arriva con
+// la 035. Prima di allora la riga D letta mostrava «—»: nel revisore e
+// nell'editor non si poteva controllare niente, e tutto dipendeva
+// dall'ordine dei passi al rilascio. La D la mette il codice.
+{
+  const DAL_DATABASE = [{ codice: 'A1', nome: 'Aerobico lento', famiglia: 'aerobico', ordine: 10 },
+    { codice: 'B1', nome: 'Soglia', famiglia: 'aerobico', ordine: 30 }];
+  const conD = D.zoneConLaD(DAL_DATABASE);
+  dice('tendina: la D c\'è anche senza la 035', conD.map((z) => z.codice), ['A1', 'B1', 'D']);
+  dice('tendina: con la sua famiglia', conD.find((z) => z.codice === 'D').famiglia, 'passo_gara');
+  // Dopo la 035 la D arriva dal database: una sola, quella del database.
+  const dopo035 = D.zoneConLaD([...DAL_DATABASE, { codice: 'D', nome: 'Passo gara', famiglia: 'passo_gara', ordine: 80 }]);
+  dice('tendina: dopo la 035 una D sola', dopo035.filter((z) => z.codice === 'D').length, 1);
+  dice('tendina: senza zone (senza linea, prima lettura)', D.zoneConLaD(null).map((z) => z.codice), ['D']);
+
+  const scelta = (zone, riga) => D.opzioniZona(zone, riga).find((o) => o.valore === (riga.zona || ''))?.etichetta;
+
+  // Una riga D200 importata: nel revisore (la riga letta) e nell'editor
+  // (la riga in archivio) la tendina mostra D200, con le zone del
+  // database di oggi, senza D.
+  const lettura = analizzaTesto('Centrale\n8x50 @1:00 D200\n4x50 @1:00 D');
+  const letta = lettura.sezioni[0].serie[0];
+  dice('revisore: la riga D200 mostra D200', scelta(conD, letta), 'D200');
+  const [sez] = sedutaDaLettura(lettura.sezioni);
+  dice('editor: la riga D200 importata mostra D200', scelta(conD, sez.serie[0]), 'D200');
+  dice('editor: la D senza distanza mostra D', scelta(conD, sez.serie[1]), 'D');
+  dice('tendina: le altre zone col loro codice', scelta(conD, { zona: 'B1' }), 'B1');
+  dice('tendina: la voce vuota', scelta(conD, { zona: '' }), '—');
+  // Una zona che l'elenco non ha si mostra lo stesso, invece di «—».
+  dice('tendina: una zona sconosciuta si vede', scelta(conD, { zona: 'PS' }), 'PS');
+  dice('tendina: la D200SL', scelta(conD, { zona: 'D', garaDistanza: 200, garaStile: 'SL' }), 'D200SL');
+
+  // Nel revisore, correggendo la zona da D a B1 la distanza di gara se ne
+  // va, come nell'editor: accanto a un B1 sarebbe una distanza orfana.
+  const [corretta] = sedutaDaLettura(analizzaTesto('Centrale\n8x50 @1:00 D200SL').sezioni, { '0:0': { zona: 'B1' } });
+  dice('revisore: corretta in B1, la distanza si toglie',
+    [corretta.serie[0].zona, corretta.serie[0].garaDistanza ?? null, corretta.serie[0].garaStile ?? null], ['B1', null, null]);
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

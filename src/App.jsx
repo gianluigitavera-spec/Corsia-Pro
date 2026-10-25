@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Sparkles, Settings2, LogOut, HelpCircle, X } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
-import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo } from './lib/dominio';
+import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo, zoneConLaD } from './lib/dominio';
 import { VERSIONE, CAMBIAMENTI } from './versione';
 import { novitaAllApertura, novitaAllaChiusura, pallinoNovita, novitaAllAperturaRegistro } from './lib/novita';
 import { tutorialSiApreDaSolo, tutorialAperto, tutorialChiuso } from './lib/tutorial';
@@ -102,7 +102,7 @@ export default function App() {
           api.mieSocieta(), api.leggiZone(), api.leggiCategorie(),
           api.leggiFasce(), api.leggiStagioni(),
         ]);
-        setZone(z); setCategorie(c);
+        setZone(zoneConLaD(z)); setCategorie(c);
         const risolte = fasceRisolte(f, stagione);
         setFasce(risolte.fasce);
         setProiezione(risolte.proiettata ? risolte : null);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Wand2, ArrowLeft, Check, AlertTriangle, CircleHelp } from 'lucide-react';
 import { analizzaTesto } from '../lib/analizzatore';
-import { TUTTI, durataStimata, inOreMinuti } from '../lib/dominio';
+import { TUTTI, durataStimata, inOreMinuti, opzioniZona } from '../lib/dominio';
 import { sedutaDaLettura } from '../lib/importaTesto';
 
 const ESEMPIO = `300 stile
@@ -183,8 +183,11 @@ export default function RevisioneTesto({ zone, indietro, usaSeduta }) {
                           onChange={(e) => correggiZona(i, j, e.target.value)}
                           aria-label="Zona"
                         >
-                          <option value="">—</option>
-                          {zone.map((z) => <option key={z.codice} value={z.codice}>{z.codice}</option>)}
+                          {/* Le voci da opzioniZona (dominio.js), come
+                              nell'editor: la D c'è sempre e si legge «D200». */}
+                          {opzioniZona(zone, { ...s, zona: valore(i, j, 'zona', s.zona) || '' }).map((o) => (
+                            <option key={o.valore || 'vuota'} value={o.valore} title={o.titolo}>{o.etichetta}</option>
+                          ))}
                         </select>
                         <span className="mono rec-letto">{s.recupero || ''}</span>
                       </div>

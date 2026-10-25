@@ -648,6 +648,36 @@ export const zonaScritta = (riga) => (riga?.zona === 'D' && riga.garaDistanza
   ? `D${riga.garaDistanza}${riga.garaStile || ''}`
   : riga?.zona || '');
 
+// La D nell'elenco delle zone, dal codice. Nel database arriva con la
+// 035; fino ad allora la tendina della zona, che prende l'elenco da lì,
+// mostrava «—» sulla riga D letta, e nel revisore e nell'editor non si
+// controllava niente. Così la D c'è sempre, e quando la 035 l'avrà
+// messa nel database resta una sola: quella del database.
+export const ZONA_PASSO_GARA = { codice: 'D', nome: 'Passo gara', famiglia: 'passo_gara', livello: null };
+export const zoneConLaD = (zone) => ((zone || []).some((z) => z.codice === 'D')
+  ? (zone || [])
+  : [...(zone || []), ZONA_PASSO_GARA]);
+
+/**
+ * Le voci della tendina della zona, per il revisore e per l'editor: una
+ * funzione sola, perché le due tendine dicano la stessa cosa.
+ * La D si legge con la sua distanza («D200», «D200SL»; senza, «D»), e
+ * una zona che l'elenco non ha si mostra lo stesso invece di «—».
+ * @returns [{ valore, etichetta, titolo }]
+ */
+export function opzioniZona(zone, riga) {
+  const elenco = zoneConLaD(zone);
+  const voci = [{ valore: '', etichetta: '—', titolo: '' }, ...elenco.map((z) => ({
+    valore: z.codice,
+    etichetta: z.codice === 'D' && riga?.zona === 'D' ? zonaScritta(riga) : z.codice,
+    titolo: z.nome || '',
+  }))];
+  if (riga?.zona && !elenco.some((z) => z.codice === riga.zona)) {
+    voci.push({ valore: riga.zona, etichetta: riga.zona, titolo: 'Zona non in elenco' });
+  }
+  return voci;
+}
+
 // Nell'editor: scrivendo la notazione con la D, la riga senza zona (o già
 // D) prende la D e la sua distanza. Una zona scelta a mano non si tocca,
 // come per le zone automatiche dal titolo. Una notazione senza D non
