@@ -20,6 +20,16 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.60.0',
+    data: '2026-10-25',
+    annuncia: true,
+    voci: [
+      'Report presenze: dal telefono il PDF si apre nella condivisione, pronto da salvare o mandare',
+      'Report presenze: gli archiviati non compaiono; per vederli spunta «mostra anche gli archiviati»',
+      'Nuova zona D, passo gara: nei grafici ha il suo colore e la sua quota sul totale',
+    ],
+  },
+  {
     versione: '0.59.0',
     data: '2026-10-23',
     annuncia: true,
