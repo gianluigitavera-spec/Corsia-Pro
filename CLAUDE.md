@@ -172,6 +172,24 @@ la conta come passo gara da quando c'è la 035: prima la contava come
 Percentuali sempre sulle quattro famiglie; la D ha la sua quota sul
 totale nuotato, distinta dai metri senza zona (`percentualiPerFamiglia`).
 
+**Scritta, NON eseguita: la 036** (26/10/2026), la sezione «Test»,
+prima fase. Quattro tabelle nuove, ognuna con RLS e policy nel suo
+passo: `test_tipi`, `test_sessioni` (vasca obbligatoria, seduta
+facoltativa), `test_risultati` (le ripetute in una lista jsonb, tempi
+in centesimi; `gara_100` e `gara_400` per il controllo del 5x300) e
+`test_percentuali` (A1, A2, B2 della società; nessuna riga = quelle di
+partenza del codice). `lattato` e `frequenza` hanno le colonne ma
+restano vuote: aspettano il consulente, e sono dati sanitari di
+minorenni. Il passo 2 usa `on delete set null (seduta_id)`, che vuole
+PostgreSQL 15: il passo 0 guarda la versione.
+
+Le regole dei calcoli stanno in `src/lib/test.js`, prove in
+`prova_test.mjs`. Le percentuali di zona sono della **velocità** di B1,
+non del passo: A1 al 93 % ha il passo di B1 diviso 0,93 (1:20.0 → 1:26.0),
+non moltiplicato 1,07 (1:25.6). La velocità di una serie è la distanza
+sul tempo totale, non la media delle velocità. Le bracciate sono
+singole per 25: DS = 25 / (bracciate / 2), in metri per ciclo.
+
 **Risultano applicate da `schema.sql` del 25/10/2026** la 021 (l'indice
 `atleti_chiave_unica`), la 025 (la colonna `sedute.atleti uuid[]`) e la
 026 (Fondo nell'enum `specializzazione`). Prima erano solo presunte,
