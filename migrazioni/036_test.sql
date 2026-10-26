@@ -1,10 +1,25 @@
 -- 036 — la sezione «Test», prima fase: tipi, sessioni, risultati e
 -- percentuali di zona della società
 --
--- SCRITTA il 26/10/2026, NON ANCORA ESEGUITA. Si esegue a mano dal
--- pannello Supabase, un passo alla volta, prima del rilascio che porta
--- la scheda «Test». Le regole dei calcoli stanno in src/lib/test.js,
--- prove in prova_test.mjs.
+-- SCRITTA il 26/10/2026. ESEGUITA A MANO il 26/10/2026 dal pannello
+-- Supabase, un passo alla volta:
+--   - passo 0: PostgreSQL 17.6 (set null di una colonna sola possibile);
+--   - passi 1-4: le quattro tabelle con RLS attiva e due policy
+--     ciascuna, le chiavi con le regole di cancellazione attese, nessuna
+--     riga in test_percentuali;
+--   - passo 5: nessuna vista senza security_invoker, nessuna tabella
+--     senza RLS; anon senza privilegi sulle test_*, authenticated sì.
+-- Le regole dei calcoli stanno in src/lib/test.js, prove in
+-- prova_test.mjs.
+--
+-- DA RIVEDERE, non fatto ora:
+--   - registrato_da è not null con chiave su auth.users senza regola di
+--     cancellazione: un account che ha registrato sessioni o risultati
+--     non si può cancellare. Da vedere col consulente (set null,
+--     cancellazione dei dati, o altro);
+--   - le percentuali di zona (test_percentuali) le cambia chiunque
+--     possa scrivere, collega compreso: forse dovrebbe poterlo fare solo
+--     il capo allenatore.
 --
 -- Deciso il 26/10/2026: il test serve a valutare l'allenamento, non a
 -- prevedere la gara. Base di metodo: i test della FIN in «Totalmente

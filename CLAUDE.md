@@ -172,9 +172,15 @@ la conta come passo gara da quando c'è la 035: prima la contava come
 Percentuali sempre sulle quattro famiglie; la D ha la sua quota sul
 totale nuotato, distinta dai metri senza zona (`percentualiPerFamiglia`).
 
-**Scritta, NON eseguita: la 036** (26/10/2026), la sezione «Test»,
-prima fase. Quattro tabelle nuove, ognuna con RLS e policy nel suo
-passo: `test_tipi`, `test_sessioni` (vasca obbligatoria, seduta
+**Eseguita a mano e verificata il 26/10/2026: la 036**, la sezione
+«Test», prima fase, un passo alla volta: PostgreSQL 17.6, le quattro
+tabelle con RLS e due policy ciascuna, le chiavi con le regole di
+cancellazione attese, nessuna riga in `test_percentuali`; viste e
+tabelle tutte protette, `anon` senza privilegi sulle `test_*`,
+`authenticated` sì. `schema.sql` da rigenerare: ha quattro tabelle in
+più.
+
+Quattro tabelle nuove, ognuna con RLS e policy nel suo passo: `test_tipi`, `test_sessioni` (vasca obbligatoria, seduta
 facoltativa), `test_risultati` (le ripetute in una lista jsonb, tempi
 in centesimi; `gara_100` e `gara_400` per il controllo del 5x300) e
 `test_percentuali` (A1, A2, B2 della società; nessuna riga = quelle di
@@ -182,6 +188,16 @@ partenza del codice). `lattato` e `frequenza` hanno le colonne ma
 restano vuote: aspettano il consulente, e sono dati sanitari di
 minorenni. Il passo 2 usa `on delete set null (seduta_id)`, che vuole
 PostgreSQL 15: il passo 0 guarda la versione.
+
+**Da rivedere nella 036, non fatto:**
+
+- `registrato_da` è obbligatorio, con la chiave su `auth.users` e
+  nessuna regola di cancellazione: un account che ha registrato
+  sessioni o risultati non si può cancellare. Da vedere col
+  consulente.
+- Le percentuali di zona (`test_percentuali`) le cambia chiunque possa
+  scrivere, quindi anche il collega. Forse dovrebbe farlo solo il capo
+  allenatore.
 
 Le regole dei calcoli stanno in `src/lib/test.js`, prove in
 `prova_test.mjs`. Le percentuali di zona sono della **velocità** di B1,
