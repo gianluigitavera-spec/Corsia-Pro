@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { Fragment, useMemo, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import { Search, Plus, Upload, Download, Pencil, Check, X, Archive, Users, Trash2 } from 'lucide-react';
 import * as api from '../lib/dati';
@@ -6,6 +6,7 @@ import {
   SPECIALIZZAZIONI, CATEGORIE, chiaveAtleta, categoriaDaCsv,
   categoriaDi, etichettaCategoria, sospettiImport, atletaNelGruppo,
 } from '../lib/dominio';
+import StoricoTest from './StoricoTest';
 
 const VUOTO = { nome: '', cognome: '', sesso: 'M', anno_nascita: '', specializzazione: 'Generale' };
 
@@ -33,6 +34,8 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
   const [inCorso, setInCorso] = useState(false);
   // Import in attesa di una decisione: { righe, scarti, esistenti, sospetti }
   const [daConfermare, setDaConfermare] = useState(null);
+  // L'atleta aperto: sotto la sua riga lo storico dei test.
+  const [aperto, setAperto] = useState(null);
   const fileRef = useRef(null);
 
   useEffect(() => { ricarica(); }, [societa.id]);
@@ -604,7 +607,8 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                   );
                 }
                 return (
-                  <tr key={a.id} className={selezione.has(a.id) ? 'scelta' : undefined}>
+                  <Fragment key={a.id}>
+                  <tr className={selezione.has(a.id) ? 'scelta' : undefined}>
                     {puoScrivere && (
                       <td>
                         <input type="checkbox" checked={selezione.has(a.id)}
@@ -612,7 +616,13 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                           aria-label={`Seleziona ${a.cognome} ${a.nome}`} />
                       </td>
                     )}
-                    <td><b>{a.cognome}</b> {a.nome}</td>
+                    <td>
+                      <button className="nome-atleta" aria-expanded={aperto === a.id}
+                        title="Apri: lo storico dei test"
+                        onClick={() => setAperto(aperto === a.id ? null : a.id)}>
+                        <b>{a.cognome}</b> {a.nome}
+                      </button>
+                    </td>
                     <td className="col-stretta" style={{ color: 'var(--testo-3)' }}>{a.sesso}</td>
                     <td className="mono col-stretta">{a.anno_nascita}</td>
                     {/* Con un override attivo, accanto va il derivato
@@ -656,6 +666,14 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                       </td>
                     )}
                   </tr>
+                  {aperto === a.id && (
+                    <tr className="riga-storico">
+                      <td colSpan={puoScrivere ? 7 : 5}>
+                        <StoricoTest societaId={societa.id} atleta={a} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>

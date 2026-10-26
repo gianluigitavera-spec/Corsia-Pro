@@ -1349,3 +1349,69 @@ tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
 .tendina-gruppi .voce-gruppo:hover { background: rgba(34, 211, 238, 0.1); }
 .tendina-gruppi .segno { width: 16px; color: var(--ciano); flex: none; }
 .tendina-gruppi .separatore { height: 1px; background: var(--bordo); margin: 5px 8px; }
+
+/* ------------------------------------------------------------ TEST */
+/* La scheda Test, lo storico dell'atleta (anche in Atleti) e la
+   registrazione: una riga per atleta come in Benessere. */
+.tipo-test {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; background: rgba(255,255,255,0.03);
+  border: var(--riga); border-radius: var(--raggio-p);
+}
+.tipo-test > div:first-child { flex: 1; }
+.tipo-test[data-archiviato='true'] { opacity: 0.6; }
+.tipo-test[data-modifica='true'] { display: grid; border-color: var(--bordo-vivo); }
+.sotto-tipo { font-size: 12px; color: var(--testo-3); }
+.modifica-tipo { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.modelli-test { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; font-size: 13px; color: var(--testo-3); }
+
+.storico-test { display: grid; gap: 6px; }
+.nota-storico { font-size: 12px; color: var(--testo-3); margin: 4px 0; }
+.linea-tempo { position: relative; width: 100%; }
+.linea-tempo .tela { position: absolute; inset: 0; width: 100%; }
+.punto-linea {
+  position: absolute; width: 10px; height: 10px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: var(--ciano);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+}
+.punto-linea[data-record='true'] { background: var(--menta); box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.22); }
+.estremi-linea { display: flex; justify-content: space-between; font-size: 11px; color: var(--testo-3); margin-top: 6px; }
+
+.tabella-test { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.tabella-test th { text-align: left; font-weight: 500; font-size: 11px; color: var(--testo-3); padding: 6px 6px; border-bottom: var(--riga); }
+.tabella-test td { padding: 7px 6px; border-bottom: var(--riga); white-space: nowrap; }
+
+.ritmi-zona { margin-top: 10px; }
+.ritmi-zona h4 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+.ritmi-zona h4 span { font-weight: 400; font-size: 12px; color: var(--testo-3); margin-left: 6px; }
+.griglia-ritmi { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.ritmo {
+  display: grid; gap: 2px; padding: 9px 11px;
+  background: var(--fondo-2); border: var(--riga); border-radius: var(--raggio-p);
+}
+.ritmo b { font-size: 12px; color: var(--testo-2); }
+.ritmo span { font-size: 17px; }
+.ritmo small { font-size: 11px; color: var(--testo-3); }
+.ritmo input { width: 100%; }
+
+.testata-test { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: end; }
+.testata-test .scegli-gruppi .bottone-gruppi { width: 100%; justify-content: space-between; }
+.corpo-test { padding: 4px 13px 14px; display: grid; gap: 8px; }
+.ripetuta-test { display: grid; grid-template-columns: 24px minmax(0, 1fr) 84px; gap: 8px; align-items: center; }
+.ripetuta-test input { width: 100%; }
+.numero-ripetuta { font-size: 12px; color: var(--testo-3); text-align: right; }
+.passaggi-test { grid-column: 2 / -1; display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+.passaggi-test input { font-size: 14px; }
+.errore-test { font-size: 12px; color: var(--rosso); }
+
+.nome-atleta {
+  background: none; border: 0; padding: 0; color: var(--testo); font: inherit;
+  text-align: left; cursor: pointer;
+}
+.nome-atleta[aria-expanded='true'] b { color: var(--ciano); }
+.riga-storico td { background: rgba(255,255,255,0.02); padding: 12px 14px 16px; }
+
+@media (max-width: 560px) {
+  .tabella-test .col-stretta { display: none; }
+  .ripetuta-test { grid-template-columns: 20px minmax(0, 1fr) 72px; }
+}

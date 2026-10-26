@@ -252,6 +252,117 @@ dice('tempo totale senza ripetute', T.tempoTotale({ ripetute: [] }), null);
     T.storicoAtleta(voci, 50).map((v) => [v.data, v.diffPrecedente]), [['2026-10-01', null]]);
 }
 
+// =====================================================================
+// DAL MODULO ALLA RIGA: quello che arriva in squadra.test_risultati
+// =====================================================================
+// Una riga per atleta, come in Appello: per ogni ripetuta il tempo, i
+// passaggi (quanti li fissa il tipo) e le bracciate per 25. La lista ha
+// sempre tante voci quante ripetute del tipo, nell'ordine: una ripetuta
+// non scritta resta al suo posto con t null, e i conti la vedono mancare.
+{
+  const t1000 = modello('T-1000');
+  const campi = T.campiVuoti(t1000);
+  dice('campi vuoti del T-1000: una ripetuta, nove passaggi',
+    [campi.tempi.length, campi.passaggi[0].length, campi.bracciate.length], [1, 9, 1]);
+  dice('campi vuoti: niente da salvare', T.risultatoDaCampi(t1000, campi).vuoto, true);
+
+  campi.tempi[0] = '12:30';
+  campi.passaggi[0][0] = '1:14,0';
+  campi.passaggi[0][1] = '2:29';
+  campi.bracciate[0] = '18';
+  const r = T.risultatoDaCampi(t1000, campi);
+  dice('T-1000 scritto: la riga', r, {
+    vuoto: false, errori: [],
+    ripetute: [{ t: 75000, passaggi: [7400, 14900, null, null, null, null, null, null, null], bracciate: 18 }],
+    gara_100: null, gara_400: null,
+  });
+  dice('e torna indietro uguale',
+    T.campiDaRisultato(t1000, r).passaggi[0].slice(0, 3), ['1:14.0', '2:29.0', '']);
+}
+// Riaprire una sessione e risalvarla non deve cambiare un centesimo: nei
+// campi il tempo torna com'era, non arrotondato al decimo come a schermo.
+{
+  const t = modello('6x50');
+  const salvato = { ripetute: [{ t: 7405 }, { t: 2999 }, { t: 3000 }, { t: null }, { t: null }, { t: null }], gara_100: null, gara_400: null };
+  const campi = T.campiDaRisultato(t, salvato);
+  dice('nei campi i centesimi restano', campi.tempi.slice(0, 3), ['1:14.05', '29.99', '30.0']);
+  dice('riaperto e risalvato: uguale', T.risultatoDaCampi(t, campi).ripetute.map((x) => x.t), [7405, 2999, 3000, null, null, null]);
+}
+{
+  const c = T.campiVuoti(modello('6x50'));
+  c.tempi = ['30.5', '', '31', '', '', ''];
+  const r = T.risultatoDaCampi(modello('6x50'), c);
+  dice('6x50 con due tempi: sei voci, le mancanti con t null',
+    r.ripetute.map((x) => x.t), [3050, null, 3100, null, null, null]);
+  dice('6x50 senza passaggi: la voce non li porta', 'passaggi' in r.ripetute[0], false);
+  dice('6x50 senza bracciate: la voce non le porta', 'bracciate' in r.ripetute[0], false);
+}
+{
+  const c = T.campiVuoti(modello('6x50'));
+  c.tempi[0] = "30'5";
+  c.bracciate[1] = 'tanti';
+  const r = T.risultatoDaCampi(modello('6x50'), c);
+  dice('un tempo che non si legge e bracciate non numeriche: errori, con dove',
+    r.errori, ['Ripetuta 1: «30\'5» non è un tempo', 'Ripetuta 2: «tanti» non sono bracciate']);
+}
+// «1.20» scritto per 1:20 sarebbe 1,2 secondi: sul tastierino dei numeri
+// i due punti non ci sono, ed è l'errore più facile a bordo vasca. Sopra
+// 2,5 m/s (il record dei 50 sta sotto i 2,4) non è un tempo nuotato.
+{
+  const c = T.campiVuoti(modello('15x100'));
+  c.tempi[0] = '1.20';
+  c.tempi[1] = '1:20';
+  dice('troppo veloce per la distanza: errore, con come si scrive',
+    T.risultatoDaCampi(modello('15x100'), c).errori,
+    ['Ripetuta 1: «1.20» è troppo veloce per 100 m (i minuti vanno coi due punti, es. 1:20)']);
+  const c50 = T.campiVuoti(modello('6x50'));
+  c50.tempi[0] = '20.0';
+  dice('50 in 20,0 (2,5 m/s): ancora possibile', T.risultatoDaCampi(modello('6x50'), c50).errori, []);
+}
+dice('le bracciate si leggono anche con la virgola', (() => {
+  const c = T.campiVuoti(modello('6x50'));
+  c.tempi[0] = '30'; c.bracciate[0] = '17,5';
+  return T.risultatoDaCampi(modello('6x50'), c).ripetute[0].bracciate;
+})(), 17.5);
+{
+  const c = T.campiVuoti(modello('5x300'));
+  c.tempi = ['3:20', '3:20', '3:21', '3:22', '3:23,5'];
+  c.gara_100 = '58';
+  c.gara_400 = '4:20';
+  const r = T.risultatoDaCampi(modello('5x300'), c);
+  dice('5x300: i tempi di gara arrivano nella riga', [r.gara_100, r.gara_400], [5800, 26000]);
+  dice('5x300: il controllo dalla riga', T.controllo5x300(modello('5x300'), r).scarto, 150);
+}
+{
+  const c = T.campiVuoti(modello('6x50'));
+  c.tempi[0] = '30';
+  c.gara_100 = '58';
+  dice('i tempi di gara stanno solo nel 5x300', T.risultatoDaCampi(modello('6x50'), c).gara_100, null);
+}
+
+// =====================================================================
+// IL VALORE DELLO STORICO E LA TECNICA DI UN RISULTATO
+// =====================================================================
+dice('valore dello storico di un test continuo: il tempo',
+  T.valoreStorico(modello('T-2000'), risultato([160000])), 160000);
+dice('valore dello storico di un 6x50: il tempo medio della ripetuta',
+  T.valoreStorico(modello('6x50'), risultato([3000, 3100, 2900, 3000, 3050, 2950])), 3000);
+dice('valore dello storico con una ripetuta mancante: null',
+  T.valoreStorico(modello('6x50'), risultato([3000, null, 2900, 3000, 3050, 2950])), null);
+
+// Tecnica: dalle ripetute che hanno tempo E bracciate. La velocità è la
+// distanza sul tempo totale, le bracciate la media.
+{
+  const ris = { ripetute: [{ t: 8000, bracciate: 20 }, { t: 8000, bracciate: 20 }, { t: 7000 }] };
+  const tec = T.tecnicaRisultato(modello('15x100'), ris);
+  dice('tecnica: solo le ripetute con tempo e bracciate', tec.ripetute, 2);
+  dice('tecnica: velocità, DS, SWOLF, indice',
+    [cifre(tec.velocita, 3), cifre(tec.ds, 2), cifre(tec.swolf, 1), cifre(tec.indice, 2)],
+    ['1.250', '2.50', '40.0', '3.91']);
+}
+dice('tecnica senza bracciate: null',
+  T.tecnicaRisultato(modello('15x100'), risultato(Array(15).fill(8000))), null);
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

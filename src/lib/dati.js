@@ -175,8 +175,12 @@ export async function eliminaAtleti(ids) {
   const conBenessere = ok(
     await sb.from('benessere').select('atleta_id').in('atleta_id', ids)
   ).map((r) => r.atleta_id);
+  // Anche i test: la 036 cancella i risultati insieme all'atleta.
+  const conTest = ok(
+    await sb.from('test_risultati').select('atleta_id').in('atleta_id', ids)
+  ).map((r) => r.atleta_id);
 
-  const trattenuti = [...new Set([...conPresenze, ...conBenessere])];
+  const trattenuti = [...new Set([...conPresenze, ...conBenessere, ...conTest])];
   const eliminabili = ids.filter((id) => !trattenuti.includes(id));
 
   if (eliminabili.length) {
@@ -490,6 +494,112 @@ export async function salvaBenessere(riga) {
   );
 }
 
+
+// ---------------------------------------------------------------- test
+// La sezione «Test» (migrazione 036). I calcoli stanno in lib/test.js;
+// qui solo letture e scritture. Lattato e frequenza non si leggono e non
+// si scrivono: le colonne ci sono, l'interfaccia no.
+const CAMPI_TIPO = 'id, nome, descrizione, vasca, distanza, ripetute, serie, ripartenza_s, recupero_s, '
+  + 'parziali_ogni, misure, regola_zone, fattore_b1, modello, attivo';
+const CAMPI_RISULTATO = 'id, sessione_id, atleta_id, ripetute, gara_100, gara_400, note';
+
+// fattore_b1 è numeric: PostgREST lo può dare come stringa.
+const tipoLetto = (t) => ({ ...t, fattore_b1: t.fattore_b1 == null ? null : Number(t.fattore_b1) });
+
+export async function leggiTestTipi(societaId) {
+  return ok(
+    await sb.from('test_tipi').select(CAMPI_TIPO).eq('societa_id', societaId).order('nome')
+  ).map(tipoLetto);
+}
+
+// Con l'id si modifica, senza si inserisce. Non un upsert: l'insert
+// vuole le colonne obbligatorie anche quando la riga c'è già, e
+// archiviare un tipo manda solo { id, attivo }.
+const inserisciOModifica = async (tabella, riga, campi) => {
+  const { id, ...resto } = riga;
+  const q = id
+    ? sb.from(tabella).update(resto).eq('id', id)
+    : sb.from(tabella).insert(resto);
+  return ok(await q.select(campi).single());
+};
+
+const COLONNE_TIPO = [...CAMPI_TIPO.split(', '), 'societa_id'];
+
+export async function salvaTestTipo(tipo) {
+  const riga = Object.fromEntries(Object.entries(tipo).filter(([k]) => COLONNE_TIPO.includes(k)));
+  return tipoLetto(await inserisciOModifica('test_tipi', riga, CAMPI_TIPO));
+}
+
+export async function leggiTestPercentuali(societaId) {
+  return ok(await sb.from('test_percentuali').select('zona, percentuale').eq('societa_id', societaId));
+}
+
+// Una zona riportata al valore di partenza non ha riga: si cancella.
+export async function salvaTestPercentuale(societaId, zona, percentuale) {
+  if (percentuale == null) {
+    return ok(await sb.from('test_percentuali').delete().eq('societa_id', societaId).eq('zona', zona));
+  }
+  return ok(
+    await sb.from('test_percentuali')
+      .upsert({ societa_id: societaId, zona, percentuale }, { onConflict: 'societa_id,zona' })
+      .select()
+  );
+}
+
+export async function leggiTestSessioni(societaId) {
+  return ok(
+    await sb.from('test_sessioni')
+      .select('id, tipo_id, data, vasca, seduta_id, note')
+      .eq('societa_id', societaId)
+      .order('data', { ascending: false })
+      .limit(60)
+  );
+}
+
+export async function leggiRisultatiSessione(sessioneId) {
+  return ok(await sb.from('test_risultati').select(CAMPI_RISULTATO).eq('sessione_id', sessioneId));
+}
+
+/**
+ * Una sessione con i suoi risultati, in un gesto solo dal lato di chi
+ * usa l'app: la sessione (nuova o già salvata), le righe da scrivere
+ * (upsert su sessione e atleta) e gli atleti da togliere, quelli i cui
+ * campi sono stati svuotati. Torna l'id della sessione.
+ */
+export async function salvaTestSessione({ sessione, risultati, daTogliere }) {
+  const salvata = await inserisciOModifica('test_sessioni', sessione, 'id, societa_id');
+  if (risultati.length) {
+    ok(
+      await sb.from('test_risultati')
+        .upsert(
+          risultati.map((r) => ({ ...r, sessione_id: salvata.id, societa_id: salvata.societa_id })),
+          { onConflict: 'sessione_id,atleta_id' },
+        )
+        .select('id')
+    );
+  }
+  if (daTogliere.length) {
+    ok(
+      await sb.from('test_risultati').delete()
+        .eq('sessione_id', salvata.id).in('atleta_id', daTogliere)
+    );
+  }
+  return salvata.id;
+}
+
+export async function eliminaTestSessione(id) {
+  return ok(await sb.from('test_sessioni').delete().eq('id', id));
+}
+
+// Lo storico di un atleta: tutti i suoi risultati, con data, vasca e
+// tipo della sessione.
+export async function leggiStoricoTest(atletaId) {
+  return ok(
+    await sb.from('test_risultati')
+      .select(`${CAMPI_RISULTATO}, sessione:test_sessioni (id, tipo_id, data, vasca)`)
+      .eq('atleta_id', atletaId)
+  );
+}
 
 // ----------------------------------------------------------- frequenza
 // v_frequenza: Appello la usa solo per Tot. e Rit.; Sett. e Mese li

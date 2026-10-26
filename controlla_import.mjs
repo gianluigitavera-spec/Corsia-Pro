@@ -20,6 +20,7 @@ const librerie = {
   '../lib/video': esportati('src/lib/video.js'),
   '../lib/testoSeduta': esportati('src/lib/testoSeduta.js'),
   '../lib/importaTesto': esportati('src/lib/importaTesto.js'),
+  '../lib/test': esportati('src/lib/test.js'),
 };
 
 let problemi = 0;

@@ -265,6 +265,153 @@ export function controllo5x300(tipo, ris) {
 }
 
 // ---------------------------------------------------------------------
+// Dal modulo alla riga, e ritorno
+// ---------------------------------------------------------------------
+
+/**
+ * Il tempo nei campi del modulo: al centesimo quando c'è, se no al
+ * decimo. A schermo si legge al decimo (scriviTempo); nei campi no,
+ * perché riaprire una sessione e risalvarla non deve cambiare un
+ * centesimo.
+ */
+export function scriviTempoCampo(cs) {
+  if (!numero(cs) || cs < 0) return '';
+  const minuti = Math.floor(cs / 6000);
+  const secondi = Math.floor((cs % 6000) / 100);
+  const centesimi = cs % 100;
+  const frazione = centesimi % 10 === 0 ? String(centesimi / 10) : String(centesimi).padStart(2, '0');
+  return `${minuti ? `${minuti}:${String(secondi).padStart(2, '0')}` : secondi}.${frazione}`;
+}
+
+/** I campi vuoti di un atleta: per ripetuta tempo, passaggi e bracciate. */
+export function campiVuoti(tipo) {
+  const n = tipo?.ripetute || 1;
+  const p = passaggiAttesi(tipo);
+  return {
+    tempi: Array(n).fill(''),
+    passaggi: Array.from({ length: n }, () => Array(p).fill('')),
+    bracciate: Array(n).fill(''),
+    gara_100: '',
+    gara_400: '',
+  };
+}
+
+/** I campi di un risultato già salvato, per riaprirlo. */
+export function campiDaRisultato(tipo, ris) {
+  const campi = campiVuoti(tipo);
+  (ris?.ripetute || []).slice(0, campi.tempi.length).forEach((r, i) => {
+    campi.tempi[i] = scriviTempoCampo(r?.t);
+    (r?.passaggi || []).slice(0, campi.passaggi[i].length).forEach((x, k) => {
+      campi.passaggi[i][k] = scriviTempoCampo(x);
+    });
+    campi.bracciate[i] = positivo(r?.bracciate) ? String(r.bracciate) : '';
+  });
+  campi.gara_100 = scriviTempoCampo(ris?.gara_100);
+  campi.gara_400 = scriviTempoCampo(ris?.gara_400);
+  return campi;
+}
+
+const testo = (x) => String(x ?? '').trim();
+
+// Sopra i 2,5 m/s non è un tempo nuotato (il record dei 50 sta sotto i
+// 2,4): è quasi sempre «1.20» scritto per 1:20, perché sul tastierino
+// dei numeri i due punti non ci sono. Letto così sarebbe 1,2 secondi.
+export const VELOCITA_MASSIMA = 2.5;
+
+/**
+ * La riga per squadra.test_risultati dai campi di un atleta:
+ * { vuoto, errori, ripetute, gara_100, gara_400 }. La lista ha sempre
+ * tante voci quante ripetute del tipo, nell'ordine: una ripetuta non
+ * scritta resta al suo posto con t null. Passaggi e bracciate entrano
+ * nella voce solo se scritti. I tempi di gara solo nel 5x300. Con un
+ * errore non si salva: la riga dice dove.
+ */
+export function risultatoDaCampi(tipo, campi) {
+  const n = tipo?.ripetute || 1;
+  const p = passaggiAttesi(tipo);
+  const errori = [];
+  let qualcosa = false;
+  const tempo = (s, dove) => {
+    qualcosa = true;
+    const t = leggiTempo(s);
+    if (t == null) errori.push(`${dove}: «${s}» non è un tempo`);
+    return t;
+  };
+
+  const ripetute = Array.from({ length: n }, (_, i) => {
+    const dove = `Ripetuta ${i + 1}`;
+    const s = testo(campi?.tempi?.[i]);
+    const voce = { t: s ? tempo(s, dove) : null };
+    if (voce.t != null && velocita(tipo?.distanza, voce.t) > VELOCITA_MASSIMA) {
+      errori.push(`${dove}: «${s}» è troppo veloce per ${tipo.distanza} m (i minuti vanno coi due punti, es. 1:20)`);
+    }
+    const passaggi = (campi?.passaggi?.[i] || []).slice(0, p);
+    if (passaggi.some((x) => testo(x))) {
+      voce.passaggi = Array.from({ length: p }, (__, k) => {
+        const x = testo(passaggi[k]);
+        return x ? tempo(x, `${dove}, passaggio ${k + 1}`) : null;
+      });
+    }
+    const b = testo(campi?.bracciate?.[i]);
+    if (b) {
+      qualcosa = true;
+      const v = Number(b.replace(',', '.'));
+      if (positivo(v) && v < 100) voce.bracciate = v;
+      else errori.push(`${dove}: «${b}» non sono bracciate`);
+    }
+    return voce;
+  });
+
+  const gara = (campo, nome) => {
+    if (tipo?.modello !== '5x300') return null;
+    const s = testo(campi?.[campo]);
+    return s ? tempo(s, `Tempo di gara dei ${nome}`) : null;
+  };
+  const gara_100 = gara('gara_100', '100');
+  const gara_400 = gara('gara_400', '400');
+
+  return { vuoto: !qualcosa, errori, ripetute, gara_100, gara_400 };
+}
+
+// ---------------------------------------------------------------------
+// Il valore dello storico e la tecnica di un risultato
+// ---------------------------------------------------------------------
+
+/**
+ * Il numero che lo storico confronta, in centesimi: il tempo del test
+ * continuo, il tempo medio della ripetuta negli altri. null se manca
+ * una ripetuta: una media su meno ripetute non è lo stesso test.
+ */
+export function valoreStorico(tipo, ris) {
+  const n = tipo?.ripetute || 1;
+  const tot = tempoTotale(ris);
+  return tot != null && tempi(ris).length === n ? Math.round(tot / n) : null;
+}
+
+/**
+ * La tecnica di un risultato, dalle ripetute che hanno tempo E
+ * bracciate: la velocità è la distanza sul tempo totale, le bracciate
+ * la media. { ripetute, bracciate, velocita, ds, swolf, indice }, o null.
+ */
+export function tecnicaRisultato(tipo, ris) {
+  const buone = (ris?.ripetute || []).filter((r) => positivo(r?.t) && positivo(r?.bracciate));
+  if (!buone.length || !positivo(tipo?.distanza)) return null;
+  const k = buone.length;
+  const tTot = buone.reduce((a, r) => a + r.t, 0);
+  const bracciate = buone.reduce((a, r) => a + r.bracciate, 0) / k;
+  const v = velocita(tipo.distanza * k, tTot);
+  const ds = dsDaBracciate(bracciate);
+  return {
+    ripetute: k,
+    bracciate,
+    velocita: v,
+    ds,
+    swolf: swolf(tipo.distanza, tTot / k, bracciate),
+    indice: indiceEfficienza(v, ds),
+  };
+}
+
+// ---------------------------------------------------------------------
 // Lo storico: l'atleta con sé stesso, nella stessa vasca
 // ---------------------------------------------------------------------
 

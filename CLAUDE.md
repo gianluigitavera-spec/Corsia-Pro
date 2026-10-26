@@ -206,6 +206,18 @@ non moltiplicato 1,07 (1:25.6). La velocità di una serie è la distanza
 sul tempo totale, non la media delle velocità. Le bracciate sono
 singole per 25: DS = 25 / (bracciate / 2), in metri per ciclo.
 
+L'interfaccia (dal 26/10/2026, su `sviluppo`): la scheda `Test.jsx`
+(i test della società, «copia» dai modelli, percentuali, sessioni),
+`RegistraTest.jsx` (una riga per atleta, si salva tutto con «Salva»,
+mai a ogni tasto) e `StoricoTest.jsx`, lo stesso in Test e aprendo
+l'atleta in Atleti. Dai campi alla riga passa solo `risultatoDaCampi`:
+con un errore non si salva niente. Un tempo sopra i 2,5 m/s è un errore
+(`VELOCITA_MASSIMA`): quasi sempre è «1.20» scritto per 1:20, perché sul
+tastierino dei numeri i due punti non ci sono. Riaprendo una sessione i
+campi tengono i centesimi (`scriviTempoCampo`): risalvare non cambia
+niente. `eliminaAtleti` trattiene anche chi ha risultati dei test,
+perché la 036 li cancella insieme all'atleta.
+
 **Risultano applicate da `schema.sql` del 25/10/2026** la 021 (l'indice
 `atleti_chiave_unica`), la 025 (la colonna `sedute.atleti uuid[]`) e la
 026 (Fondo nell'enum `specializzazione`). Prima erano solo presunte,

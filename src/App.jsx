@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Sparkles, Settings2, LogOut, HelpCircle, X } from 'lucide-react';
+import { LayoutDashboard, Waves, ClipboardCheck, HeartPulse, Users, BarChart3, Sparkles, Settings2, LogOut, HelpCircle, X, Timer } from 'lucide-react';
 import { sb, configurato } from './lib/supabase';
 import * as api from './lib/dati';
 import { stagioneCorrente, stagioniProposte, fasceRisolte, codiciDelGruppo, zoneConLaD } from './lib/dominio';
@@ -16,6 +16,7 @@ import Appello from './componenti/Appello';
 import Volumi from './componenti/Volumi';
 import Dashboard from './componenti/Dashboard';
 import Benessere from './componenti/Benessere';
+import Test from './componenti/Test';
 import Squadra from './componenti/Squadra';
 import Esercizi from './componenti/Esercizi';
 import Feedback from './componenti/Feedback';
@@ -28,6 +29,7 @@ const SCHEDE = [
   { id: 'sedute', nome: 'Sedute', Icona: Waves },
   { id: 'appello', nome: 'Appello', Icona: ClipboardCheck },
   { id: 'benessere', nome: 'Benessere', Icona: HeartPulse },
+  { id: 'test', nome: 'Test', Icona: Timer },
   { id: 'atleti', nome: 'Atleti', Icona: Users },
   { id: 'volumi', nome: 'Carico atleti', Icona: BarChart3 },
   // L'id resta 'esercizi': ci puntano il tutorial e lo stato della scheda,
@@ -365,6 +367,8 @@ export default function App() {
           {scheda === 'appello' && <Appello societa={societa} fasce={fasce} puoScrivere={puoScrivere}
             gruppi={gruppi} codiciGruppi={codiciGruppi} />}
           {scheda === 'benessere' && <Benessere societa={societa} fasce={fasce} puoScrivere={puoScrivere}
+            gruppi={gruppi} codiciGruppi={codiciGruppi} />}
+          {scheda === 'test' && <Test societa={societa} fasce={fasce} puoScrivere={puoScrivere}
             gruppi={gruppi} codiciGruppi={codiciGruppi} />}
           {scheda === 'atleti' && (
             <Atleti societa={societa} fasce={fasce} stagione={stagione} codiciGruppi={codiciGruppi}

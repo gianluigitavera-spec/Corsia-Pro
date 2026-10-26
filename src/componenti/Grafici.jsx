@@ -86,4 +86,53 @@ export function BarreOrizzontali({ dati, colore = 'var(--ciano)', formato = km, 
   );
 }
 
+// ---------------------------------------------------------------------
+// Linea nel tempo: un punto per volta, per lo storico dei test. I tempi
+// sono «più basso = meglio»: il punto più veloce sta in alto, così la
+// linea che sale vuol dire miglioramento, come si legge d'istinto.
+// I punti sono fuori dall'SVG perché la tela si stira in larghezza e un
+// cerchio dentro diventerebbe un'ellisse.
+// ---------------------------------------------------------------------
+export function Linea({ punti, formato = String, altezza = 150, piuBassoMeglio = true }) {
+  if (!punti?.length) return <div className="vuoto-grafico">Nessun risultato</div>;
+  const valori = punti.map((p) => p.valore);
+  let min = Math.min(...valori);
+  let max = Math.max(...valori);
+  if (min === max) { min -= 1; max += 1; }
+  const aria = (max - min) * 0.15;
+  min -= aria;
+  max += aria;
+  const x = (i) => (punti.length === 1 ? 50 : 4 + (i * 92) / (punti.length - 1));
+  const y = (v) => {
+    const f = (v - min) / (max - min);
+    return (piuBassoMeglio ? f : 1 - f) * altezza;
+  };
+
+  return (
+    <div className="grafico">
+      <div className="linea-tempo" style={{ height: altezza }}>
+        <svg viewBox={`0 0 100 ${altezza}`} preserveAspectRatio="none" className="tela" style={{ height: altezza }} role="img">
+          {[0.25, 0.5, 0.75].map((f) => (
+            <line key={f} x1="0" x2="100" y1={f * altezza} y2={f * altezza}
+              stroke="rgba(255,255,255,0.06)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          ))}
+          {punti.length > 1 && (
+            <polyline fill="none" stroke="var(--ciano)" strokeWidth="2" vectorEffect="non-scaling-stroke"
+              points={punti.map((p, i) => `${x(i)},${y(p.valore)}`).join(' ')} />
+          )}
+        </svg>
+        {punti.map((p, i) => (
+          <span key={i} className="punto-linea" data-record={p.record ? 'true' : undefined}
+            style={{ left: `${x(i)}%`, top: y(p.valore) }}
+            title={`${p.etichetta}: ${formato(p.valore)}`} />
+        ))}
+      </div>
+      <div className="estremi-linea">
+        <span>{punti[0].etichetta}</span>
+        {punti.length > 1 && <span>{punti[punti.length - 1].etichetta}</span>}
+      </div>
+    </div>
+  );
+}
+
 export { km };
