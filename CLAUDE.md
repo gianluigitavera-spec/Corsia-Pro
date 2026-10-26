@@ -218,6 +218,16 @@ campi tengono i centesimi (`scriviTempoCampo`): risalvare non cambia
 niente. `eliminaAtleti` trattiene anche chi ha risultati dei test,
 perché la 036 li cancella insieme all'atleta.
 
+Il foglio da bordo vasca (`pdfTest.js`, prove in
+`prova_foglio_test.mjs`) è lo stesso sistema dei PDF della seduta e
+del report. Le caselle si scrivono a mano e non vanno sotto i 12 mm:
+una riga ne tiene al massimo 12 in verticale e 20 in orizzontale,
+l'orientamento lo decide la riga più larga, e le serie (15x100)
+cominciano ognuna su una riga. Sul computer **non** si usa la stampa
+del browser, che stamperebbe il modulo di «Registra»: il PDF si apre in
+una scheda nuova (`apriSulComputer` in `pdfCondividi.js`), e se il
+browser la blocca il file si scarica.
+
 **Risultano applicate da `schema.sql` del 25/10/2026** la 021 (l'indice
 `atleti_chiave_unica`), la 025 (la colonna `sedute.atleti uuid[]`) e la
 026 (Fondo nell'enum `specializzazione`). Prima erano solo presunte,

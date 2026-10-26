@@ -11,10 +11,12 @@
 // e collega; il lettore guarda. Lattato e frequenza non si vedono.
 // =====================================================================
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Copy, Pencil, Archive, RotateCcw, Trash2, Check, X, Timer } from 'lucide-react';
+import { Plus, Copy, Pencil, Archive, RotateCcw, Trash2, Check, X, Timer, FileText } from 'lucide-react';
 import * as api from '../lib/dati';
 import { atletaNelGruppo, dataIt } from '../lib/dominio';
 import { MODELLI_TEST, copiaModello, PERCENTUALI_DI_PARTENZA, percentualiSocieta } from '../lib/test';
+import { pdfFoglioTest, precaricaPdf, condivideFile } from '../lib/pdfCondividi';
+import { nomeFileFoglioTest } from '../lib/pdfTest';
 import RegistraTest from './RegistraTest';
 import StoricoTest from './StoricoTest';
 
@@ -55,6 +57,7 @@ export default function Test({ societa, fasce, puoScrivere, gruppi, codiciGruppi
     } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
   }
   useEffect(() => { ricarica(); }, [societa.id]);
+  useEffect(() => { if (condivideFile()) precaricaPdf().catch(() => {}); }, []);
 
   const attivi = tipi.filter((t) => t.attivo);
   const visibili = mostraArchiviati ? tipi : attivi;
@@ -89,6 +92,13 @@ export default function Test({ societa, fasce, puoScrivere, gruppi, codiciGruppi
       setMessaggio(null);
       ricarica();
     } catch (e) { setMessaggio({ tipo: 'errore', testo: e.message }); }
+  }
+
+  // Il foglio senza nomi, dal tipo: data, vasca e gruppo si scrivono a mano.
+  async function foglioVuoto(t) {
+    const f = { tipo: t, societa: societa.nome, atleti: null };
+    const esito = await pdfFoglioTest(f, nomeFileFoglioTest(f));
+    setMessaggio(esito ? { tipo: esito.tipo, testo: esito.testo } : null);
   }
 
   async function archivia(t, attivo) {
@@ -226,10 +236,18 @@ export default function Test({ societa, fasce, puoScrivere, gruppi, codiciGruppi
                   <div className="sotto-tipo">{descrivi(t)}</div>
                   {t.descrizione && <div className="sotto-tipo">{t.descrizione}</div>}
                 </div>
+                {t.attivo && !puoScrivere && (
+                  <button className="mini" onClick={() => foglioVuoto(t)} title="Il foglio da stampare, senza nomi">
+                    <FileText size={14} style={{ verticalAlign: -2 }} /> Foglio
+                  </button>
+                )}
                 {puoScrivere && (
                   <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
                     {t.attivo ? (
                       <>
+                        <button className="mini" onClick={() => foglioVuoto(t)} title="Il foglio da stampare, senza nomi">
+                          <FileText size={14} style={{ verticalAlign: -2 }} /> Foglio
+                        </button>
                         <button className="mini" aria-label="Modifica" onClick={() => setInModifica({ ...t })}><Pencil size={14} /></button>
                         <button className="mini" aria-label="Archivia" title="Archivia: i risultati restano"
                           onClick={() => archivia(t, false)}><Archive size={14} /></button>

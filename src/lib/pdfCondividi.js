@@ -20,6 +20,7 @@ import semibold from '../assets/font/PublicSans-SemiBold-pdf.ttf?url';
 import bold from '../assets/font/PublicSans-Bold-pdf.ttf?url';
 import { creaPdfSeduta } from './pdfSeduta';
 import { creaPdfReport } from './pdfReport';
+import { creaPdfFoglioTest } from './pdfTest';
 import { stampaConNome } from './stampa';
 
 // Il telefono: condivide file e si usa col dito. Sul computer Chrome e
@@ -69,8 +70,8 @@ const descrivi = (e) => `${e?.name || 'errore senza nome'} — ${e?.message || '
  * @param crea  (JsPDF, caratteri) → il documento jsPDF
  * @param nome  il nome del file, senza estensione
  */
-async function condividiPdf(crea, nome) {
-  if (!condivideFile()) { stampaConNome(nome); return null; }
+async function condividiPdf(crea, nome, altrove = () => { stampaConNome(nome); return null; }) {
+  if (!condivideFile()) return altrove();
 
   // Di solito è già qui. Se no si aspetta: con la cache del service
   // worker è un attimo, ma iOS potrebbe non considerarlo più il tocco.
@@ -89,7 +90,7 @@ async function condividiPdf(crea, nome) {
   } catch (e) {
     return { tipo: 'errore', testo: `PDF non creato: ${descrivi(e)}` };
   }
-  if (!navigator.canShare({ files: [file] })) { stampaConNome(nome); return null; }
+  if (!navigator.canShare({ files: [file] })) return altrove();
 
   try {
     await navigator.share({ files: [file], title: nome });
@@ -113,3 +114,43 @@ export const pdfSeduta = (foglio, nome) => condividiPdf(
  */
 export const pdfReport = (report, forma, testata, nome) => condividiPdf(
   (JsPDF, caratteri) => creaPdfReport(JsPDF, report, forma, testata, caratteri, { titolo: nome }).doc, nome);
+
+/**
+ * Sul computer, il PDF scritto dall'app in una scheda nuova, da cui si
+ * stampa. Per il foglio dei test: la stampa del browser stamperebbe lo
+ * schermo, cioè il modulo di «Registra», non la griglia. La scheda si
+ * apre SUBITO, attaccata al tocco, o il browser la blocca; il PDF ci
+ * arriva quando è pronto. Se è bloccata lo stesso, il file si scarica
+ * col suo nome.
+ */
+async function apriSulComputer(crea, nome) {
+  const scheda = window.open('', '_blank');
+  try {
+    const pdf = await precaricaPdf();
+    const blob = crea(pdf.JsPDF, pdf.caratteri).output('blob');
+    const url = URL.createObjectURL(blob);
+    if (scheda) {
+      scheda.location.href = url;
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${nome}.pdf`;
+      a.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return null;
+  } catch (e) {
+    scheda?.close();
+    return { tipo: 'errore', testo: `PDF non creato: ${descrivi(e)}` };
+  }
+}
+
+/**
+ * Il foglio da bordo vasca dei test: { tipo, data, vasca, gruppi,
+ * societa, atleti } (atleti null = senza nomi), e nomeFileFoglioTest.
+ * Sul telefono si condivide, sul computer si apre per stamparlo.
+ */
+export const pdfFoglioTest = (foglio, nome) => {
+  const crea = (JsPDF, caratteri) => creaPdfFoglioTest(JsPDF, foglio, caratteri, { titolo: nome }).doc;
+  return condividiPdf(crea, nome, () => apriSulComputer(crea, nome));
+};

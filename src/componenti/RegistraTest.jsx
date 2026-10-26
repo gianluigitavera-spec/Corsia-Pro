@@ -11,12 +11,14 @@
 // di quel tipo. Svuotare i campi di un atleta lo toglie dalla sessione.
 // =====================================================================
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, FileText } from 'lucide-react';
 import * as api from '../lib/dati';
 import { atletaNelGruppo, codiciDelGruppo, oggiLocale } from '../lib/dominio';
 import {
   campiVuoti, campiDaRisultato, risultatoDaCampi, passaggiAttesi, scriviTempo, tempoTotale,
 } from '../lib/test';
+import { pdfFoglioTest, precaricaPdf, condivideFile } from '../lib/pdfCondividi';
+import { nomeFileFoglioTest } from '../lib/pdfTest';
 import ScegliGruppi from './ScegliGruppi';
 
 const descriviTipo = (t) => [
@@ -38,6 +40,10 @@ export default function RegistraTest({ societa, fasce, tipi, atleti, gruppiTesta
   const [inCorso, setInCorso] = useState(false);
 
   const tipo = tipi.find((t) => t.id === tipoId);
+
+  // Sul telefono jsPDF e i caratteri si scaricano prima del tocco: iOS
+  // vuole la condivisione attaccata al gesto (pdfCondividi.js).
+  useEffect(() => { if (condivideFile()) precaricaPdf().catch(() => {}); }, []);
 
   // Una sessione già salvata: i suoi risultati nei campi, al centesimo.
   useEffect(() => {
@@ -110,6 +116,13 @@ export default function RegistraTest({ societa, fasce, tipi, atleti, gruppiTesta
     finally { setInCorso(false); }
   }
 
+  // Il foglio da bordo vasca: gli stessi atleti, nello stesso ordine.
+  async function foglio() {
+    const f = { tipo, data, vasca, gruppi, societa: societa.nome, atleti: elenco };
+    const esito = await pdfFoglioTest(f, nomeFileFoglioTest(f));
+    setMessaggio(esito ? esito.testo : null);
+  }
+
   if (!tipo) {
     return (
       <div className="scheda"><div className="vuoto">
@@ -129,6 +142,10 @@ export default function RegistraTest({ societa, fasce, tipi, atleti, gruppiTesta
         <button className="mini" onClick={() => chiudi(false)} aria-label="Torna ai test"><ArrowLeft size={15} /></button>
         <h1>{sessione ? 'Sessione di test' : 'Registra un test'}</h1>
         <div style={{ flex: 1 }} />
+        <button className="mini" onClick={foglio} disabled={!elenco.length}
+          title="Il foglio da stampare per bordo vasca: i nomi del gruppo e le caselle vuote">
+          <FileText size={14} style={{ verticalAlign: -2 }} /> Foglio
+        </button>
         {puoScrivere && (
           <button className="azione" onClick={salva} disabled={inCorso}>
             <Check size={16} style={{ verticalAlign: -3 }} /> Salva
