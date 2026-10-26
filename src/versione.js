@@ -20,6 +20,16 @@ export { VERSIONE } from './lib/versione.js';
 
 export const CAMBIAMENTI = [
   {
+    versione: '0.61.0',
+    data: '2026-10-26',
+    annuncia: true,
+    voci: [
+      'Nuova scheda Test: T-1000, T-2000, 15x100, 6x50 e 5x300 pronti da copiare, con lo storico di ogni atleta e i ritmi per zona',
+      'Foglio da stampare per il bordo vasca, con i nomi degli atleti già scritti',
+      'In Atleti, toccando il nome si apre lo storico dei test',
+    ],
+  },
+  {
     versione: '0.60.0',
     data: '2026-10-25',
     annuncia: true,
