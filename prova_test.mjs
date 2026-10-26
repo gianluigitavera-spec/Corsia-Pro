@@ -363,6 +363,23 @@ dice('valore dello storico con una ripetuta mancante: null',
 dice('tecnica senza bracciate: null',
   T.tecnicaRisultato(modello('15x100'), risultato(Array(15).fill(8000))), null);
 
+// =====================================================================
+// I TASTI DI UN TEST NELLA SCHEDA: il foglio lo vede chiunque
+// =====================================================================
+// Il foglio da bordo vasca è una stampa, non una scrittura: lo vede il
+// lettore, e lo vedono allenatore e collega. Fino al 26/10 stava in due
+// rami del JSX, uno per chi scrive e uno per chi no: qui la regola è una.
+{
+  const attivo = { ...modello('T-1000'), attivo: true };
+  const archiviato = { ...modello('T-1000'), attivo: false };
+  dice('chi scrive, test attivo: foglio, modifica, archivia', T.azioniTipo(attivo, true), ['foglio', 'modifica', 'archivia']);
+  dice('lettore, test attivo: solo il foglio', T.azioniTipo(attivo, false), ['foglio']);
+  dice('chi scrive, test archiviato: riattiva', T.azioniTipo(archiviato, true), ['riattiva']);
+  dice('lettore, test archiviato: niente', T.azioniTipo(archiviato, false), []);
+  dice('il foglio c\'è per chi scrive E per il lettore',
+    [true, false].every((scrive) => T.azioniTipo(attivo, scrive).includes('foglio')), true);
+}
+
 if (male) {
   console.error(`\n${male} prove fallite. Pacchetto non costruito.`);
   process.exit(1);

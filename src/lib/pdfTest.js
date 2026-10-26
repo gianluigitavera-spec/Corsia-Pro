@@ -4,9 +4,12 @@
 // Si stampa prima del test e si riempie a mano: in alto test, data, vasca
 // e gruppo; poi una riga per atleta, coi nomi già scritti nello stesso
 // ordine di «Registra», e le caselle vuote per ogni ripetuta, per i
-// passaggi se il tipo li prevede e per le bracciate; in fondo cinque
-// righe vuote. La versione senza nomi, dal tipo, è una pagina intera di
-// righe vuote, con data, vasca e gruppo da scrivere.
+// passaggi se il tipo li prevede e per le bracciate; in fondo le righe
+// vuote, fino a cinque, solo quante ne stanno nella pagina in corso: mai
+// una pagina in più per una riga vuota. Niente tempi di gara, nemmeno
+// nel 5x300: si conoscono prima e si scrivono in «Registra». La versione
+// senza nomi, dal tipo, è una pagina intera di righe vuote, con data,
+// vasca e gruppo da scrivere.
 //
 // Stesso sistema della seduta e del report (pdfComune.js): l'impaginazione
 // produce istruzioni in millimetri e le prove le guardano senza aprire il
@@ -35,7 +38,7 @@ const NERO = '#000000';
 const GRIGIO = '#555555';
 const BORDO = '#777777';
 
-/** Le righe vuote in fondo al foglio coi nomi. */
+/** Le righe vuote in fondo al foglio coi nomi, al massimo. */
 export const RIGHE_VUOTE = 5;
 
 // ---------------------------------------------------------------------
@@ -236,7 +239,9 @@ export function impaginaFoglioTest(foglio, misura) {
 
   if (conNomi) {
     for (const a of foglio.atleti) metti(a);
-    for (let i = 0; i < RIGHE_VUOTE; i++) metti(null);
+    // Le righe vuote riempiono solo la pagina in corso, fino a cinque:
+    // nessuna pagina in più per una riga vuota (decisione del 26/10/2026).
+    for (let i = 0; i < RIGHE_VUOTE && y + altezzaBlocco <= fine; i++) metti(null);
   } else {
     // Senza nomi: la pagina intera.
     const quante = Math.max(1, Math.floor((fine - y) / altezzaBlocco));

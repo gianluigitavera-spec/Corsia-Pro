@@ -412,6 +412,21 @@ export function tecnicaRisultato(tipo, ris) {
 }
 
 // ---------------------------------------------------------------------
+// I tasti di un test nella scheda
+// ---------------------------------------------------------------------
+
+/**
+ * I tasti di un tipo di test, nell'ordine: 'foglio', 'modifica',
+ * 'archivia' su un test attivo, 'riattiva' su uno archiviato. Il foglio
+ * è una stampa, non una scrittura: lo vede chiunque, lettore compreso.
+ * Il resto solo chi scrive (allenatore e collega).
+ */
+export function azioniTipo(tipo, puoScrivere) {
+  if (!tipo?.attivo) return puoScrivere ? ['riattiva'] : [];
+  return puoScrivere ? ['foglio', 'modifica', 'archivia'] : ['foglio'];
+}
+
+// ---------------------------------------------------------------------
 // Lo storico: l'atleta con sé stesso, nella stessa vasca
 // ---------------------------------------------------------------------
 

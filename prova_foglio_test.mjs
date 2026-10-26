@@ -110,7 +110,38 @@ for (const codice of ['T-1000', 'T-2000', '15x100', '6x50', '5x300']) {
   vero(`${codice}: caselle larghe almeno 12 mm`, imp.larghezzaCasella >= 12);
   dice(`${codice}: una pagina`, imp.pagine.length, 1);
 }
-dice('cinque righe vuote in fondo', RIGHE_VUOTE, 5);
+dice('cinque righe vuote in fondo, al massimo', RIGHE_VUOTE, 5);
+
+// Le righe vuote riempiono solo la pagina in corso: nessuna pagina in più
+// per una riga vuota (decisione del 26/10/2026). Il 15x100 con quattro
+// atleti faceva nove blocchi da 27 mm, e l'ultima riga vuota finiva da
+// sola su una seconda pagina.
+{
+  const quattro = [...ATLETI, { cognome: 'Verdi', nome: 'Sara' }];
+  const imp = impaginaFoglioTest(foglio('15x100', { atleti: quattro }), misura);
+  dice('15x100 con 4 atleti: una pagina', imp.pagine.length, 1);
+  dice('15x100 con 4 atleti: i quattro nomi, poi le righe vuote che ci stanno',
+    imp.righe, ['Rossi Mario', 'Bianchi Anna', 'Zanetti Luca', 'Verdi Sara', '', '', '', '']);
+  const { doc } = creaPdfFoglioTest(jsPDF, foglio('15x100', { atleti: quattro }), CARATTERI);
+  dice('15x100 con 4 atleti, il PDF vero: una pagina', doc.getNumberOfPages(), 1);
+}
+{
+  // Gli atleti stessi vanno sulla pagina dopo quando serve: le righe
+  // vuote no, e la pagina dopo ne ha fino a cinque.
+  const nove = Array.from({ length: 9 }, (_, i) => ({ cognome: `Atleta${i + 1}`, nome: 'Prova' }));
+  const imp = impaginaFoglioTest(foglio('15x100', { atleti: nove }), misura);
+  dice('15x100 con 9 atleti: nessun atleta perso', imp.righe.filter(Boolean).length, 9);
+  dice('15x100 con 9 atleti: sulla seconda pagina il nono e le righe vuote, al massimo cinque',
+    imp.righe.slice(9).length <= RIGHE_VUOTE && imp.righe.slice(9).every((r) => r === ''), true);
+  dice('15x100 con 9 atleti: due pagine', imp.pagine.length, 2);
+}
+{
+  // Una pagina piena di atleti fino all'ultima riga: nessuna riga vuota,
+  // e nessuna pagina in più.
+  const otto = Array.from({ length: 8 }, (_, i) => ({ cognome: `Atleta${i + 1}`, nome: 'Prova' }));
+  const imp = impaginaFoglioTest(foglio('15x100', { atleti: otto }), misura);
+  dice('15x100 con la pagina piena di atleti: niente pagina per le righe vuote', imp.pagine.length, 1);
+}
 {
   const imp = impaginaFoglioTest(foglio('T-1000'), misura);
   // Il testo va a capo per parole: si guarda la testata unita.

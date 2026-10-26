@@ -223,7 +223,12 @@ Il foglio da bordo vasca (`pdfTest.js`, prove in
 del report. Le caselle si scrivono a mano e non vanno sotto i 12 mm:
 una riga ne tiene al massimo 12 in verticale e 20 in orizzontale,
 l'orientamento lo decide la riga più larga, e le serie (15x100)
-cominciano ognuna su una riga. Sul computer **non** si usa la stampa
+cominciano ognuna su una riga. Le righe vuote in fondo sono al massimo
+cinque e riempiono solo la pagina in corso: mai una pagina in più per
+una riga vuota (26/10/2026). Niente tempi di gara sul foglio, nemmeno
+nel 5x300. Il tasto «Foglio» lo vede chiunque, lettore compreso: quali
+tasti ha un test lo decide `azioniTipo`, sotto prova, non il JSX. Sul
+computer **non** si usa la stampa
 del browser, che stamperebbe il modulo di «Registra»: il PDF si apre in
 una scheda nuova (`apriSulComputer` in `pdfCondividi.js`), e se il
 browser la blocca il file si scarica.
