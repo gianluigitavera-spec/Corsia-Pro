@@ -377,6 +377,17 @@ stesso `aggiorna()`: nucleo `rimappaSvolto` e involucri in `dominio.js`,
 provati in `prova_svolto.mjs`. Chi aggiunge un gesto nuovo che tocca
 `sezioni` o `serie` deve richiamare l'involucro giusto — attenzione ai
 casi che inseriscono **in cima** (`unshift`), che spostano tutto.
+
+**I gesti dell'editor stanno in un posto solo: `src/lib/gestiSeduta.js`**
+(dal 28/10/2026). Scrivere, aggiungere, spostare, togliere: funzioni
+pure sulla copia che `EditorSeduta` prepara in `aggiorna()`. Prima
+stavano nel componente, quattro scritti direttamente nei `onClick`; la
+vista per il telefono deve fare gli stessi gesti, e due copie del
+codice che ricalcola i blocchi e rimappa `svolto` sono il guasto del 900
+invece di 3600. Un gesto nuovo si scrive lì, con la sua prova in
+`prova_gesti.mjs`, che controlla anche che nessun componente scriva
+più la seduta da solo (`push`, `splice`, `.serie = [...]`,
+`svoltoDopo…`, `ricalcolaBlocchi`): se ricompaiono, la build si ferma.
 `svoltoCollassato` è l'unico posto che decide quando `svolto` torna
 `null`: righe vuote **e** nessuna volta **e** nessuna nota.
 
@@ -733,6 +744,17 @@ specializzazione fermo su Mezzofondo, non un dato perso.
 **iOS e PWA.** Si prova su dispositivo vero. Niente
 `orientation: portrait-primary`; le apple-touch-icon servono anche nelle
 misure 152 e 167.
+
+**Sul tocco niente sotto i 44 px, e lo controlla la build**
+(`prova_tocco.mjs`, dal 28/10/2026). La regola sta in `styles.css`,
+«DITA BAGNATE», ma una regola più specifica fuori da quel blocco la
+batte in silenzio: `button.mini { min-height: 36px }` vince su `.mini`,
+e sull'iPhone i tasti «mini» erano alti 36. Lo stesso per uno
+`style={{ minHeight: 34 }}` scritto sull'elemento, che batte qualunque
+regola. Quindi: niente altezze sotto i 44 scritte sui componenti (per
+un tasto o un campo compatto col mouse c'è la classe `compatto`), e
+ogni regola che porta qualcosa di toccabile sotto i 44 ha la sua riga,
+con lo stesso selettore, in fondo al blocco del tocco.
 
 ---
 

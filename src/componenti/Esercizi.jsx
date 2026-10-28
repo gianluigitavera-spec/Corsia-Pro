@@ -249,7 +249,7 @@ export default function Esercizi({ societa, puoScrivere }) {
             type="date"
             value={settimana}
             onChange={(e) => setSettimana(lunediDi(new Date(e.target.value + 'T12:00')))}
-            style={{ minHeight: 34, fontSize: 13 }}
+            className="compatto"
             aria-label="Settimana"
           />
         </div>

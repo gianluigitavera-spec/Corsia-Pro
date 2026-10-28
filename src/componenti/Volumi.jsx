@@ -171,17 +171,17 @@ export default function Volumi({ societa, stagione, fasce, gruppi = [], codiciGr
         <CalendarRange size={15} style={{ color: 'var(--testo-3)' }} />
         {modo === 'settimana' && (
           <input type="date" value={settimana} onChange={(e) => setSettimana(lunedi(e.target.value))}
-            style={{ minHeight: 36, fontSize: 13 }} aria-label="Scegli la settimana" />
+            className="compatto" aria-label="Scegli la settimana" />
         )}
         {modo === 'mese' && (
           <input type="month" value={mese} onChange={(e) => setMese(e.target.value)}
-            style={{ minHeight: 36, fontSize: 13 }} aria-label="Scegli il mese" />
+            className="compatto" aria-label="Scegli il mese" />
         )}
         {modo === 'periodo' && (
           <>
-            <input type="date" value={da} onChange={(e) => setDa(e.target.value)} style={{ minHeight: 36, fontSize: 13 }} />
+            <input type="date" value={da} onChange={(e) => setDa(e.target.value)} className="compatto" />
             <span style={{ color: 'var(--testo-3)' }}>→</span>
-            <input type="date" value={a} onChange={(e) => setA(e.target.value)} style={{ minHeight: 36, fontSize: 13 }} />
+            <input type="date" value={a} onChange={(e) => setA(e.target.value)} className="compatto" />
           </>
         )}
         <span style={{ fontSize: 13, color: 'var(--testo-3)' }}>

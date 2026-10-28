@@ -223,7 +223,7 @@ export default function Test({ societa, fasce, puoScrivere, gruppi, codiciGruppi
                   </div>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button className="mini" onClick={() => setInModifica(null)} aria-label="Annulla"><X size={14} /></button>
-                    <button className="azione" style={{ minHeight: 36, padding: '7px 14px' }} onClick={salvaModifica}
+                    <button className="azione compatto" style={{ padding: '7px 14px' }} onClick={salvaModifica}
                       disabled={!m.nome.trim()} aria-label="Salva"><Check size={15} /></button>
                   </div>
                 </div>

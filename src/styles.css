@@ -153,6 +153,14 @@ button.mini {
 }
 button.mini:hover { color: var(--testo); border-color: var(--bordo-vivo); }
 
+/* Compatto: col mouse, tasti e campi più bassi dove lo spazio è poco.
+   Sul tocco tornano a 44 px e i campi a 16 px (DITA BAGNATE, in fondo).
+   Prende il posto di style={{ minHeight: 34, fontSize: 13 }} scritto
+   sull'elemento, che batteva qualunque regola: sull'iPhone quei tasti
+   restavano bassi e i campi a 13 px facevano ingrandire la pagina. */
+.compatto, button.compatto, select.compatto, input.compatto { min-height: 36px; }
+select.compatto, input.compatto { font-size: 13px; }
+
 /* --------------------------------------------------------- schede */
 .scheda {
   background: linear-gradient(180deg, rgba(22, 35, 63, 0.85), rgba(16, 27, 51, 0.85));
@@ -190,6 +198,10 @@ tbody tr:hover { background: rgba(34, 211, 238, 0.04); }
   padding: 13px 15px 13px 21px; border-bottom: var(--riga); background: rgba(255, 255, 255, 0.02);
 }
 .corsia .titolo-corsia { font-family: var(--display); font-size: 19px; letter-spacing: 0.02em; color: var(--testo); }
+/* Il titolo della sezione è un campo che non sembra un campo: col mouse
+   alto quanto il testo, sul tocco 44 px (DITA BAGNATE). Stava scritto
+   sull'elemento (minHeight: 'auto'), e sul telefono restava basso. */
+input.titolo-corsia { min-height: auto; }
 .corsia .serie { padding: 8px 15px 15px 21px; }
 
 .destinatari { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -1299,7 +1311,7 @@ tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
    Vale solo per il tocco: con il mouse resta compatto come prima.
    ===================================================================== */
 @media (pointer: coarse) {
-  button, select, input, .pastiglia, .mini, .azione {
+  button, select, input, textarea, .pastiglia, .mini, .azione {
     min-height: 44px;
   }
   input[type="checkbox"], input[type="radio"] {
@@ -1319,6 +1331,45 @@ tbody tr.scelta td:first-child { box-shadow: inset 3px 0 0 var(--ciano); }
 
   /* Niente zoom involontario su iOS quando si tocca un campo. */
   input, select, textarea { font-size: 16px; }
+
+  /* Le regole più specifiche qui sopra nel file battevano i 44 px: una
+     regola vince per specificità prima che per posizione, e
+     `button.mini { min-height: 36px }` batte `.mini` — sull'iPhone i
+     tasti «mini» erano alti 36. Qui ognuna è ripresa con lo stesso
+     selettore, dopo. Le cerca prova_tocco.mjs: una nuova che scende
+     sotto i 44 senza la sua riga qui ferma la build. */
+  button.mini,
+  .nav button,
+  .riga-serie .togli,
+  .segno-blocco input,
+  .durata-secco input,
+  .metri-letti,
+  .riga-letta select,
+  .con-percento input,
+  .tasto-feedback,
+  .scelta-stagione,
+  input.titolo-corsia,
+  .compatto, button.compatto, select.compatto, input.compatto {
+    min-height: 44px;
+  }
+  select.compatto, input.compatto { font-size: 16px; }
+
+  /* Le X quadrate e i numeri del Benessere: 44 per lato. */
+  .chiudi-lavagna, .chiudi-riquadro, .chiudi-tutorial { width: 44px; height: 44px; }
+  .testa-tutorial { padding-right: 48px; }
+  .scala button { width: 44px; height: 44px; }
+
+  /* I passi del tutorial sono barrette da 4 px: il tasto è alto 44 e la
+     barretta resta disegnata in mezzo. */
+  .punti-tutorial button {
+    height: 44px;
+    background: linear-gradient(var(--bordo-vivo), var(--bordo-vivo)) center / 100% 4px no-repeat;
+  }
+  .punti-tutorial button[data-attivo='true'] {
+    background: linear-gradient(var(--ciano), var(--ciano)) center / 100% 4px no-repeat;
+    box-shadow: none;
+    filter: drop-shadow(0 0 5px var(--ciano));
+  }
 }
 
 /* Tablet: sul tocco i quattro stati sono larghi almeno 52px con 8px fra

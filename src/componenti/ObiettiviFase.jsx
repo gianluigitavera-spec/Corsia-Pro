@@ -134,7 +134,7 @@ export default function ObiettiviFase({ societa, codici, nomeMacro, puoScrivere 
                       aria-label="Annulla">
                       <RotateCcw size={13} />
                     </button>
-                    <button className="azione" style={{ minHeight: 32, padding: '5px 12px' }}
+                    <button className="azione compatto" style={{ padding: '5px 12px' }}
                       onClick={() => salva(f.codice)} disabled={salvo === f.codice}>
                       <Save size={13} style={{ verticalAlign: -2 }} /> Salva
                     </button>

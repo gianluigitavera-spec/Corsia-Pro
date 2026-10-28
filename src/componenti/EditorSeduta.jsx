@@ -5,21 +5,22 @@ import {
 import * as api from '../lib/dati';
 import CopiaSedute from './CopiaSedute';
 import {
-  TUTTI, SPECIALIZZAZIONI, sedutaVuota, serieVuota, metriPerSpecializzazione,
-  caricoPerFamiglia, validaSeduta, metriDaNotazione, normalizzaRecupero, RAGGRUPPAMENTI,
+  TUTTI, SPECIALIZZAZIONI, sedutaVuota, metriPerSpecializzazione,
+  caricoPerFamiglia, validaSeduta, RAGGRUPPAMENTI,
   sedutaNelGruppo,
-  ripartenzaDaBase, dataIt, durataStimata, inOreMinuti, categoriaAtleta,
+  dataIt, durataStimata, inOreMinuti, categoriaAtleta,
   durataPerSpecializzazione, specializzazioniDaSezioni, specializzazioniDiAtleti,
   specializzazioniConLavoroDedicato,
-  eSecco, sezioneSeccaVuota, nomeFileSeduta, foglioSeduta,
-  apertureNude, applicaAperturaBlocco, figlieDelBlocco, ricalcolaBlocchi, annotaLettura,
-  svoltoDopoTogliRiga, svoltoDopoTogliSezione, svoltoDopoMuoviRiga,
-  svoltoDopoMuoviSezione, svoltoDopoInserisciRiga, svoltoDopoInserisciSezione,
+  eSecco, nomeFileSeduta, foglioSeduta,
+  apertureNude, figlieDelBlocco,
   metriSvoltiDiRiga, metriSvoltiDiSezione,
   metriDaRicontrollare, applicaRicontrollo, applicaRicontrolloInBlocco, lunediDi,
-  inserisciFineBlocco, sciogliBlocco, blocchiDaChiudere, bloccoApertoInFondo, fattoreChiuso,
-  annotaPassoGara, opzioniZona,
+  blocchiDaChiudere, bloccoApertoInFondo, fattoreChiuso,
+  opzioniZona,
 } from '../lib/dominio';
+// I gesti che cambiano la seduta: un posto solo, per questa vista e per
+// quella del telefono (lib/gestiSeduta.js, prova_gesti.mjs).
+import * as G from '../lib/gestiSeduta';
 import { TINTA_FAMIGLIA, TINTE } from '../lib/colori';
 import RevisioneTesto from './RevisioneTesto';
 import { condividiSeduta } from '../lib/testoSeduta';
@@ -65,14 +66,6 @@ const SALTATE = {
   blocchi: 'prima vanno sistemati i blocchi ripetuti',
   'blocco-da-chiudere': 'il blocco sopra va chiuso (avviso in alto)',
   fattore: 'il fattore del blocco è da correggere (si sistema da sé ritoccando una riga della sezione)',
-};
-
-const muovi = (arr, da, a) => {
-  if (a < 0 || a >= arr.length) return arr;
-  const copia = [...arr];
-  const [x] = copia.splice(da, 1);
-  copia.splice(a, 0, x);
-  return copia;
 };
 
 export default function EditorSeduta({
@@ -146,80 +139,12 @@ export default function EditorSeduta({
     setSeduta((s) => { const c = structuredClone(s); fn(c); return c; });
   }
 
-  // La notazione comanda i metri, finché non li scrivi a mano.
-  function cambiaNotazione(i, j, valore) {
-    aggiorna((s) => {
-      const serie = s.sezioni[i].serie[j];
-      serie.notazione = valore;
-      // A secco la notazione resta una descrizione: "4x12 trazioni" non
-      // vale 100 metri. Se lasciassimo leggere i metri qui, finirebbero
-      // salvati nel JSON e da lì in avanti li conterebbe anche il
-      // database, che i metri li prende dal dato e non dal titolo.
-      if (eSecco(s.sezioni[i])) {
-        serie.metri = 0;
-        serie.zona = '';
-        annotaLettura(s.sezioni[i], serie);
-        return;
-      }
-      // Nell'editor la notazione NON crea blocchi: le ripetizioni si
-      // fanno solo col tasto "+ ripetizione". Il riconoscimento scattava
-      // a ogni tasto, e scrivendo "2x200" si passava per "2x", che è
-      // un'apertura valida: per un attimo la riga apriva un blocco, si
-      // prendeva le righe sotto, e al tasto dopo le lasciava staccate da
-      // quello vero coi metri divisi. Nel testo il riconoscimento resta.
-      // La riga di composizione vale zero apposta: ritoccarne la
-      // descrizione non la fa diventare un lavoro suo.
-      if (!serie.metriManuali && !serie.composizione) {
-        // Si scrive la lettura A GIRO: il fattore lo applica il ricalcolo,
-        // che è l'unico posto che sa in quale blocco sta questa riga.
-        const m = metriDaNotazione(valore);
-        if (m !== null) { serie.metri = m; delete serie.moltiplicato; }
-      }
-      ricalcolaBlocchi(s.sezioni[i]);
-      // Il numero del lettore accanto ai metri, anche quando i metri sono
-      // scritti a mano: è lo scarto fra i due che dice chi ha deciso.
-      annotaLettura(s.sezioni[i], serie);
-      // La D nella notazione (D, D200, passo 200): la riga senza zona
-      // prende la D. Una zona scelta a mano non si tocca.
-      annotaPassoGara(serie);
-      // Se la partenza nasce da un passo base, cambiando la distanza si rifà.
-      if (serie.base) {
-        try {
-          const r = ripartenzaDaBase('@@' + serie.base, valore);
-          if (r) serie.recupero = r.recupero;
-        } catch { /* la partenza resta com'è */ }
-      }
-    });
-  }
-
+  // I gesti stanno in lib/gestiSeduta.js: qui si chiamano dentro
+  // aggiorna(), che lavora su una copia della seduta.
+  const cambiaNotazione = (i, j, valore) => aggiorna((s) => { G.cambiaNotazione(s, i, j, valore); });
   // Fuori dal render: qui un errore è un errore, non uno schermo nero.
-  function sistemaRecupero(i, j, valore) {
-    let recupero = valore;
-    let base = null;
-    try {
-      const dalBase = ripartenzaDaBase(valore, seduta.sezioni[i]?.serie[j]?.notazione);
-      if (dalBase) { recupero = dalBase.recupero; base = dalBase.base; }
-      else recupero = normalizzaRecupero(valore);
-    } catch (e) {
-      console.error('Recupero non interpretato:', e);
-      recupero = String(valore || '');
-    }
-    aggiorna((st) => {
-      const serie = st.sezioni[i]?.serie[j];
-      if (!serie) return;
-      serie.recupero = recupero;
-      if (base) serie.base = base; else delete serie.base;
-    });
-  }
-
-  function cambiaMetri(i, j, valore) {
-    aggiorna((s) => {
-      const serie = s.sezioni[i].serie[j];
-      serie.metri = Number(valore) || 0;
-      serie.metriManuali = true;   // da qui in poi decidi tu
-      delete serie.composizione;   // e non è più la descrizione di un'altra riga
-    });
-  }
+  const sistemaRecupero = (i, j, valore) => aggiorna((s) => { G.sistemaRecupero(s, i, j, valore); });
+  const cambiaMetri = (i, j, valore) => aggiorna((s) => { G.cambiaMetri(s, i, j, valore); });
 
   // ------------------------------------------------------------------
   // BLOCCHI RIPETUTI
@@ -228,31 +153,19 @@ export default function EditorSeduta({
   // comando. Il dato che esce è identico, perché passano tutte e due da
   // applicaAperturaBlocco.
   // ------------------------------------------------------------------
-  function ripetiBlocco(i, j, n) {
-    // Sotto il 2 il campo non fa niente: per sciogliere c'è il tasto.
-    // Prima "1" scioglieva, e battendo "12" si passava per "1": il
-    // blocco spariva al primo tasto.
-    if (!(n > 1)) return;
-    aggiorna((s) => {
-      s.sezioni[i].serie[j].apreBlocco = n;
-      ricalcolaBlocchi(s.sezioni[i]);
-    });
-  }
+  const ripetiBlocco = (i, j, n) => aggiorna((s) => { G.ripetiBlocco(s, i, j, n); });
 
   // "Sciogli" e il cestino dell'intestazione: via l'apertura, e la sua
-  // fine se c'è, con svolto rimappato (sciogliBlocco in dominio.js).
-  const sciogli = (i, j) => aggiorna((s) => { sciogliBlocco(s, i, j); });
+  // fine se c'è, con svolto rimappato.
+  const sciogli = (i, j) => aggiorna((s) => { G.sciogli(s, i, j); });
 
   // "fine ripetizione": in coda, sotto l'ultima riga del blocco aperto.
-  const fineInCoda = (i) => aggiorna((s) => {
-    inserisciFineBlocco(s, i, (s.sezioni[i].serie || []).length);
-  });
+  const fineInCoda = (i) => aggiorna((s) => { G.fineInCoda(s, i); });
 
   // Il tasto dell'avviso: applica una singola apertura nuda. È una
   // modifica alla bozza come tutte le altre, non un salvataggio — se te
   // ne vai senza premere Salva non è stato scritto niente.
-  const applicaNuda = (sezN, serM) =>
-    aggiorna((s) => { applicaAperturaBlocco(s.sezioni[sezN], serM); });
+  const applicaNuda = (sezN, serM) => aggiorna((s) => { G.applicaNuda(s, sezN, serM); });
 
   const nude = useMemo(
     () => (seduta ? apertureNude(seduta, { puoScrivere }) : []),
@@ -265,7 +178,7 @@ export default function EditorSeduta({
     () => (seduta ? blocchiDaChiudere(seduta, { puoScrivere }) : []),
     [seduta, puoScrivere]
   );
-  const chiudiQui = (sezN, serM) => aggiorna((s) => { inserisciFineBlocco(s, sezN, serM); });
+  const chiudiQui = (sezN, serM) => aggiorna((s) => { G.chiudiQui(s, sezN, serM); });
 
   // ------------------------------------------------------------------
   // CONTROLLA LE SEDUTE: i metri salvati contro quello che la notazione
@@ -331,19 +244,8 @@ export default function EditorSeduta({
   // La guardia sui bordi ripete quella di muovi() a bella posta: se lo
   // spostamento non avviene, la rimappatura non deve avvenire.
   // ------------------------------------------------------------------
-  const muoviRiga = (i, da, a) => aggiorna((s) => {
-    const serie = s.sezioni[i].serie || [];
-    if (a < 0 || a >= serie.length) return;
-    s.sezioni[i].serie = muovi(serie, da, a);
-    s.svolto = svoltoDopoMuoviRiga(s.svolto, i, da, a);
-    ricalcolaBlocchi(s.sezioni[i]);      // la riga può essere uscita o entrata in un blocco
-  });
-
-  const muoviSezione = (da, a) => aggiorna((s) => {
-    if (a < 0 || a >= (s.sezioni || []).length) return;
-    s.sezioni = muovi(s.sezioni, da, a);
-    s.svolto = svoltoDopoMuoviSezione(s.svolto, da, a);
-  });
+  const muoviRiga = (i, da, a) => aggiorna((s) => { G.muoviRiga(s, i, da, a); });
+  const muoviSezione = (da, a) => aggiorna((s) => { G.muoviSezione(s, da, a); });
 
   // Cancellare una riga rilevata butta via i metri nuotati: non c'è più
   // la riga a cui erano attaccati, e tenerli da qualche parte vorrebbe
@@ -354,11 +256,7 @@ export default function EditorSeduta({
       `Questa riga ha ${persi.toLocaleString('it-IT')} m nuotati registrati.\n\n`
       + 'Cancellandola quei metri si perdono. Procedo?'
     )) return;
-    aggiorna((s) => {
-      s.sezioni[i].serie.splice(j, 1);
-      s.svolto = svoltoDopoTogliRiga(s.svolto, i, j);
-      ricalcolaBlocchi(s.sezioni[i]);    // se era l'apertura, le figlie si liberano
-    });
+    aggiorna((s) => { G.togliRiga(s, i, j); });
   };
 
   const togliSezione = (i) => {
@@ -368,21 +266,20 @@ export default function EditorSeduta({
       + `su ${persi.righe} ${persi.righe === 1 ? 'riga' : 'righe'}.\n\n`
       + 'Cancellandola quei metri si perdono. Procedo?'
     )) return;
-    aggiorna((s) => {
-      s.sezioni.splice(i, 1);
-      s.svolto = svoltoDopoTogliSezione(s.svolto, i);
-    });
+    aggiorna((s) => { G.togliSezione(s, i); });
   };
 
-  const togliDestinatario = (i, spec) =>
-    aggiorna((s) => {
-      const sez = s.sezioni[i];
-      const attuali = sez.destinatari?.length ? sez.destinatari : [TUTTI];
-      if (spec === TUTTI) { sez.destinatari = [TUTTI]; return; }
-      const senza = attuali.filter((d) => d !== TUTTI);
-      sez.destinatari = senza.includes(spec) ? senza.filter((d) => d !== spec) : [...senza, spec];
-      if (sez.destinatari.length === 0) sez.destinatari = [TUTTI];
-    });
+  const togliDestinatario = (i, spec) => aggiorna((s) => { G.commutaDestinatario(s, i, spec); });
+
+  // Gli altri gesti, con un nome: prima stavano scritti nei onClick.
+  const aggiungiSerie = (i) => aggiorna((s) => { G.aggiungiSerie(s, i); });
+  const aggiungiRipetizione = (i) => aggiorna((s) => { G.aggiungiRipetizione(s, i); });
+  const aggiungiSezione = () => aggiorna((s) => { G.aggiungiSezione(s); });
+  const aggiungiSezioneSecca = () => aggiorna((s) => { G.aggiungiSezioneSecca(s); });
+  const cambiaZona = (i, j, zona) => aggiorna((s) => { G.cambiaZona(s, i, j, zona); });
+  const scriviRecupero = (i, j, valore) => aggiorna((s) => { G.scriviRecupero(s, i, j, valore); });
+  const cambiaTitoloSezione = (i, titolo) => aggiorna((s) => { G.cambiaTitoloSezione(s, i, titolo); });
+  const cambiaDurataSecco = (i, valore) => aggiorna((s) => { G.cambiaDurataSecco(s, i, valore); });
 
   // La bozza: una copia locale di quello che stai scrivendo, finché non
   // è salvata sul server. Chiave diversa per la seduta nuova e per quelle
@@ -1007,10 +904,10 @@ export default function EditorSeduta({
                 </span>
                 <input
                   className="titolo-corsia"
-                  style={{ border: 0, background: 'transparent', padding: 0, minHeight: 'auto', flex: '1 1 150px' }}
+                  style={{ border: 0, background: 'transparent', padding: 0, flex: '1 1 150px' }}
                   value={sez.titolo || ''}
                   placeholder="Titolo sezione"
-                  onChange={(e) => aggiorna((s) => { s.sezioni[i].titolo = e.target.value; })}
+                  onChange={(e) => cambiaTitoloSezione(i, e.target.value)}
                 />
                 {secca ? (
                   <>
@@ -1024,10 +921,7 @@ export default function EditorSeduta({
                         value={sez.durataMin ?? ''}
                         placeholder="20"
                         aria-label="Durata a secco in minuti"
-                        onChange={(e) => aggiorna((s) => {
-                          const v = e.target.value;
-                          s.sezioni[i].durataMin = v === '' ? '' : Math.max(0, Number(v) || 0);
-                        })}
+                        onChange={(e) => cambiaDurataSecco(i, e.target.value)}
                       />
                       <span>min</span>
                     </label>
@@ -1171,7 +1065,7 @@ export default function EditorSeduta({
                       <>
                         <label className="campo-riga zona">
                           <span className="eti">Zona</span>
-                          <select value={s.zona || ''} onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].zona = e.target.value; })}>
+                          <select value={s.zona || ''} onChange={(e) => cambiaZona(i, j, e.target.value)}>
                             {/* Le voci da opzioniZona (dominio.js), come nel
                                 revisore: la D c'è sempre, ed è «D». */}
                             {opzioniZona(zone, s).map((o) => (
@@ -1197,7 +1091,7 @@ export default function EditorSeduta({
                             className="mono"
                             value={s.recupero || ''}
                             placeholder="@1:40 o @@2:00"
-                            onChange={(e) => aggiorna((st) => { st.sezioni[i].serie[j].recupero = e.target.value; })}
+                            onChange={(e) => scriviRecupero(i, j, e.target.value)}
                             onBlur={(e) => sistemaRecupero(i, j, e.target.value)}
                           />
                           {s.base && <span className="base-passo mono" title={`Passo base ${s.base}`}>base {s.base}</span>}
@@ -1214,19 +1108,7 @@ export default function EditorSeduta({
                 <button
                   className="mini"
                   style={{ marginTop: 9 }}
-                  onClick={() => aggiorna((s) => {
-                    const nuova = secca ? { ...serieVuota(), zona: '' } : serieVuota();
-                    const quante = (s.sezioni[i].serie || []).length;
-                    s.sezioni[i].serie = [...(s.sezioni[i].serie || []), nuova];
-                    // La riga nuova può cadere dentro un blocco aperto sopra:
-                    // senza questo non prendeva mai il fattore, ed era il
-                    // guasto per cui la sezione faceva 900 invece di 3600.
-                    ricalcolaBlocchi(s.sezioni[i]);
-                    // In coda non muove nessuna chiave, ma il richiamo c'è
-                    // lo stesso: il giorno che si potrà inserire in mezzo,
-                    // il punto giusto è già qui e già corretto.
-                    s.svolto = svoltoDopoInserisciRiga(s.svolto, i, quante);
-                  })}
+                  onClick={() => aggiungiSerie(i)}
                 >
                   <Plus size={13} style={{ verticalAlign: -2 }} /> {secca ? 'esercizio' : 'serie'}
                 </button>
@@ -1238,15 +1120,7 @@ export default function EditorSeduta({
                   <button
                     className="mini"
                     style={{ marginTop: 9, marginLeft: 8 }}
-                    onClick={() => aggiorna((st) => {
-                      const quante = (st.sezioni[i].serie || []).length;
-                      st.sezioni[i].serie = [
-                        ...(st.sezioni[i].serie || []),
-                        { notazione: '2x', metri: 0, zona: '', recupero: '', note: '', senzaMetri: true, apreBlocco: 2 },
-                      ];
-                      st.svolto = svoltoDopoInserisciRiga(st.svolto, i, quante);
-                      ricalcolaBlocchi(st.sezioni[i]);
-                    })}
+                    onClick={() => aggiungiRipetizione(i)}
                   >
                     <Plus size={13} style={{ verticalAlign: -2 }} /> ripetizione
                   </button>
@@ -1271,10 +1145,7 @@ export default function EditorSeduta({
         <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 12 }}>
           <button
             className="azione fantasma"
-            onClick={() => aggiorna((s) => {
-              s.sezioni.push({ titolo: '', destinatari: [TUTTI], serie: [] });
-              s.svolto = svoltoDopoInserisciSezione(s.svolto, s.sezioni.length - 1);
-            })}
+            onClick={aggiungiSezione}
           >
             <Plus size={15} style={{ verticalAlign: -3 }} /> sezione
           </button>
@@ -1283,12 +1154,7 @@ export default function EditorSeduta({
               nessun vincolo di posizione. */}
           <button
             className="azione fantasma"
-            onClick={() => aggiorna((s) => {
-              // Questa entra in CIMA: fa scalare di uno il sez_n di ogni
-              // sezione della seduta, quindi tutte le chiavi si spostano.
-              s.sezioni.unshift(sezioneSeccaVuota());
-              s.svolto = svoltoDopoInserisciSezione(s.svolto, 0);
-            })}
+            onClick={aggiungiSezioneSecca}
           >
             <Plus size={15} style={{ verticalAlign: -3 }} /> sezione a secco
           </button>

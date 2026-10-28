@@ -175,10 +175,10 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
                 value={inizioStagione || ''}
                 onChange={(e) => setInizioStagione(e.target.value)}
                 onBlur={(e) => api.salvaInizioStagione(societa.id, stagione, e.target.value).catch(() => {})}
-                style={{ minHeight: 36, fontSize: 13 }}
+                className="compatto"
               />
             </label>
-            <select value={garaScelta} onChange={(e) => setGaraScelta(e.target.value)} style={{ minHeight: 36, fontSize: 13, maxWidth: 230 }}>
+            <select className="compatto" value={garaScelta} onChange={(e) => setGaraScelta(e.target.value)} style={{ maxWidth: 230 }}>
               <option value="">Gara obiettivo…</option>
               {obiettivi.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -192,7 +192,7 @@ export default function Periodizzazione({ societa, codici, nomeMacro, gare, stag
             </button>
             {blocchi.length > 0 && (
               <>
-                <button className="azione" style={{ minHeight: 36, padding: '7px 14px' }} onClick={salva} disabled={!modificato || salvo}>
+                <button className="azione compatto" style={{ padding: '7px 14px' }} onClick={salva} disabled={!modificato || salvo}>
                   <Save size={14} style={{ verticalAlign: -2 }} /> {salvo ? 'Salvo…' : 'Salva'}
                 </button>
                 <button className="mini" onClick={cancella} aria-label="Elimina"><Trash2 size={13} /></button>

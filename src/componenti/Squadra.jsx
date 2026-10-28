@@ -152,7 +152,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
                   <td className="mono" style={{ color: 'var(--testo-3)' }}>{dataIt(String(r.created_at).slice(0, 10))}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button className="mini" onClick={() => decidi(r.id, false)}>Rifiuta</button>{' '}
-                    <button className="azione" style={{ padding: '7px 13px', minHeight: 34 }} onClick={() => decidi(r.id, true)}>Approva</button>
+                    <button className="azione compatto" style={{ padding: '7px 13px' }} onClick={() => decidi(r.id, true)}>Approva</button>
                   </td>
                 </tr>
               ))}
@@ -211,7 +211,7 @@ export default function Squadra({ societa, ruolo, ricaricaSocieta }) {
                 <td>{m.email}</td>
                 <td>
                   {capo ? (
-                    <select value={m.ruolo} style={{ minHeight: 34, padding: '4px 8px' }}
+                    <select className="compatto" value={m.ruolo} style={{ padding: '4px 8px' }}
                       onChange={async (e) => {
                         try { await api.impostaRuolo(societa.id, m.user_id, e.target.value); ricarica(); }
                         catch (err) { setMessaggio({ testo: err.message, errore: true }); }

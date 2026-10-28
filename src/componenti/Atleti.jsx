@@ -599,7 +599,7 @@ export default function Atleti({ societa, fasce, stagione, proiezione, puoScrive
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="mini" onClick={() => setInModifica(null)} aria-label="Annulla"><X size={14} /></button>{' '}
-                        <button className="azione" style={{ padding: '7px 12px', minHeight: 34 }} onClick={salvaModifica} aria-label="Salva">
+                        <button className="azione compatto" style={{ padding: '7px 12px' }} onClick={salvaModifica} aria-label="Salva">
                           <Check size={15} />
                         </button>
                       </td>
